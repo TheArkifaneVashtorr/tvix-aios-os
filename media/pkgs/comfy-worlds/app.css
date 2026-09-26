@@ -1,0 +1,324 @@
+/*
+ * The deck client's one stylesheet (GN25). The whole mechanic is three
+ * declarations plus layout: the scroller snaps, each card fills the
+ * viewport, the whole image is centred on a dark ground. The 2026-09-19
+ * full-bleed decision (`cover`, reversing the spec's letterbox line) was
+ * itself reversed the same day once it was seen on a phone: square renders
+ * in a portrait card meant `cover` hid 54% of every picture. Letterboxed,
+ * still with no blurred backdrop. One surface, two widths: the column is
+ * capped near phone width and centred, and desktop is the same column.
+ */
+
+/* The no-JavaScript article list stays in the DOM below the mounts; the
+   script's class hides it once the deck takes over. */
+#feed.js > h1,
+#feed.js > p,
+#feed.js > article {
+  display: none;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  background: #0b0b0b;
+  color: #eee;
+  font-family: system-ui, sans-serif;
+}
+
+/* The top bar: the world name, the two-state switch, the generator dot,
+   and the generation status + toggle (GN44). It wraps rather than clips
+   — a control the operator cannot see is the failure GN44 exists to
+   prevent. */
+.topbar {
+  position: fixed;
+  top: 0;
+  z-index: 3;
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(100%, 480px);
+  box-sizing: border-box;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  background: rgba(11, 11, 11, 0.7);
+}
+
+.topbar .title {
+  font-weight: 600;
+  flex: 1;
+}
+
+.topbar .switch {
+  display: flex;
+  gap: 6px;
+}
+
+.topbar .switch .world {
+  border: 1px solid #444;
+  background: transparent;
+  color: #bbb;
+  border-radius: 14px;
+  padding: 3px 12px;
+  cursor: pointer;
+}
+
+.topbar .switch .world.on {
+  color: #111;
+  background: #eee;
+  border-color: #eee;
+}
+
+.topbar .dot {
+  font-size: 12px;
+  color: #999;
+  white-space: nowrap;
+}
+
+.topbar .dot[data-state='active'] {
+  color: #6ecf6e;
+}
+
+.topbar .dot[data-state='inactive'],
+.topbar .dot[data-state='failed'],
+.topbar .dot[data-state='starting'],
+.topbar .dot[data-state='wait'],
+.topbar .dot[data-state='handover failed'] {
+  color: #cf6e6e;
+}
+
+/* GN44 — the generation status: deck chrome beside the dot, never inside
+   a collapsed menu (Interfaces 6). The word carries the state; the
+   colour only reinforces it, so it survives a colourblind reader, a
+   sunlit phone and a greyscale screenshot (Interfaces 7). */
+.topbar .genstate {
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.topbar .genstate[data-state='on'] {
+  color: #6ecf6e;
+}
+
+.topbar .genstate[data-state='off'] {
+  color: #cf6e6e;
+}
+
+/* GN45 — the supervisor's phase: a second word beside the state, in the
+   same aria-live region. The words carry the meaning — the state is
+   bold, the phase italic — and the colour only reinforces `stale` and
+   `halted`, the two a glance should not slide past. */
+.topbar .genstate i {
+  font-style: italic;
+  font-weight: normal;
+  color: #999;
+  margin-left: 6px;
+}
+
+.topbar .genstate[data-phase='stale'] i,
+.topbar .genstate[data-phase='halted'] i {
+  color: #cf6e6e;
+}
+
+/* The generation toggle: a labelled pill in the world switch's own
+   shape (GN28's rule — the word is never asked to fit a glyph circle),
+   lit while the loop runs; aria-pressed carries the state. */
+.topbar .gentoggle {
+  border: 1px solid #444;
+  background: transparent;
+  color: #bbb;
+  border-radius: 14px;
+  padding: 3px 12px;
+  cursor: pointer;
+  font-size: 12px;
+}
+
+.topbar .gentoggle.on {
+  color: #111;
+  background: #eee;
+  border-color: #eee;
+}
+
+/* The mechanic: one card per viewport, snapped. */
+.scroller {
+  height: 100dvh;
+  scroll-snap-type: y mandatory;
+  overflow-y: scroll;
+  width: min(100%, 480px);
+  margin: 0 auto;
+  background: #0b0b0b;
+}
+
+.card {
+  height: 100dvh;
+  scroll-snap-align: start;
+  position: relative;
+  width: 100%;
+  background: #0b0b0b;
+}
+
+/* The whole picture, centred on the dark ground.
+ *
+ * `cover` was the 2026-09-19 full-bleed decision and it cost more than it
+ * looked: the renders are 1024x1024 and a phone card is ~430x930, so cover
+ * scaled the square to 930 tall and cropped the width to 430 -- 46% of each
+ * image visible, the rest cut off symmetrically. `contain` shows all of it.
+ *
+ * The dark bands above and below are the honest cost of a square image in a
+ * portrait viewport; the way to remove them is to render portrait rather
+ * than to crop, which is a workflow change and not this stylesheet's to make.
+ */
+.card img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+/* The right-edge verb rail: like, regenerate, a gap, dislike — reachable
+   one-handed; the gap is the mis-tap mitigation for the hard delete.
+   GN28 — each control is a glyph-only circle with its word in a label
+   beneath it, outside the circle: measured on the landed build,
+   `regenerate` laid out at 59px inside the 42px content box, so no word
+   is ever asked to fit the 44px circle again. The accessible name is the
+   button's aria-label (app.js), never the glyph. */
+.rail {
+  position: absolute;
+  right: 8px;
+  bottom: 96px;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+
+/* One control: the circle and the word beneath it, stacked. */
+.rail .slot {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+
+.rail button {
+  width: 44px;
+  height: 44px;
+  border-radius: 22px;
+  border: 1px solid #555;
+  background: rgba(11, 11, 11, 0.6);
+  color: #eee;
+  font-size: 18px;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+}
+
+/* The word, outside the circle it used to overflow. */
+.rail .lab {
+  font-size: 10px;
+  color: #bbb;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.rail .gap {
+  height: 44px;
+}
+
+.card.liked .rail .like {
+  background: #eee;
+  color: #111;
+  border-color: #eee;
+}
+
+/* The prompt runs along the bottom, truncated. */
+.promptbar {
+  position: absolute;
+  left: 12px;
+  right: 68px;
+  bottom: 16px;
+  z-index: 2;
+  padding: 6px 10px;
+  background: rgba(11, 11, 11, 0.55);
+  border-radius: 8px;
+  font-size: 13px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  cursor: pointer;
+}
+
+/* The pending placeholder an edit inserts below the current card. */
+.card.placeholder {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: 8px;
+  padding: 24px;
+  box-sizing: border-box;
+  text-align: center;
+}
+
+.card.placeholder .note {
+  color: #bbb;
+  font-size: 14px;
+  max-width: 40ch;
+}
+
+/* The edit sheet: a textarea prefilled with the card's positive prompt
+   and one regenerate button. */
+.sheet {
+  position: fixed;
+  z-index: 5;
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: 0;
+  width: min(100%, 480px);
+  box-sizing: border-box;
+  padding: 16px;
+  background: #161616;
+  border-top: 1px solid #333;
+  border-radius: 12px 12px 0 0;
+}
+
+.sheet[hidden] {
+  display: none;
+}
+
+.sheet .sheet-field textarea {
+  width: 100%;
+  box-sizing: border-box;
+  min-height: 96px;
+  background: #0b0b0b;
+  border: 1px solid #444;
+  border-radius: 8px;
+  color: #eee;
+  padding: 8px;
+  font: inherit;
+  resize: vertical;
+}
+
+.sheet .sheet-row {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin: 10px 0 0;
+}
+
+.sheet .sheet-row button {
+  border-radius: 18px;
+  border: 1px solid #555;
+  background: #eee;
+  color: #111;
+  padding: 6px 18px;
+  cursor: pointer;
+}
+
+.sheet .sheet-row button.cancel {
+  background: transparent;
+  color: #bbb;
+}

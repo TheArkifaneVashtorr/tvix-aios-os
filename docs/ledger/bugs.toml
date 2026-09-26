@@ -1,0 +1,428 @@
+# The typed bug ledger (decision 29a). One [[bug]] row per defect: `id`
+# (`BUG-<kebab>`), `found` (date), `symptom`, `repro` (one command), `status`
+# (`open` | `fixed` | `closed`), `closing_check` (a check name or ""), `task`
+# (the key that fixes it or ""), `evidence` (path). A `fixed` row names the
+# `task` that fixed it; a `closed` row names the `closing_check` that passes.
+# Validate: python3 pkgs/evidence/bugs.py validate docs/ledger/bugs.toml --root .
+
+[[bug]]
+id = "BUG-chain-repo-inherit"
+found = 2026-09-10
+symptom = "A fix-round section that omits its own `**repo:**` does not inherit its chain root's repo, so SD11b/SD11c resolve against nixos-agent-env's landed set instead of dsh-harness's."
+repro = "! python3 pkgs/evidence/tasks.py --root . json"
+status = "fixed"
+closing_check = "evidence-unit"
+task = "EV3"
+evidence = "docs/superpowers/plans/2026-09-09-program.md"
+
+[[bug]]
+id = "BUG-provider-id-regex"
+found = 2026-09-10
+symptom = "streams.py's provider regex rejects a provider id containing a space, so the 15 broker rows carrying 'Sail Research' are refused at ingest."
+repro = "! python3 -c \"import re; print(bool(re.match(r'^[A-Za-z0-9._:+-]{1,120}$', 'Sail Research')))\""
+status = "fixed"
+closing_check = "evidence-unit"
+task = "EV5"
+evidence = "docs/superpowers/plans/2026-09-09-program.md"
+
+[[bug]]
+id = "BUG-w6-review-model"
+found = 2026-09-10
+symptom = "Pre-FIX7, factory-review compared a commit's Generated-By trailer against the review seat's own model, so W6 was flagged for a model the implementer never chose."
+repro = "! nix build .#checks.x86_64-linux.factory-unit -L --no-link"
+status = "fixed"
+closing_check = "factory-unit"
+task = "FIX7"
+evidence = "docs/superpowers/plans/2026-09-09-bugs.md"
+
+[[bug]]
+id = "BUG-ui1-unit-on-integrate"
+found = 2026-09-10
+symptom = "UI1's integration failed `unit` on tests/unit/94-seat-harness.bats:2118, a load-sensitive flake in a file UI1 never touches; the identical build passed on re-run."
+repro = "! nix build .#checks.x86_64-linux.unit -L --no-link"
+status = "fixed"
+closing_check = ""
+task = "SPEC-FA"
+evidence = "docs/board/log-2026-09.md"
+
+[[bug]]
+id = "BUG-integrate-derived-conflict"
+found = 2026-09-10
+symptom = "factory-integrate merges each task branch with a plain `git merge --no-ff` and aborts on conflict; docs/OPERATIONS.md's derived queue block is regenerated on both sides by the pre-commit hook, so the second key of any wave collides on a file neither side authored."
+repro = "git check-attr merge -- docs/OPERATIONS.md | grep -q unspecified"
+status = "open"
+closing_check = ""
+task = "SPEC-FA"
+evidence = "tools/factory/seat/factory-integrate"
+
+[[bug]]
+id = "BUG-ledger-read-from-live-path"
+found = 2026-09-10
+symptom = "tasks.py builds the ledger directory from repo[\"path\"] (the live clone) rather than the tree under --root, so a check run inside a workspace validates against ledgers the branch may be changing."
+repro = "cd ~/factory/ws/<run>/<KEY> && python3 pkgs/evidence/tasks.py --root . check"
+status = "fixed"
+closing_check = "evidence-unit"
+task = "EV11"
+evidence = "tests/evidence/test_tasks.py"
+
+[[bug]]
+id = "BUG-gate-blind-to-constraints"
+found = 2026-09-10
+symptom = "factory-review composes its own brief and does not carry the plan's ## Global Constraints, so a gate judges against house rules it infers rather than the ones that bind (G5's derived-queue-block exemption cost false findings on HH3, PR1 and IS3)."
+repro = "! grep -n 'Global Constraints' tools/factory/seat/factory-review"
+status = "fixed"
+closing_check = "unit"
+task = "FA3"
+evidence = "tools/factory/seat/factory-review"
+
+[[bug]]
+id = "BUG-review-no-retry"
+found = 2026-09-10
+symptom = "A review seat that dies on a transient provider error discards the whole review and factory-review exits without retrying; each attempt is paid for and thrown away."
+repro = "! grep -Eqi 'retry|backoff' tools/factory/seat/factory-review"
+status = "open"
+closing_check = ""
+task = "SPEC-FA"
+evidence = "tools/factory/seat/factory-review"
+
+[[bug]]
+id = "BUG-double-submit"
+found = 2026-09-10
+symptom = "factory-wave hh1r submitted HH4 twice into one workspace (jobs 20260910-061055-44eff5 and 20260910-061300-c0c9ad, 125 s apart) while the wave log records one submission."
+repro = "! ls ~/factory/runs/hh1r"
+status = "fixed"
+closing_check = "unit"
+task = "DF7"
+evidence = "docs/board/log-2026-09.md"
+
+[[bug]]
+id = "BUG-run-name-reuse"
+found = 2026-09-10
+symptom = "factory-wave accepts a run name whose directory already holds prior runs, so `ev1` on 2026-09-09 reused the 2026-09-05 directory that already held E1, E3, E4 and an integrate.log."
+repro = "! ls ~/factory/runs/ev1"
+status = "fixed"
+closing_check = "unit"
+task = "DF7"
+evidence = "docs/board/log-2026-09.md"
+
+[[bug]]
+id = "BUG-verify-timeout-race"
+found = 2026-09-15
+symptom = "The nightly flake-check at 0be842b (the first night past the seat-vm eval blocker) failed `unit` on tests/unit/94-seat-harness.bats:2092 alone (701 of 702 pass): FACTORY_VERIFY_TIMEOUT=1 against a `sleep 60` probe is a wall-clock race that loses under build load — the recurrence BUG-ui1-unit-on-integrate closed as `passed on re-run`."
+repro = "! nix build .#checks.x86_64-linux.unit -L --no-link  # under concurrent build load"
+status = "fixed"
+closing_check = "unit"
+task = "DF14"
+evidence = "docs/board/log-2026-09.md"
+
+[[bug]]
+id = "BUG-tasks-json-date"
+found = 2026-09-15
+symptom = "`tasks.py --root . json` raises TypeError (Object of type date is not JSON serializable): a bugs-ledger row's `found` is parsed as a date and reaches json.dumps unconverted."
+repro = "! nix develop -c python3 pkgs/evidence/tasks.py --root . json"
+status = "fixed"
+closing_check = "evidence-unit"
+task = "DF9"
+evidence = "docs/board/log-2026-09.md"
+
+[[bug]]
+id = "BUG-ritual-integrate-marker"
+found = 2026-09-15
+symptom = "A finished wave-level integrate (is9, head 670c6d4) shows `running` in ritual.sh's in-flight list for up to the 120-minute stale window because factory-integrate writes no integrate.result or integrate.pid, so the heuristic can only reap it on age."
+repro = "! grep -Eq 'integrate.result|integrate.pid' tools/factory/seat/factory-integrate"
+status = "open"
+closing_check = ""
+task = "SPEC-FA"
+evidence = "docs/board/log-2026-09.md"
+
+[[bug]]
+id = "BUG-escalate-launch-keys"
+found = 2026-09-15
+symptom = "A rung-2 escalation's `.escalate` launch line enumerates the plan's OTHER ready keys (DF1, DF3, DF4, DF6 for DF8b) and never the escalated key, so the printed Workflow line would launch the wrong tasks."
+repro = "! cat ~/factory/runs/dfw1/DF8b.escalate | grep -c DF8b  # the tasks list; 0 means the key is absent"
+status = "fixed"
+closing_check = "evidence-unit"
+task = "DF10"
+evidence = "docs/board/log-2026-09.md"
+
+[[bug]]
+id = "BUG-checks-shape-unparsed"
+found = 2026-09-15
+symptom = "A seat that writes `FACTORY-CHECKS unit=715/715` (a count for a verdict) passes the demotion cell unread: a `715/715:fail` pair matches no case arm, so a failing check would not demote the run (the DF7b gate's minor)."
+repro = "! grep -c \"unit=[0-9]*/[0-9]*\" ~/factory/runs/dfw1/DF7b.result"
+status = "fixed"
+closing_check = "unit"
+task = "DF11"
+evidence = "docs/reviews/2026-09-15-opus-review-dfw1-DF7b.md"
+
+[[bug]]
+id = "BUG-double-submit-orphan"
+found = 2026-09-15
+symptom = "A wave killed mid-run leaves a live orphan factory-task; the relaunch admits the run (the wave pid is dead) and submits the same key again — the wave-as-holder rule cannot see the orphan (the DF7c gate's E3c)."
+repro = "! ls ~/factory/runs/*/*.pid  # a live pid whose wave is dead"
+status = "fixed"
+closing_check = "unit"
+task = "DF12"
+evidence = "docs/reviews/2026-09-15-opus-review-dfw1-DF7c.md"
+
+[[bug]]
+id = "BUG-seat-vm-maxunits-fixture"
+found = 2026-09-11
+symptom = "tests/integration/seat-vm.nix:170 sets maxUnits = 2, but nixosModules/seatLane.nix:78 default = cfg.waveJobs + 1 has moved from under it; fixed by IS10."
+repro = "nix eval .#checks.x86_64-linux.seat-vm.drvPath >/dev/null 2>&1 && exit 1 || exit 0"
+status = "fixed"
+closing_check = "seat-vm"
+task = "IS10"
+evidence = "df56563"
+
+[[bug]]
+id = "BUG-result-grammar-heading"
+found = 2026-09-10
+symptom = "factory-task's FACTORY-RESULT heading matcher accepts a Markdown heading (## FACTORY-RESULT) but the grammar requires a verbatim FACTORY-RESULT line; the loose match lets a near-miss pass without capture."
+repro = "bats tests/unit/89-result-grammar.bats >/dev/null 2>&1 && exit 1 || exit 0"
+status = "fixed"
+closing_check = "unit"
+task = "DF8"
+evidence = "docs/reviews/2026-09-10-opus-review-pr1e-KN1b.md"
+
+[[bug]]
+id = "BUG-world-target-supervisor-deadlock"
+found = 2026-09-21
+symptom = "A world target cannot pull in both its generator and its authoring supervisor: comfy-run starts comfy-author-model, whose Conflicts= names every generator and is resolved inside systemd's start transaction (on activation, not on success), so a model that then fails leaves the generator stopped with nothing to restart it. Measured both arrangements — wants = [generator, feed, supervisor] (GN43) and wants = [feed, supervisor] — and comfy-worlds-vm times out at 600 s on each, because comfy-run aborts with status=4 when the model exits 1. The operator's ask (starting a world starts its authoring loop) is not expressible in target membership: the GPU holds one of the two, so the ordering has to live in the supervisor."
+repro = "nix build .#checks.x86_64-linux.comfy-worlds-vm -L --no-link"
+status = "open"
+closing_check = "comfy-worlds-vm"
+task = ""
+evidence = "docs/superpowers/plans/2026-09-19-world-feed-ui.md"
+
+[[bug]]
+id = "BUG-seat-brief-argv-too-long"
+found = 2026-09-23
+symptom = "A task whose brief exceeds Linux's single-argument cap (MAX_ARG_STRLEN, 131072 bytes) never reaches the model: seat-run passes the brief factory-brief composes as one argv entry to dsh-openrouter, and execve refuses it with OSError: [Errno 7] Argument list too long. The seat unit exits 1, seat-submit reports 'ended without a result', factory-task synthesises status=failed exit_code=4 with every probe at 0, and nothing distinguishes this from a model that produced nothing. Measured 2026-09-23 on OS5 (run s35os5): brief 134383 bytes, over the cap by 3311; OS10b (20145) and OS11 (20756) ran on the same driver minutes earlier. ARG_MAX is 2097152 here, so the total is not the limit -- the per-argument cap is. Two sections typed the same evening cross it: OS5 of 2026-09-22-aios-daemon-dispatch.md and AD2 of 2026-09-22-aios-daemon-dispatch-team.md (140649 bytes of section text before Global Constraints and Assumptions are prepended)."
+repro = "grep -q 'brief = f.read' pkgs/seat/seat-run.py || grep -q -- '--headless \"$brief\"' tools/factory/seat/factory-task"
+status = "fixed"
+closing_check = "seat-unit"
+task = "FA31"
+evidence = "docs/board/log-2026-09.md"
+
+[[bug]]
+id = "BUG-hook-forces-board-into-seat-commit"
+found = 2026-09-23
+symptom = "The pre-commit hook regenerates docs/OPERATIONS.md's derived queue block and refuses the commit with 'queue block was stale and has been regenerated -- git add docs/OPERATIONS.md and commit again', so a seat that commits while its own run has changed the derived state is instructed by the harness to stage the board. Global Constraints forbid exactly that ('a seat never touches the board; the integrator regenerates it'), and the gate rejects the run for it. Measured 2026-09-23: PT3 (run s35pt) came back status=done with every check green, 25 of 25 mutants killed and a byte-exact subject, and its rung-1 review returned verdict=rework on one major -- its single commit edits docs/OPERATIONS.md, dropping PT2 and PT3 from the queued line, because the block went stale the moment those two started running. The seat obeyed the hook and the gate refused it for obeying."
+repro = "! nix develop -c python3 -m pytest tests/evidence/test_tasks.py -q -k refuse_stale  # five cases: a stale board in a .factory-meta workspace is restored byte-identical (exit 0); outside one it is refused with the hook's text (exit 1); a current block is silent; the marker is read at --root, never the cwd; the bare verb still rewrites"
+status = "fixed"
+closing_check = "evidence-unit"
+task = "FA29"
+evidence = "docs/reviews/2026-09-23-glm-review-s35pt-PT3.md"
+
+[[bug]]
+id = "BUG-batch-node-drops-error-body"
+found = 2026-09-23
+symptom = "factory-batch.py's `node` verb -- the synchronous batch wrapper each `plan.toml` graph tool node calls -- submits the batch, then on a non-202 response reads and discards the body: tools/factory/seat/factory-batch.py:455-462 is `status = e.code` / `body = e.read().decode(\"utf-8\", \"replace\")` on the `HTTPError` branch, through `if status != 202: print(broken(f\"batch submit: HTTP {status}\")); return EXIT_OK` -- `body` is bound and never read again. The same file's other submit path, `_submit` for the `submit` subcommand (:117-124), does the opposite on the identical non-202 branch (`sys.stderr.write(body[:200] + \"\\n\")`), which is what tests/unit/95-batch-tool.bats's \"submit exits 2 when the server answers 400\" pins (`bad request` in the output); `node`'s inline copy of the same request/response handling dropped that line, and no bats case exercises `node`'s non-202 path to catch the drift. Measured 2026-09-23 on run wr3 (key WR, node draft, spec docs/superpowers/specs/2026-09-23-world-resource-control-design.md): the draft artifact's only content is `errata: [\"batch submit: HTTP 400\"]`, verdict broken, exit 0 -- no request id, no server message, nothing to tell a malformed request from an auth failure from a wrong model id. The next graph node (judge-pro-a) then failed too (\"no artifact block in the seat's answer\"), so the run was unrecoverable without re-running by hand with prints added."
+repro = '''T=$(mktemp -d); export FA20_SUBMIT_STATUS="$T/submit-status" FA20_REQ_LOG="$T/req.log"; printf 'block\n' >"$T/block.md"; printf '{"kind":"input","key":"K","node":"seed","rung":1,"claims":[],"repro":null,"errata":[],"verdict":"ok","inputs":{"block":"%s/block.md"},"scores":null,"wrong_facts":null}' "$T" >"$T/in.json"; python3 tests/unit/fixtures/fa20-batch-server.py --log "$T/req.log" >"$T/port" 2>"$T/err" & FIXPID=$!; for i in $(seq 1 50); do grep -q '^PORT=' "$T/port" 2>/dev/null && break; sleep 0.1; done; PORT=$(sed -n 's/^PORT=//p' "$T/port"); printf '400\n' >"$T/submit-status"; OUT=$(FACTORY_BATCH_BASE="http://127.0.0.1:$PORT" FACTORY_NODE=draft FACTORY_RUN_DIR="$T/run" FACTORY_BATCH_INTERVAL=0 FACTORY_BATCH_TIMEOUT=5 python3 tools/factory/seat/factory-batch.py node --role draft "$T/in.json"); kill "$FIXPID" 2>/dev/null; wait "$FIXPID" 2>/dev/null; echo "$OUT" | grep -q 'bad request' && exit 1; echo "$OUT" | grep -q 'batch submit: HTTP 400' '''
+status = "open"
+closing_check = "unit"
+task = ""
+evidence = "tools/factory/seat/factory-batch.py"
+
+[[bug]]
+id = "BUG-usage-ingest-logs-source-not-merged"
+found = 2026-09-23
+symptom = "`ingest_openrouter_usage.ingest()` (pkgs/evidence/ingest_openrouter_usage.py:169-170) writes the merge and discards what it returns: `if rows: evidence.replace_stream(store, \"ledger/openrouter-usage\", rows)` then `return len(rows), refused, torn, counts`. `replace_stream` (pkgs/evidence/evidence.py:134-208) merges the incoming rows into the existing keyed file by `(instance, request_id)` and returns the merged file's own row count (`return len(merged)`, :208) -- the number that actually landed. `main()` prints `len(rows)` (source lines read and validated this run) as \"ingested N rows\", so two source lines sharing a key merge to one stored row while the log still claims 2 landed. Reproduced 2026-09-23: a two-line fixture where both lines carry the same `request_id` prints `ingested 2 rows into ledger/openrouter-usage (0 refused; ...)` while the store holds exactly 1 row afterward. `usage-ingest.timer` (nixosModules/usageIngest.nix, enabled on core at hosts/core/default.nix:123) runs this hourly against the seat broker's real usage.jsonl, so the operational log this stream's own audit trail depends on can never show a merge shrinking -- exactly the case an audit needs to see. The same pattern demonstrated itself the same day on the otel ingest: its log reported 178,040 rows ingested while the stream held 176,204."
+repro = '''T=$(mktemp -d); printf '{"ts_epoch":1,"instance":"openrouter","request_id":"00000000000000000000000000000001","streamed":true,"http_status":200,"status":"ok","gen_id":null,"model":"deepseek/deepseek-v4-flash","provider":"DeepInfra","cost_usd":1e-6,"upstream_cost_usd":1e-6,"is_byok":false,"prompt_tokens":1,"completion_tokens":1,"total_tokens":2,"cached_tokens":0,"cache_write_tokens":0,"reasoning_tokens":0}\n{"ts_epoch":2,"instance":"openrouter","request_id":"00000000000000000000000000000001","streamed":true,"http_status":200,"status":"ok","gen_id":null,"model":"deepseek/deepseek-v4-flash","provider":"DeepInfra","cost_usd":2e-6,"upstream_cost_usd":2e-6,"is_byok":false,"prompt_tokens":2,"completion_tokens":2,"total_tokens":4,"cached_tokens":0,"cache_write_tokens":0,"reasoning_tokens":0}\n' >"$T/usage.jsonl"; LOGGED=$(python3 pkgs/evidence/ingest_openrouter_usage.py --store "$T/store" openrouter-usage --root "$T" "$T/usage.jsonl" | grep -oE 'ingested [0-9]+' | grep -oE '[0-9]+'); ACTUAL=$(python3 -c "import sys; sys.path.insert(0,'pkgs/evidence')
+import evidence as ev
+print(len(ev.read('$T/store','ledger/openrouter-usage')))"); [ "$LOGGED" != "$ACTUAL" ] '''
+status = "open"
+closing_check = "evidence-unit"
+task = ""
+evidence = "pkgs/evidence/ingest_openrouter_usage.py"
+
+[[bug]]
+id = "BUG-touches-stat-citation-superseded"
+found = 2026-09-23
+symptom = "Two tracked docs cite the same touches-to-approval-rate finding with different numbers, both still in the tree verbatim: docs/board/log-2026-09.md:7 says \"touches ≤ 2 → 68%, ≥ 5 → 50%, z=2.55, n=278\"; docs/research-2026-09-17-planning-redesign-packet.md:709 says \"77 % at ≤ 2 touches and 53 % at ≥ 5, n = 164, p = 0.001\" (repeated at :529, :573-574, :1105, :1133 in the same doc). The packet's own provenance header (:3-11) discloses that its measurement sections (2 through 9, which include the section carrying this stat) were written by the synthesizer's own arithmetic and never got the house-standard re-run every other cite gets. The two differ in population: the packet counted the full task graph including fix-round keys, the board counted root tasks only. `tasks.py outcomes`'s `_first_gates` join (pkgs/evidence/tasks.py:3007-3033), which landed as PT2 after both citations were already written, is now the one command that can compute this figure from the store; run against the live tree on 2026-09-23 it gives 62/93 = 66.7% at ≤ 2 touches and 51/101 = 50.5% at ≥ 5 -- matching the board's numerators exactly (its n=278 against a live 282 is a day of new gate rows) and diverging from the packet's 77%/53%. The board's number reproduces; the packet's is superseded for this stat. The underlying defect: a headline statistic was typed into prose before any command existed that could check it, then cited onward into a spec and a plan -- the number disagreement is the symptom, not the defect."
+repro = '''grep -qF 'touches ≤ 2 → 68%, ≥ 5 → 50%, z=2.55, n=278' docs/board/log-2026-09.md && grep -qF '77 % at ≤ 2 touches and 53 % at ≥ 5, n = 164, p = 0.001' docs/research-2026-09-17-planning-redesign-packet.md'''
+status = "open"
+closing_check = ""
+task = ""
+evidence = "docs/research-2026-09-17-planning-redesign-packet.md"
+
+[[bug]]
+id = "BUG-otel-ingest-no-timer"
+found = 2026-09-23
+symptom = "`evidence ingest otel` is a real CLI subcommand (pkgs/evidence/evidence.py:40 dispatches `\"otel\": \"ingest_otel\"`; pkgs/evidence/ingest_otel.py:355-368 defines it) but nothing in the tree ever calls it on a schedule. `nixosModules/usageIngest.nix` wires an hourly `systemd.timers.usage-ingest` + `systemd.services.usage-ingest` that runs exactly `evidence ... ingest openrouter-usage <source>`, enabled on core at hosts/core/default.nix:123 (`usage-ingest.enable = true;`); grepping the tree for an equivalent otel timer or service finds none. The collector itself is healthy and writing continuously to /var/lib/opentelemetry-collector; the store's otel-claude stream is built entirely from two manual catch-up runs -- the first on 2026-09-22 (143,635 rows), the second on 2026-09-23 after the stream sat unread for about thirty hours and looked stalled. The collector rotates at 8 backups of 64 MB and /var/lib/opentelemetry-collector is not in the restic set, so a long enough gap loses that window permanently. SP9 (docs/superpowers/plans/2026-09-08-spend-telemetry.md) is exactly this fix and is already tracked: released 2026-09-22, run to completion on run s34q2 with unit, host-core and lint passing, not yet landed on main."
+repro = "! grep -Eq 'otel.?[Ii]ngest' hosts/core/default.nix"
+status = "fixed"
+closing_check = ""
+task = "SP9"
+evidence = "nixosModules/usageIngest.nix"
+
+[[bug]]
+id = "BUG-probes-blank-line-dropped"
+found = 2026-09-23
+symptom = "`parse_plan` (pkgs/evidence/tasks.py:333-345) leaves the probes block on the first line that is not a `- ` bullet, so a blank line between `**probes:**` and the first bullet drops every probe of the section silently: `tasks.py probes <plan> <KEY>` prints only its `env` line, `tasks.py check` exits 0, and the seat driver runs no probe. Measured 2026-09-23 across docs/superpowers/plans/*.md: 39 sections written this way parse to zero probes, among them FA29-FA32 and SP9 (gated and landed unprobed), EV21 IS26 GN57 GN58 (running on s37), and IS27 FA27 FA28 EV19 EV22 (queued). Parsing the block also surfaces probe errors the drop hid: FA33's routing-accepts-rust used `eq 0` on a number, which `check` rejects once the block is read (corrected by hand the same day, together with FA33's and FA35's blank lines). The `**record:**` block (tasks.py:346-355) has the same shape."
+repro = '''test "$(python3 pkgs/evidence/tasks.py --root . probes docs/superpowers/plans/2026-09-11-factory.md FA32 | wc -l)" -eq 1'''
+status = "fixed"
+closing_check = "evidence-unit"
+task = "FA36"
+evidence = "pkgs/evidence/tasks.py"
+
+[[bug]]
+id = "BUG-switch-waits-on-authoring-supervisor"
+found = 2026-09-23
+symptom = "`nixos-rebuild switch` never returns while a world's authoring supervisor is running. `comfy-run-<world>` is declared `Type = \"oneshot\"` (media/nixosModules/comfyui-worlds.nix:162) with no start timeout, and `restartIfChanged` is true, but the supervisor loops round after round rather than exiting. A switch that restarts it waits for the start job to finish, which never happens: on 2026-09-23 the system activated at 21:57 (the new generation in /run/current-system), and the rebuild was still printing 'starting the following user units: comfy-feed.service, comfy-run-nsfw.service' an hour and 23 minutes later while the supervisor authored batches. Ctrl-C only ends the wait, since the switch itself is complete, but an operator reads the hang as a failed switch."
+repro = '''test "$(nix eval --raw .#nixosConfigurations.core.config.systemd.user.services.comfy-run-nsfw.serviceConfig.Type)" = oneshot'''
+status = "open"
+closing_check = ""
+task = ""
+evidence = "media/nixosModules/comfyui-worlds.nix"
+
+[[bug]]
+id = "BUG-gate-reviews-stale-task-branch"
+found = 2026-09-24
+symptom = "When a key runs again in a new run, the seat's commit stays in the new workspace (~/factory/ws/<run>/<KEY>). The base repo's task/<KEY> still names the previous run's commit, because only factory-integrate fetches from the workspace. factory-review clones task/<KEY> from the base repo, so it reviews the OLD attempt. On 2026-09-24 IS22 (re-run as s37r after its s34q2 chain was found withdrawn) was gated on 6e6127da, the withdrawn chain's commit sitting on top of EV20 and FA25, not on the fresh 2ea1da30. The reviewer caught it ('the branch of record is stale') only because the diff was 153 files. SP9's branch was right only because its integration had already fetched it. Worked around by hand on 2026-09-24 (git fetch ws/s37r/IS22 +HEAD:task/IS22)."
+repro = "! grep -Eq 'fetch.*ws/|fetch .*workspace' tools/factory/seat/factory-review"
+status = "open"
+closing_check = ""
+task = ""
+evidence = "tools/factory/seat/factory-review"
+
+[[bug]]
+id = "BUG-guard-bare-tools-pathspec-over-denial"
+found = 2026-09-24
+symptom = "The PreToolUse guard refuses a harmless command when a restore/delete-family verb and a bare `tools/` pathspec share one command line: `git checkout -- tools/debug/investigate; git status --short tools/` is denied with 'orchestrator-guard.sh is the operator's; ask for it', while each half alone passes. The guard's own protected entry `tools/orchestrator-guard.sh` rebases onto the project, so any token rooted at `tools/` marks the protected directory as seen, and the delete-family verb elsewhere on the line then denies as if it targeted the guard. An F6-class over-denial (the guard is a pattern matcher, not a syscall filter; docs/concepts/2026-09-22e-guard-bash-pattern-not-syscall.md). Observed live by the DS1 seat (run s38ds3, commit 94fcd288, FACTORY-NOTES and DS1.log item 2), which split the command to proceed. Filed by the operator's word; the main loop cannot run the guard against a payload naming its own path (that is refused too), so the repro below was measured by the seat, not re-run here."
+repro = '''printf '{"tool_name":"Bash","tool_input":{"command":"git checkout -- tools/debug/investigate; git status --short tools/"}}' | CLAUDE_PROJECT_DIR="$PWD" bash tools/orchestrator-guard.sh | grep -q '"deny"' '''
+status = "open"
+closing_check = ""
+task = ""
+evidence = "tools/orchestrator-guard.sh"
+
+[[bug]]
+id = "BUG-guard-python-copy-bypass"
+found = 2026-09-24
+symptom = "The plan skill's ship step copied the judged draft onto its plan path with `nix develop -c python3 -c \"import shutil; shutil.copy(...)\"` -- a Bash write to a plan path the guard is meant to refuse -- and the PreToolUse guard did not catch it: `tools/orchestrator-guard.sh`'s interpreter-write detection (`os.remove`, `os.unlink`, `unlink(`, `os.rename`, `os.replace`, `shutil.move`, `shutil.rmtree`, `write_text`, `open(...,'w'...)`) has no `shutil.copy` pattern, so a `python3 -c` call naming `shutil.copy` passes through untouched. This wrote docs/superpowers/plans/2026-09-24-retro-fixes.md (401 KB), verified md5-identical to the judged draft, so no content was corrupted -- the finding is that the guard's own enumeration can be walked around by any interpreter write-spelling it does not list. Second measured instance of the class docs/concepts/2026-09-22e-guard-bash-pattern-not-syscall.md names (the guard is a pattern matcher, not a syscall filter); evidence that the strict-user-spaces spec's push-time rules (enforced at git push, not by command-line pattern matching) supersede this guard class. No safe repro against the guard's own path was run (the guard refuses a payload naming itself); the repro below asserts the missing pattern directly."
+repro = '''! grep -q 'shutil\.copy' tools/orchestrator-guard.sh'''
+status = "open"
+closing_check = ""
+task = ""
+evidence = "tools/orchestrator-guard.sh"
+
+[[bug]]
+id = "BUG-routing-table-env-breaks-seat-driver-tests"
+found = 2026-09-24
+symptom = "With FACTORY_ROUTING_TABLE set in the environment (a session override), several tests/unit/80-seat-driver.bats tests fail that pass when it is unset. DS6b's seat had to run its green checks under `env -u FACTORY_ROUTING_TABLE`; its bug-note for this was refused (exit 3, ~/factory/debug absent), so the operator files it by hand. The DS6b Opus gate recorded it (docs/reviews/2026-09-24-opus-review-s39ds-DS6b.md: 'the seat env's FACTORY_ROUTING_TABLE breaks 4 tests in 80-seat-driver.bats. That is a harness test-isolation defect'). FA33b's seat hit the same override. Measured directly on 2026-09-24: `env -u FACTORY_ROUTING_TABLE nix develop -c bats tests/unit/80-seat-driver.bats` is all green (96/96); `env FACTORY_ROUTING_TABLE=/nonexistent nix develop -c bats tests/unit/80-seat-driver.bats` fails 5 tests (16, 25, 37, 86, 87) that resolve model/effort/routing through routing.toml -- the override value leaks into tests that never set it themselves, so they resolve against the wrong table instead of their own fixture."
+repro = '''! env FACTORY_ROUTING_TABLE=/nonexistent nix develop -c bats tests/unit/80-seat-driver.bats'''
+status = "open"
+closing_check = ""
+task = ""
+evidence = "docs/reviews/2026-09-24-opus-review-s39ds-DS6b.md"
+
+[[bug]]
+id = "BUG-hook-tests-inherit-git-env"
+found = 2026-09-24
+symptom = "githooks/pre-commit runs `pytest -q tests/evidence/test_judgements.py` (ER1, when docs/reviews is staged) with the hook's environment untouched. On a partial commit (`git commit -- <paths>`, the house recipe for concurrent sessions) git exports GIT_INDEX_FILE as an ABSOLUTE path to the commit's temp index (.git/next-index-<pid>.lock); the tests' `git_env()` helper (tests/evidence/test_judgements.py:99, feeding ~15 tests via make_repo/make_repo_files) passed `**os.environ` into nested `git init/add/commit` in tmp repos, so `git -C <tmp> add .` rewrote the real commit's index with the tmp repo's few files. Incident 2026-09-24: a commit lost 1612 of 1614 tracked files, then a second attempt gave `invalid object ... docs/reviews/plan-judgements/x.md`/`Error building trees` (exit 1); both reset away. An earlier fix (20a2e8b0) stripped GIT_* in one test only (test_judged_ts_normalizes_a_non_utc_git_commit_to_utc_z); git_env() itself still leaked, reproduced in a scratch repo (/tmp/claude-1000/gitleak/, 283 tracked files, git 2.54.0): pre-fix hook + pre-fix test file on `git commit -- <path>` gave `error: invalid object ... for 'docs/reviews/plan-judgements/x.md'` / `Error building trees`, commit exit 1, HEAD tree stuck at 282 files while the index held 283 (dangling tree left behind); the fixed hook (`env -u GIT_INDEX_FILE -u GIT_DIR -u GIT_WORK_TREE -u GIT_OBJECT_DIRECTORY -u GIT_ALTERNATE_OBJECT_DIRECTORIES -u GIT_COMMON_DIR -u GIT_PREFIX -u GIT_NAMESPACE -u GIT_CONFIG_PARAMETERS -u GIT_CONFIG_COUNT pytest ...`) plus the fixed git_env() (`**{k: v for k, v in os.environ.items() if not k.startswith(\"GIT_\")}`) together gave commit exit 0, index and HEAD tree both 283 files. GIT_DIR/GIT_WORK_TREE are not exported in a normal checkout; a plain `git commit -m` gives a relative GIT_INDEX_FILE and is harmless -- only the `-- <paths>` form leaks. Fixed directly in githooks/pre-commit and tests/evidence/test_judgements.py (no typed task; landed alongside this row). Evidence: /tmp/claude-1000/gitleak/review.md (scratch scenarios, not run in the real repo)."
+repro = '''! grep -q -- "-u GIT_INDEX_FILE" githooks/pre-commit || ! grep -q 'not k.startswith("GIT_")' tests/evidence/test_judgements.py'''
+status = "fixed"
+closing_check = ""
+task = ""
+evidence = "githooks/pre-commit"
+
+[[bug]]
+id = "BUG-forge-backup-cannot-read-forgejo"
+found = 2026-09-24
+symptom = "FL4 (landed 800c8e84) points the forge's proton-backup instance at /var/lib/forgejo with `user` set to the operator's account (hosts/forge/proton-backup.nix), but nixpkgs' forgejo module creates its stateDir 0750 forgejo:forgejo, so the restic job running as the operator cannot read it and the nightly forge backup fails on first run. Neither forge-wiring nor fleet-vm exercises a backup run, so every check is green. Reported in FL4's seat note (~/factory/runs/s39fl3/FL4.result, FACTORY-NOTES); the seat's bug-note was denied (no approval channel). Fix wants a read grant (group membership, an ACL, or a root-run restic with CAP_DAC_READ_SEARCH) and a VM subtest that runs the backup unit on the forge."
+repro = '''! grep -rqE 'extraGroups = .*"forgejo"|setfacl|CAP_DAC_READ_SEARCH' hosts/forge nixosModules/protonBackup.nix'''
+status = "open"
+closing_check = ""
+task = ""
+evidence = "hosts/forge/proton-backup.nix"
+
+[[bug]]
+id = "BUG-treefmt-formats-untracked-scratch"
+found = 2026-09-24
+symptom = "githooks/pre-commit runs `treefmt --ci` over the whole tree, and treefmt.toml's shell formatter (`shfmt -w`, includes *.sh) has no .scratch exclude, so the untracked `.scratch/mkmsg.sh` the DF8d commit-body recipe tells every seat to write is reformatted in place and the commit is refused on fail-on-change. Reported in FL9's seat note (~/factory/runs/s39fl3/FL9.result, FACTORY-NOTES); the seat's bug-note tool was blocked. Fix: `.scratch/*` in the excludes (global or per formatter)."
+repro = '''! grep -q '\.scratch' treefmt.toml'''
+status = "open"
+closing_check = ""
+task = ""
+evidence = "treefmt.toml"
+
+[[bug]]
+id = "BUG-fleet-drops-remote-error-output"
+found = 2026-09-24
+symptom = "pkgs/fleet/fleet.py's Ssh.run captures the remote command's stdout and stderr and, on any exit other than 255, returns None and discards both; must_run's callers then refuse with a bare line. The forge's first deploy (operator step 8, 2026-09-24) printed only `fleet: deploy: switch failed` after the copy and the profile step succeeded, with switch-to-configuration's own output (which unit failed, its exit code 1-4) lost, so the operator had to re-run the switch by hand over ssh to see why. fleet-vm never exercises a failing switch."
+repro = '''awk '/def run\(self, command\)/,/return proc.stdout/' pkgs/fleet/fleet.py | grep -A1 'returncode != 0' | grep -q 'return None' '''
+status = "open"
+closing_check = ""
+task = ""
+evidence = "pkgs/fleet/fleet.py"
+
+[[bug]]
+id = "BUG-seat-bug-note-unwritable"
+found = 2026-09-24
+symptom = "tools/debug/bug-note appends to ${BUG_NOTE_INBOX:-$HOME/factory/debug/inbox.jsonl}, outside every seat workspace, and tools/factory/seat/factory-task neither sets BUG_NOTE_INBOX nor grants the seat sandbox a write path there, so every seat's bug-note fails `bug-note: cannot append to …` (exit 3) and the one-shot escalation fails closed (no approval channel). On 2026-09-24 alone US1, SG1, FL4, FL9, PT11 and DS6b each reported a real defect only in FACTORY-NOTES or an untracked .scratch/inbox.jsonl, where the sweep never reads it; the orchestrator filed them by hand (BUG-forge-backup-cannot-read-forgejo, BUG-treefmt-formats-untracked-scratch). Main-loop agents can write the inbox (the US1b panel's note landed 2026-09-25T04:12Z)."
+repro = '''! grep -q 'BUG_NOTE_INBOX' tools/factory/seat/factory-task'''
+status = "open"
+closing_check = ""
+task = ""
+evidence = "tools/debug/bug-note"
+
+[[bug]]
+id = "BUG-fleet-first-deploy-before-proxy-password"
+found = 2026-09-24
+symptom = "Plan 2026-09-24-fleet-and-forge §Operator orders step 7 (write /var/lib/lan-access/forge.bcrypt, the forge proxy's password hash) 'before step 8' but says it is only possible 'after step 8', because the caddy binary's path exists only once the first deploy lands. The forge's first deploy (2026-09-24) copied, set the profile and switched, then caddy.service failed (`/var/lib/lan-access/forge.bcrypt: no such file or directory`, `http_basic: username and password are required`), switch-to-configuration exited 4, and fleet reported `deploy: switch failed` and never ran its confirm step, although /run/current-system was the new toplevel. A live switch from the installer's 25.05 GNOME to 26.05 also dropped the desktop session and the greeter (black screen until reboot). Fix options: the lan-access module tolerating an absent password file (caddy not started until it exists), or fleet treating switch exit 4 as a named partial with the failed units listed; and the runbook ordering a reboot after the first deploy of a desktop machine."
+repro = '''grep -q 'before step 8' docs/superpowers/plans/2026-09-24-fleet-and-forge.md'''
+status = "open"
+closing_check = ""
+task = ""
+evidence = "docs/superpowers/plans/2026-09-24-fleet-and-forge.md"
+
+[[bug]]
+id = "BUG-forge-user-declared-from-core"
+found = 2026-09-25
+symptom = "hosts/forge/default.nix declares the operator's account under core's name (uid 1000, wheel, no password), but `fleet enroll` never records the machine's existing login account. The forge's installer account had a different name; the first `fleet deploy` (2026-09-24) removed it (NixOS drops a previously declared user the new config no longer declares) and created the core-named account with no password, so no login worked on the forge afterwards (recovered at the console with init=/bin/sh and passwd). Neither fleet-eval nor fleet-vm compares the declared users against the enrolled machine. Fix: enroll records the machine's normal users (getent passwd, uid >= 1000) into hosts/fleet.json and the host config refuses a deploy that would drop one; the installer-image spec (2026-09-25) makes the account and its password an install-time input instead."
+repro = '''! grep -q 'users' pkgs/fleet/fleet.py || ! grep -q 'getent' pkgs/fleet/fleet.py'''
+status = "open"
+closing_check = ""
+task = ""
+evidence = "hosts/forge/default.nix"
+
+[[bug]]
+id = "BUG-nightly-offline-after-gc"
+found = 2026-09-25
+symptom = "The nightly `nix flake check --offline` (nixosModules/helm.nix:180) needs the build-time closure of the checks it builds locally, and nothing roots that closure. After the 2026-09-23 garbage collection, 292 substitutable paths (four stdenvs from the lock's other nixpkgs pins, chromium; 679 MiB) were gone; offline, nix could not re-fetch them and planned 3438 derivations from the stage0 seed, every source fetch failed, and the 09-24 and 09-25 nightlies went red on a green tree (cowork-eval, host-core, invariant-egress-chokepoint, devshell-python). Re-fetched by hand 2026-09-25 (`nix-store -r` of the online dry-run's fetch list; the offline dry-run fell from 3438 builds to 160). Fix: the nightly roots its checks' build-time closure, so a collection cannot take it and the run never needs the network."
+repro = '''! grep -q -- '--add-root' nixosModules/helm.nix'''
+status = "fixed"
+closing_check = ""
+task = "GC1"
+evidence = "nixosModules/helm.nix"
+
+[[bug]]
+id = "BUG-touch-arm-walks-worktrees"
+found = 2026-09-25
+symptom = "pkgs/evidence/tasks.py `_repo_test_files` (the touch arm's search space) prunes only `.git`, so every file under a `tests` directory inside the `.claude/worktrees/*` checkouts, and `tests/**/__pycache__/*.pyc`, is treated as a test file of the repo; `tasks.py check --draft` then demands a touch for each. The GC1 draft (2026-09-25) needed 86 `**touches-exempt:**` lines, none of them a real test. Named for the orchestrator to file in docs/superpowers/plans/2026-09-11-isolation.md's 2026-09-24 addendum (Assumption 43); never filed until now."
+repro = '''grep -q 'if d != ".git"' pkgs/evidence/tasks.py'''
+status = "fixed"
+closing_check = "evidence-unit"
+task = "EV23"
+evidence = "pkgs/evidence/tasks.py"
+
+[[bug]]
+id = "BUG-appended-rules-fire-on-landed-sections"
+found = 2026-09-25
+symptom = "ER11 (4ce3aa08, integrated 9d886d79) made `tasks.py check` apply the draft rules to sections appended after their plan landed, but it also applied them to appended sections that had themselves landed: US3 (landed 121e3ab8) failed `commit subject already landed`, and the widened touch arm counted worktree and __pycache__ copies (BUG-touch-arm-walks-worktrees). githooks/pre-commit runs that check, so no commit passed in the operator checkout. The seat, its GLM review and the integrate all passed: the flake `lint` check runs the checker git-less and cannot see landed subjects. Reverted in 72e2750b. The fix round skips landed appended sections and adds a git-backed test of a landed appended section; it lands after EV23."
+repro = '''git show 4ce3aa08:pkgs/evidence/tasks.py | grep -q 'appended_rules' && ! grep -q 'appended_rules' pkgs/evidence/tasks.py'''
+status = "open"
+closing_check = ""
+task = "ER11b"
+evidence = "docs/superpowers/plans/2026-09-24-retro-fixes.md"
+
+[[bug]]
+id = "BUG-touch-arm-module-bare-word"
+found = 2026-09-25
+symptom = "pkgs/evidence/tasks.py `_reference_kind` counts a touched Python module as read by a test file when the module's stem appears as a bare word anywhere in it, not only on an import line: EV23's own section (touching tasks.py) draws 60 `module tasks` findings, none a real import. EV23 fixes the symbol and search-space noise and leaves this arm out of scope (an import-line requirement touches every .py reference)."
+repro = '''sed -n '/^def _reference_kind/,/^def /p' pkgs/evidence/tasks.py | grep -q 'return f"module {stem}"' '''
+status = "open"
+closing_check = ""
+task = ""
+evidence = "docs/superpowers/plans/2026-09-11-evidence.md"

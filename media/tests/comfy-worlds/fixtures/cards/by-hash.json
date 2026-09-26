@@ -1,0 +1,9 @@
+{
+  "_note": "hand-written to the assumed response shape (plan 2026-09-21-lora-cards, Assumption 12); the first live body the operator records replaces it",
+  "id": 123456,
+  "modelId": 654,
+  "name": "v1.0",
+  "trainedWords": ["<bad>", "n3lson,"],
+  "description": "<p>free text from a stranger</p>",
+  "images": [{"url": "https://example.invalid/x.png"}]
+}

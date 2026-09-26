@@ -1,0 +1,592 @@
+#!/usr/bin/env bats
+# SD3: the rung is declared or derived, never routed from the key (decision
+# 26a). A key's chain suffix is a fix-round counter only (factory_rung_check);
+# the rung comes from --rung, else the prior record's rung plus one, else 1.
+# factory-task climbs the routing ladder to that rung; when the ladder is
+# exhausted at that rung it prints a launch line and exits 4, writing a
+# <KEY>.escalate record instead of running (no workspace, log, pid file or
+# .result). A class-scoped claude row answered at that rung is decision 28's
+# operator terminus: it escalates with a truthful record of the resolved row,
+# never a ladder-exhaustion claim. Every script runs through "$REAL_BASH".
+
+SEAT="$BATS_TEST_DIRNAME/../../tools/factory/seat"
+
+setup_file() {
+  bats_require_minimum_version 1.5.0
+
+  # The rung/escalate fixture: an openrouter implement/code/any ladder with
+  # rungs 1..2 only (rung 3 is exhausted -> a claude rung), a fallback-bearing
+  # implement row, a review default at rung 1 only, and the claude rows the
+  # escalation resolves: implement/any/any sonnet high, review/code/any opus
+  # high, any/any/any sonnet medium.
+  cat >"$BATS_FILE_TMPDIR/rung.toml" <<'EOF'
+[[route]]
+route = "openrouter"
+role = "any"
+kind = "any"
+size = "any"
+model = "m/d"
+effort = "low"
+
+[[route]]
+route = "openrouter"
+role = "implement"
+kind = "code"
+size = "any"
+model = "m/a"
+effort = "medium"
+fallback = "m/f"
+
+[[route]]
+route = "openrouter"
+role = "implement"
+kind = "code"
+size = "any"
+rung = 2
+model = "m/a"
+effort = "high"
+
+[[route]]
+route = "openrouter"
+role = "implement"
+kind = "docs"
+size = "any"
+model = "m/f"
+effort = "off"
+
+[[route]]
+route = "openrouter"
+role = "review"
+kind = "any"
+size = "any"
+model = "m/a"
+effort = "medium"
+
+[[route]]
+route = "claude"
+role = "any"
+kind = "any"
+size = "any"
+model = "sonnet"
+effort = "medium"
+
+[[route]]
+route = "claude"
+role = "implement"
+kind = "any"
+size = "any"
+model = "sonnet"
+effort = "high"
+
+[[route]]
+route = "claude"
+role = "review"
+kind = "code"
+size = "any"
+model = "opus"
+effort = "high"
+
+# FA1's operator terminus (decision 28): a class-scoped claude row answered at
+# the requested rung beats the openrouter ladder and escalates. The live table
+# carries these at rung 3 alone; this fixture uses rung 1 so the terminus case
+# runs without a prior chain.
+[[route]]
+route = "claude"
+role = "implement"
+kind = "docs"
+size = "any"
+class = "docs-spec"
+area = "any"
+rung = 1
+model = "fable"
+effort = "high"
+EOF
+
+  # A task-classes fixture whose single rule maps the terminus test's touches
+  # glob to docs-spec, so factory_task_class resolves the class the row above
+  # answers (the seat reads the live task-classes.toml, not this one, outside
+  # the sandbox).
+  cat >"$BATS_FILE_TMPDIR/task-classes.toml" <<'EOF'
+[[rule]]
+class = "docs-spec"
+glob = "docs/terminus/*"
+EOF
+}
+
+setup() {
+  REAL_BASH="$(command -v bash)"
+  REAL_PYTHON3="$(command -v python3)"
+  export FACTORY_ROOT="$BATS_TEST_TMPDIR/factory"
+  export FACTORY_RUNS="$BATS_TEST_TMPDIR/factory/runs"
+}
+
+# A seat copy whose factory-brief shebang is repointed to the sandbox bash and
+# whose factory-ws prints $1 and (when $2 is given) appends its argv to $2.
+# Usage: seat_env <seat-copy> [<ws-record-file>]
+seat_env() {
+  local copy=$1 rec=${2:-}
+  cp -r "$SEAT" "$copy"
+  chmod -R u+w "$copy"
+  sed -i "1s@.*@#!$REAL_BASH@" "$copy/factory-brief"
+  mkdir -p "$BATS_TEST_TMPDIR/ws"
+  if [ -n "$rec" ]; then
+    printf '#!%s\nprintf "call %%s\\n" "$*" >> %q\nprintf "%%s\\n" %q\n' \
+      "$REAL_BASH" "$rec" "$BATS_TEST_TMPDIR/ws" >"$copy/factory-ws"
+  else
+    printf '#!%s\nprintf "%%s\\n" %q\n' "$REAL_BASH" "$BATS_TEST_TMPDIR/ws" >"$copy/factory-ws"
+  fi
+  chmod +x "$copy/factory-ws"
+}
+
+# Route a (code, M) short plan so every test can name K2/K2b/K2c/K2r headings.
+write_plan() {
+  cat >"$1" <<'EOF'
+### K2 (code, M) — t
+
+body two.
+
+### K2b (code, M) — t
+
+body two-b.
+
+### K2c (code, M) — t
+
+body two-c.
+
+### K2r (code, M) — t
+
+body two-r.
+EOF
+}
+
+@test "factory_rung_check refuses a suffix that contradicts the prior record" {
+  # A fix suffix (b claims one prior attempt) with no prior record is refused.
+  run "$REAL_BASH" -c ". '$SEAT/factory-lib.sh'; factory_rung_check FA9b ''"
+  [ "$status" -eq 3 ]
+
+  # A prior .result carrying attempts: 2: suffix c (2) agrees, b (1) does not.
+  mkdir -p "$FACTORY_RUNS/p"
+  cat >"$FACTORY_RUNS/p/FA9.result" <<'EOF'
+rung: 2
+attempts: 2
+EOF
+  FACTORY_RUNS="$FACTORY_RUNS" run "$REAL_BASH" -c ". '$SEAT/factory-lib.sh'; factory_rung_check FA9c p/FA9"
+  [ "$status" -eq 0 ]
+  FACTORY_RUNS="$FACTORY_RUNS" run "$REAL_BASH" -c ". '$SEAT/factory-lib.sh'; factory_rung_check FA9b p/FA9"
+  [ "$status" -eq 3 ]
+}
+
+@test "factory-task derives the rung and attempts from the prior record" {
+  seatcpy="$BATS_TEST_TMPDIR/seat"; seat_env "$seatcpy"
+  fx="$BATS_TEST_TMPDIR/toolbox"; mkdir -p "$fx/docs/ledger"
+  cp "$BATS_FILE_TMPDIR/rung.toml" "$fx/docs/ledger/routing.toml"
+  plan="$BATS_TEST_TMPDIR/plan.md"; write_plan "$plan"
+  repo="$BATS_TEST_TMPDIR/repo"; mkdir -p "$repo"
+  bin="$BATS_TEST_TMPDIR/bin"; mkdir -p "$bin"
+  cat >"$bin/dsh-openrouter" <<FAKE
+#!$REAL_BASH
+printf 'model=%s\\n' "\$2" >> "\$REC"
+printf 'effort=%s\\n' "\${OPENROUTER_REASONING_EFFORT:-}" >> "\$REC"
+printf 'FACTORY-RESULT status=done\\n'
+printf 'FACTORY-CHECKS unit=pass\\n'
+printf 'FACTORY-COMMITS 1\\n'
+printf 'FACTORY-NOTES ok\\n'
+FAKE
+  chmod +x "$bin/dsh-openrouter"
+  rec="$BATS_TEST_TMPDIR/rec"
+
+  # A prior record at rung 1 / attempts 1 yields rung 2 / attempts 2 for the
+  # next round, while the key itself carries no suffix.
+  mkdir -p "$FACTORY_RUNS/p"
+  cat >"$FACTORY_RUNS/p/K2.result" <<'EOF'
+run: p
+key: K2
+model: m/a
+effort: medium
+route: implement/code/M
+rung: 1
+attempts: 1
+EOF
+  REC="$rec" FACTORY_TOOLBOX_REPO="$fx" FACTORY_PLAN="$plan" \
+    PATH="$bin:$PATH" OPENROUTER_REASONING_EFFORT= OPENROUTER_MODEL= FACTORY_SEAT_UNIT=0 \
+    run "$REAL_BASH" "$seatcpy/factory-task" r1 "$repo" K2 --prior p/K2
+  [ "$status" -eq 0 ]
+  run cat "$rec"
+  [[ "$output" == *"model=m/a"* ]]
+  [[ "$output" == *"effort=high"* ]]
+  run cat "$FACTORY_RUNS/r1/K2.result"
+  [[ "$output" == *"rung: 2"* ]]
+  [[ "$output" == *"attempts: 2"* ]]
+  [[ "$(cat "$FACTORY_RUNS/r1/K2.result")" == *"rung: 2"$'\n'"attempts: 2"* ]]
+}
+
+@test "factory-task escalates an exhausted rung: .escalation.json, .escalate paragraph, exit 4, no run artifacts" {
+  seatcpy="$BATS_TEST_TMPDIR/seat"; seat_env "$seatcpy" "$BATS_TEST_TMPDIR/ws-calls"
+  fx="$BATS_TEST_TMPDIR/toolbox"; mkdir -p "$fx/docs/ledger"
+  cp "$BATS_FILE_TMPDIR/rung.toml" "$fx/docs/ledger/routing.toml"
+  plan="$BATS_TEST_TMPDIR/plan.md"; write_plan "$plan"
+  repo="$BATS_TEST_TMPDIR/repo"; mkdir -p "$repo"
+
+  # A prior at rung 2 / attempts 2 -> the next round (suffix c == 2) climbs to
+  # rung 3 and exhausts the openrouter ladder (rungs 1-2 only), so it escalates.
+  mkdir -p "$FACTORY_RUNS/p"
+  cat >"$FACTORY_RUNS/p/K2.result" <<'EOF'
+rung: 2
+attempts: 2
+EOF
+
+  FACTORY_TOOLBOX_REPO="$fx" FACTORY_PYTHON3_CMD="$REAL_PYTHON3" FACTORY_PLAN="$plan" \
+    run --separate-stderr "$REAL_BASH" "$seatcpy/factory-task" r3 "$repo" K2c --prior p/K2
+  [ "$status" -eq 4 ]
+
+  # The machine-readable escalation artifact is accepted by the checker.
+  json="$FACTORY_RUNS/r3/K2c.escalation.json"
+  run "$REAL_PYTHON3" "$SEAT/factory-artifact.py" check "$json"
+  [ "$status" -eq 0 ]
+
+  # The .escalate's first line names the key, the failure, the rung and the
+  # attempt count; its one launch: line names the runner, not a Workflow call.
+  esc="$FACTORY_RUNS/r3/K2c.escalate"
+  [ -f "$esc" ]
+  run sed -n '1p' "$esc"
+  [[ "$output" =~ ^K2c:\ .*\ at\ rung\ 3\ after\ 3\ attempt ]]
+  run grep -c '^launch: ' "$esc"
+  [ "$output" = "1" ]
+  run grep -c '^launch: nix develop -c python3 tools/factory/seat/factory-run.py' "$esc"
+  [ "$output" = "1" ]
+  run grep -c 'Workflow(' "$esc"
+  [ "$output" = "0" ]
+
+  [ ! -e "$FACTORY_RUNS/r3/K2c.result" ]
+  [ ! -e "$FACTORY_RUNS/r3/K2c.log" ]
+  [ ! -e "$FACTORY_RUNS/r3/K2c.pid" ]
+  [ ! -e "$BATS_TEST_TMPDIR/ws-calls" ]
+}
+
+@test "factory-task writes a truthful terminus record for a class-scoped claude row" {
+  seatcpy="$BATS_TEST_TMPDIR/seat"; seat_env "$seatcpy" "$BATS_TEST_TMPDIR/ws-calls"
+  fx="$BATS_TEST_TMPDIR/toolbox"; mkdir -p "$fx/docs/ledger" "$fx/pkgs/evidence"
+  cp "$BATS_FILE_TMPDIR/rung.toml" "$fx/docs/ledger/routing.toml"
+  cp "$BATS_FILE_TMPDIR/task-classes.toml" "$fx/docs/ledger/task-classes.toml"
+  # factory_task_class reads touches through tasks.py (which imports evidence
+  # and streams), so the fake toolbox needs the three self-contained modules.
+  cp "$BATS_TEST_DIRNAME/../../pkgs/evidence/tasks.py" "$fx/pkgs/evidence/tasks.py"
+  cp "$BATS_TEST_DIRNAME/../../pkgs/evidence/evidence.py" "$fx/pkgs/evidence/evidence.py"
+  cp "$BATS_TEST_DIRNAME/../../pkgs/evidence/streams.py" "$fx/pkgs/evidence/streams.py"
+  plan="$BATS_TEST_TMPDIR/plan.md"
+  cat >"$plan" <<'EOF'
+### T1 (docs, M) — the operator terminus
+
+**touches:** docs/terminus/example.md
+
+body.
+EOF
+  repo="$BATS_TEST_TMPDIR/repo"; mkdir -p "$repo"
+
+  # T1's touches classify it docs-spec, and the class-scoped claude row at
+  # rung 1 answers implement/docs/M, so factory_route prints "fable high" and
+  # returns 4: decision 28's operator terminus, not a ladder exhaustion.
+  FACTORY_TOOLBOX_REPO="$fx" FACTORY_PYTHON3_CMD="$REAL_PYTHON3" FACTORY_PLAN="$plan" \
+    run --separate-stderr "$REAL_BASH" "$seatcpy/factory-task" r3 "$repo" T1
+  [ "$status" -eq 4 ]
+
+  # The machine-readable escalation artifact is accepted by the checker.
+  json="$FACTORY_RUNS/r3/T1.escalation.json"
+  run "$REAL_PYTHON3" "$SEAT/factory-artifact.py" check "$json"
+  [ "$status" -eq 0 ]
+
+  # The .escalate's first line names the key and the resolved terminus row, and
+  # its one launch: line names the runner, not a Workflow call.
+  esc="$FACTORY_RUNS/r3/T1.escalate"
+  [ -f "$esc" ]
+  run sed -n '1p' "$esc"
+  [[ "$output" =~ ^T1:\ the\ operator\ terminus\ for\ class\ docs-spec\ resolved\ fable\ high\ at\ rung\ 1\ after\ 1\ attempt ]]
+  run grep -c '^launch: ' "$esc"
+  [ "$output" = "1" ]
+  run grep -c '^launch: nix develop -c python3 tools/factory/seat/factory-run.py' "$esc"
+  [ "$output" = "1" ]
+  run grep -c 'Workflow(' "$esc"
+  [ "$output" = "0" ]
+
+  # The artifact's claim and repro name the resolved row, never a ladder
+  # exhaustion: expected and observed agree because nothing failed.
+  run "$REAL_PYTHON3" "$SEAT/factory-artifact.py" get "$json" claims
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"a class-scoped claude row answers rung 1 for class docs-spec"* ]]
+  # The FA1 operator-terminus block (comment + the two claude rows) measured
+  # against the committed table: this citation and factory-task's hardcoded
+  # one must be re-measured together whenever a row lands above this block --
+  # see the comment beside factory-task's claim= line.
+  [[ "$output" == *"docs/ledger/routing.toml:323-349"* ]]
+  [[ "$output" != *"ladder has no row"* ]]
+  run "$REAL_PYTHON3" "$SEAT/factory-artifact.py" get "$json" repro
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"a class-scoped claude row for class docs-spec"* ]]
+  [[ "$output" == *"fable high"* ]]
+  [[ "$output" != *"ladder exhausted"* ]]
+
+  [ ! -e "$FACTORY_RUNS/r3/T1.result" ]
+  [ ! -e "$FACTORY_RUNS/r3/T1.log" ]
+  [ ! -e "$FACTORY_RUNS/r3/T1.pid" ]
+  [ ! -e "$BATS_TEST_TMPDIR/ws-calls" ]
+}
+
+@test "factory-task --rung overrides the key (explicit) and rejects a bad value" {
+  seatcpy="$BATS_TEST_TMPDIR/seat"; seat_env "$seatcpy"
+  fx="$BATS_TEST_TMPDIR/toolbox"; mkdir -p "$fx/docs/ledger"
+  cp "$BATS_FILE_TMPDIR/rung.toml" "$fx/docs/ledger/routing.toml"
+  plan="$BATS_TEST_TMPDIR/plan.md"; write_plan "$plan"
+  repo="$BATS_TEST_TMPDIR/repo"; mkdir -p "$repo"
+  bin="$BATS_TEST_TMPDIR/bin"; mkdir -p "$bin"
+  cat >"$bin/dsh-openrouter" <<FAKE
+#!$REAL_BASH
+printf 'model=%s\\n' "\$2" >> "\$REC"
+printf 'effort=%s\\n' "\${OPENROUTER_REASONING_EFFORT:-}" >> "\$REC"
+printf 'FACTORY-RESULT status=done\\n'
+printf 'FACTORY-CHECKS unit=pass\\n'
+printf 'FACTORY-COMMITS 1\\n'
+printf 'FACTORY-NOTES ok\\n'
+FAKE
+  chmod +x "$bin/dsh-openrouter"
+  rec="$BATS_TEST_TMPDIR/rec"
+
+  # --rung 2 on a bare K2 climbs to rung 2 -> m/a high, recorded explicit.
+  REC="$rec" FACTORY_TOOLBOX_REPO="$fx" FACTORY_PLAN="$plan" \
+    PATH="$bin:$PATH" OPENROUTER_REASONING_EFFORT= OPENROUTER_MODEL= FACTORY_SEAT_UNIT=0 \
+    run "$REAL_BASH" "$seatcpy/factory-task" r4 "$repo" K2 --rung 2
+  [ "$status" -eq 0 ]
+  run cat "$rec"
+  [[ "$output" == *"effort=high"* ]]
+  run cat "$FACTORY_RUNS/r4/K2.result"
+  [[ "$output" == *"rung: 2 (explicit)"* ]]
+
+  # A non-integer --rung is refused before anything runs.
+  FACTORY_TOOLBOX_REPO="$fx" FACTORY_PLAN="$plan" PATH="$bin:$PATH" \
+    OPENROUTER_REASONING_EFFORT= OPENROUTER_MODEL= \
+    run "$REAL_BASH" "$seatcpy/factory-task" r5 "$repo" K2 --rung x
+  [ "$status" -eq 2 ]
+}
+
+@test "factory-task --fallback chooses the sideways model and records fallback:" {
+  seatcpy="$BATS_TEST_TMPDIR/seat"; seat_env "$seatcpy" "$BATS_TEST_TMPDIR/ws-calls"
+  fx="$BATS_TEST_TMPDIR/toolbox"; mkdir -p "$fx/docs/ledger"
+  cp "$BATS_FILE_TMPDIR/rung.toml" "$fx/docs/ledger/routing.toml"
+  plan="$BATS_TEST_TMPDIR/plan.md"; write_plan "$plan"
+  repo="$BATS_TEST_TMPDIR/repo"; mkdir -p "$repo"
+  bin="$BATS_TEST_TMPDIR/bin"; mkdir -p "$bin"
+  cat >"$bin/dsh-openrouter" <<FAKE
+#!$REAL_BASH
+printf 'model=%s\\n' "\$2" >> "\$REC"
+printf 'effort=%s\\n' "\${OPENROUTER_REASONING_EFFORT:-}" >> "\$REC"
+printf 'FACTORY-RESULT status=done\\n'
+printf 'FACTORY-CHECKS unit=pass\\n'
+printf 'FACTORY-COMMITS 1\\n'
+printf 'FACTORY-NOTES ok\\n'
+FAKE
+  chmod +x "$bin/dsh-openrouter"
+  rec="$BATS_TEST_TMPDIR/rec"
+
+  # --fallback on a row carrying fallback=m/f -> m/f (effort still the row's).
+  REC="$rec" FACTORY_TOOLBOX_REPO="$fx" FACTORY_PLAN="$plan" \
+    PATH="$bin:$PATH" OPENROUTER_REASONING_EFFORT= OPENROUTER_MODEL= FACTORY_SEAT_UNIT=0 \
+    run "$REAL_BASH" "$seatcpy/factory-task" r6 "$repo" K2 --fallback
+  [ "$status" -eq 0 ]
+  run cat "$rec"
+  [[ "$output" == *"model=m/f"* ]]
+  run cat "$FACTORY_RUNS/r6/K2.result"
+  [[ "$output" == *"fallback: m/f"* ]]
+  [[ "$output" == *"route: implement/code/M"* ]]
+  # OC8: area:/kind:/size: sit directly after class:, before fallback:/prior:
+  # (SD4b's reader spot keeps its fallback-after-class adjacency modulo the
+  # three typed lines; a toolbox without the graph writes area: unknown).
+  run grep -A4 '^class:' "$FACTORY_RUNS/r6/K2.result"
+  [ "$status" -eq 0 ]
+  [ "${lines[0]}" = "class: any" ]
+  [ "${lines[1]}" = "area: unknown" ]
+  [ "${lines[2]}" = "kind: code" ]
+  [ "${lines[3]}" = "size: M" ]
+  [ "${lines[4]}" = "fallback: m/f" ]
+
+  # Without a fallback row at rung 2 (--rung 2), --fallback dies 2 and writes
+  # nothing under the run dir.
+  rm -rf "$FACTORY_RUNS/r5"
+  REC="$rec" FACTORY_TOOLBOX_REPO="$fx" FACTORY_PLAN="$plan" \
+    PATH="$bin:$PATH" OPENROUTER_REASONING_EFFORT= OPENROUTER_MODEL= \
+    run "$REAL_BASH" "$seatcpy/factory-task" r5 "$repo" K2 --rung 2 --fallback
+  [ "$status" -eq 2 ]
+  [ ! -e "$FACTORY_RUNS/r5" ]
+}
+
+@test "factory-review escalates a rung-2 review: .escalate, exit 4, no gate marker" {
+  seatcpy="$BATS_TEST_TMPDIR/seat"; seat_env "$seatcpy" "$BATS_TEST_TMPDIR/ws-calls"
+  fx="$BATS_TEST_TMPDIR/toolbox"; mkdir -p "$fx/docs/ledger"
+  cp "$BATS_FILE_TMPDIR/rung.toml" "$fx/docs/ledger/routing.toml"
+  plan="$BATS_TEST_TMPDIR/plan.md"; write_plan "$plan"
+  repo="$BATS_TEST_TMPDIR/repo"; mkdir -p "$repo"
+  mkdir -p "$BATS_TEST_TMPDIR/ws"
+
+  # K2b is rung 2, but the openrouter review row is rung 1 only -> exhausted.
+  FACTORY_TOOLBOX_REPO="$fx" FACTORY_PLAN="$plan" \
+    run --separate-stderr "$REAL_BASH" "$seatcpy/factory-review" r6 "$repo" K2b
+  [ "$status" -eq 4 ]
+
+  esc="$FACTORY_RUNS/r6/K2b.escalate"
+  [ -f "$esc" ]
+  run cat "$esc"
+  [[ "$output" == *"role: review"* ]]
+  [[ "$output" == *"escalate: claude/review"* ]]
+  [[ "$output" == *"model: opus"* ]]
+  [[ "$output" == *"rung: 2"* ]]
+  [[ "$output" == *"launch: opus-gate task/K2b ~/factory/ws/r6/K2b"* ]]
+  [ ! -e "$FACTORY_RUNS/r6/K2b.review.md" ]
+  [ ! -e "$FACTORY_RUNS/r6/K2b.gate" ]
+}
+
+@test "factory-wave prints an escalated key and records driver: when SEAT_JOB_ID is set" {
+  # A fake factory-task that writes a .escalate (and no .result) and exits 4.
+  fbin="$BATS_TEST_TMPDIR/fakebin"; mkdir -p "$fbin"
+  cat >"$fbin/factory-task" <<FAKE
+#!$REAL_BASH
+run=\$1
+mkdir -p "\$FACTORY_RUNS/\$run"
+{
+  printf 'K2r: ladder exhausted at rung 3 after 3 attempt(s)\\n'
+  printf 'launch: nix develop -c python3 tools/factory/seat/factory-run.py .claude/workflows/plan.toml --input %s/K2r.escalation.json --run %s\\n' "\$run" "\$run"
+} >"\$FACTORY_RUNS/\$run/K2r.escalate"
+exit 4
+FAKE
+  chmod +x "$fbin/factory-task"
+  plan="$BATS_TEST_TMPDIR/plan.md"; write_plan "$plan"
+  repo="$BATS_TEST_TMPDIR/repo"; mkdir -p "$repo"
+
+  # With SEAT_JOB_ID the run.meta carries a driver: line after plan:.
+  SEAT_JOB_ID=20260906-120000-abcdef FACTORY_BIN_OVERRIDE="$fbin" FACTORY_PLAN="$plan" \
+    run "$REAL_BASH" "$SEAT/factory-wave" r7 "$repo" "K2r"
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"K2r status=escalated checks=- commits=- minutes=- tokens=- escalate=K2r: ladder exhausted at rung 3 after 3 attempt"* ]]
+  run cat "$FACTORY_RUNS/r7/run.meta"
+  [[ "$output" == *"plan: $plan"* ]]
+  [[ "$output" == *"driver: 20260906-120000-abcdef"* ]]
+  [[ "$(cat "$FACTORY_RUNS/r7/run.meta")" == *"plan: $plan"$'\n'"driver: 20260906-120000-abcdef"* ]]
+
+  # Without SEAT_JOB_ID there is no driver: line.
+  FACTORY_BIN_OVERRIDE="$fbin" FACTORY_PLAN="$plan" \
+    run "$REAL_BASH" "$SEAT/factory-wave" r8 "$repo" "K2r"
+  [ "$status" -ne 0 ]
+  run cat "$FACTORY_RUNS/r8/run.meta"
+  [[ "$output" == *"plan: $plan"* ]]
+  [[ "$output" != *"driver:"* ]]
+
+  # ritual.sh inflight still reads the run (the extra driver: key is ignored).
+  FACTORY_ROOT="$FACTORY_ROOT" run "$REAL_BASH" \
+    "$BATS_TEST_DIRNAME/../../tools/ritual.sh" inflight "$repo"
+  [ "$status" -eq 0 ]
+}
+
+@test "factory-task spools (--no-start --wait) inside a seat unit, not on the host" {
+  seatcpy="$BATS_TEST_TMPDIR/seat"; seat_env "$seatcpy"
+  fx="$BATS_TEST_TMPDIR/toolbox"; mkdir -p "$fx/docs/ledger"
+  cp "$BATS_FILE_TMPDIR/rung.toml" "$fx/docs/ledger/routing.toml"
+  plan="$BATS_TEST_TMPDIR/plan.md"; write_plan "$plan"
+  repo="$BATS_TEST_TMPDIR/repo"; mkdir -p "$repo"
+  bin="$BATS_TEST_TMPDIR/bin"; mkdir -p "$bin"
+  cat >"$bin/seat-submit" <<FAKE
+#!$REAL_BASH
+printf 'args=%s\\n' "\$*" >> "\$REC"
+printf '20260906-120000-abcdef\\n'
+printf 'FACTORY-RESULT status=done\\n'
+printf 'FACTORY-CHECKS unit=pass\\n'
+printf 'FACTORY-COMMITS 1\\n'
+printf 'FACTORY-NOTES ok\\n'
+FAKE
+  chmod +x "$bin/seat-submit"
+  rec1="$BATS_TEST_TMPDIR/rec1"; rec2="$BATS_TEST_TMPDIR/rec2"
+
+  # Inside a seat unit (SEAT_JOB_ID set) the submit spools: --no-start --wait.
+  REC="$rec1" SEAT_JOB_ID=20260906-120000-abcdef FACTORY_TOOLBOX_REPO="$fx" \
+    FACTORY_PLAN="$plan" PATH="$bin:$PATH" OPENROUTER_REASONING_EFFORT= OPENROUTER_MODEL= \
+    run "$REAL_BASH" "$seatcpy/factory-task" r9 "$repo" K2
+  [ "$status" -eq 0 ]
+  run cat "$rec1"
+  [[ "$output" == *"--no-start --wait"* ]]
+
+  # On the host (SEAT_JOB_ID unset) the submit starts: neither flag.
+  REC="$rec2" FACTORY_TOOLBOX_REPO="$fx" FACTORY_PLAN="$plan" PATH="$bin:$PATH" \
+    OPENROUTER_REASONING_EFFORT= OPENROUTER_MODEL= \
+    run "$REAL_BASH" "$seatcpy/factory-task" r10 "$repo" K2
+  [ "$status" -eq 0 ]
+  run cat "$rec2"
+  [[ "$output" != *"--no-start"* ]]
+  [[ "$output" != *"--wait"* ]]
+}
+
+@test "factory-task --model keeps route: explicit and still records rung:" {
+  seatcpy="$BATS_TEST_TMPDIR/seat"; seat_env "$seatcpy"
+  fx="$BATS_TEST_TMPDIR/toolbox"; mkdir -p "$fx/docs/ledger"
+  cp "$BATS_FILE_TMPDIR/rung.toml" "$fx/docs/ledger/routing.toml"
+  plan="$BATS_TEST_TMPDIR/plan.md"; write_plan "$plan"
+  repo="$BATS_TEST_TMPDIR/repo"; mkdir -p "$repo"
+  bin="$BATS_TEST_TMPDIR/bin"; mkdir -p "$bin"
+  cat >"$bin/dsh-openrouter" <<FAKE
+#!$REAL_BASH
+printf 'model=%s\\n' "\$2" >> "\$REC"
+printf 'effort=%s\\n' "\${OPENROUTER_REASONING_EFFORT:-}" >> "\$REC"
+printf 'FACTORY-RESULT status=done\\n'
+printf 'FACTORY-CHECKS unit=pass\\n'
+printf 'FACTORY-COMMITS 1\\n'
+printf 'FACTORY-NOTES ok\\n'
+FAKE
+  chmod +x "$bin/dsh-openrouter"
+  rec="$BATS_TEST_TMPDIR/rec"
+
+  # An explicit --model wins over the ladder and is still recorded with the
+  # declared rung (--rung 2), route: explicit.
+  REC="$rec" FACTORY_TOOLBOX_REPO="$fx" FACTORY_PLAN="$plan" \
+    PATH="$bin:$PATH" OPENROUTER_REASONING_EFFORT= OPENROUTER_MODEL= FACTORY_SEAT_UNIT=0 \
+    run "$REAL_BASH" "$seatcpy/factory-task" r9 "$repo" K2 --rung 2 --model m/x
+  [ "$status" -eq 0 ]
+  run cat "$rec"
+  [[ "$output" == *"model=m/x"* ]]
+  run cat "$FACTORY_RUNS/r9/K2.result"
+  [[ "$output" == *"route: explicit"* ]]
+  [[ "$output" == *"rung: 2"* ]]
+}
+
+@test "factory-task exit-3 arm: an unroutable table warns, uses the built-in default, rung:" {
+  seatcpy="$BATS_TEST_TMPDIR/seat"; seat_env "$seatcpy"
+  fx="$BATS_TEST_TMPDIR/toolbox"; mkdir -p "$fx/docs/ledger"
+  # A table that does not parse: an unknown key makes factory_route exit 3.
+  cat >"$fx/docs/ledger/routing.toml" <<'EOF'
+[[route]]
+role = "any"
+kind = "any"
+size = "any"
+model = "m/a"
+effort = "medium"
+bogus = "1"
+EOF
+  plan="$BATS_TEST_TMPDIR/plan.md"; write_plan "$plan"
+  repo="$BATS_TEST_TMPDIR/repo"; mkdir -p "$repo"
+  bin="$BATS_TEST_TMPDIR/bin"; mkdir -p "$bin"
+  cat >"$bin/dsh-openrouter" <<FAKE
+#!$REAL_BASH
+printf 'model=%s\\n' "\$2" >> "\$REC"
+printf 'FACTORY-RESULT status=done\\n'
+printf 'FACTORY-CHECKS unit=pass\\n'
+printf 'FACTORY-COMMITS 1\\n'
+printf 'FACTORY-NOTES ok\\n'
+FAKE
+  chmod +x "$bin/dsh-openrouter"
+  rec="$BATS_TEST_TMPDIR/rec"
+
+  REC="$rec" FACTORY_TOOLBOX_REPO="$fx" FACTORY_PLAN="$plan" PATH="$bin:$PATH" \
+    OPENROUTER_REASONING_EFFORT= OPENROUTER_MODEL= FACTORY_SEAT_UNIT=0 \
+    run --separate-stderr "$REAL_BASH" "$seatcpy/factory-task" r11 "$repo" K2 --rung 2
+  [ "$status" -eq 0 ]
+  [[ "$stderr" == *"warning: routing table unusable"* ]]
+  run cat "$rec"
+  [[ "$output" == *"model=z-ai/glm-5.3"* ]]
+  run cat "$FACTORY_RUNS/r11/K2.result"
+  [[ "$output" == *"model: z-ai/glm-5.3"* ]]
+  [[ "$output" == *"rung: 2"* ]]
+}

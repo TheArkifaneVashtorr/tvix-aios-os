@@ -1,0 +1,11 @@
+# The negative control's manifest (plan 2026-09-21-publish-gate, PG1; spec §7).
+# Every deny value below is invented for this fixture; none is a real literal
+# of this repository. expected.txt is the report the validator must print.
+publish  = ["README.md", "notes/*", "both.*"]
+withhold = ["publish.toml", "expected.txt", "private/*", "both.txt"]
+pending  = ["notes/stale.md"]
+
+[deny]
+literals = ["nobody@example.invalid", "900000001"]
+words    = ["plantedword"]
+patterns = ["PLANTED-[0-9]{4}"]

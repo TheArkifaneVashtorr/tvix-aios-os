@@ -1,0 +1,18 @@
+__pycache__/
+*.pyc
+.pytest_cache/
+result
+result-*
+
+# vendor/ is its own git repository (vendor/README.md), not a submodule:
+# ~659 MB of imperatively installed third-party payload that the flake never
+# evaluates. Ignored outright so it cannot be swept into this repo's history
+# by a stray `git add -A`, where it would be permanent and paid by every
+# clone. A clone of this repo does not bring it; patch-zcode.sh rebuilds it.
+/vendor/
+
+# OS2 (2026-09-22-tvix-aios-step1): cargo's build output, and the fork link a
+# hand `cargo` session needs (`nix build .#tvix-aios-src -o tvix`). The flake
+# provides ./tvix in every build itself, so neither is ever tracked.
+/target/
+/tvix

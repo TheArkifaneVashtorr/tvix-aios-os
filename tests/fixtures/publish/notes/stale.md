@@ -1,0 +1,1 @@
+This pending entry carries no deny match any more; the validator must refuse it as stale-pending.

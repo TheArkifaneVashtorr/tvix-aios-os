@@ -1,0 +1,20 @@
+# The patches ledger (EV6, decisions 46a/47a). One [[patch]] row per patch in
+# the tree, validated by the `patches-ledger` check and by
+# `python3 pkgs/evidence/patches.py validate docs/ledger/patches.toml --root . --today <date>`.
+#
+# Row shape:
+#   file       path under patches/<pkg>/NNNN-name.patch (NNNN four digits, unique per package)
+#   package    the derivation attribute the patch applies to (e.g. dsh)
+#   reason     why the patch exists
+#   upstream   local | submitted | merged | rejected
+#   added      date the patch was added
+#   review_by  date the patch must be re-reviewed by
+#   added_in   the commit that added the patch
+#
+# An apply recipe for a package is patches/<pkg>/unpack.sh, registered by the
+# package that owns the series (the Platform plan). The validator never fetches
+# or unpacks source on its own: it refuses any row whose package has no recipe
+# ("no apply recipe for <pkg>"), so the first real row cannot land before the
+# Platform series lands the unpack step.
+#
+# Empty at landing.

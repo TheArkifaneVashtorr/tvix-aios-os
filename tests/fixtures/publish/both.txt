@@ -1,0 +1,1 @@
+Both lists match this path; the validator must call it ambiguous.

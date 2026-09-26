@@ -1,0 +1,214 @@
+#!/usr/bin/env bash
+# factory-dispatch <run> <repo-path> <plan-file> [--dry-run] [--all] [--repo-name NAME]
+#
+# Asks the derived task graph (pkgs/evidence/tasks.py, plan FD1b) for a plan's
+# NEXT wave and launches it through factory-wave; the dispatcher does no graph
+# logic of its own -- it never re-reads dependsOn. The graph query is
+#
+#   tasks.py --root <repo-path> waves --repo NAME --plan <basename> --next
+#
+# which prints the one next wave's seat groups on a single shell-quoted line
+# (or nothing when the plan is fully landed/in flight). Every launched wave is
+# logged to stderr and appended to $FACTORY_RUNS/<run>/dispatch.log; each task's
+# model and effort still resolve from docs/ledger/routing.toml via factory-task.
+#
+# Exit codes: 2 usage/bad repo or plan path/repo unknown; 5 malformed wave
+# line; 6 graph query failed; 7 the launched wave failed, or --all made no
+# progress (the same wave came back after a wave that exited 0). A dry run
+# touches nothing and exits 0.
+#
+# Env overrides (tests and sandboxes):
+#   FACTORY_WAVES_CMD     command whose stdout is the next wave's one line, in
+#                         place of the tasks.py `waves --next` query (a fake
+#                         graph in tests -- malformed/crashing/stalled sources
+#                         exercise the die-5/die-6/die-7 paths).
+#   FACTORY_PYTHON3_CMD   interpreter for tasks.py instead of the toolbox
+#                         devShell python (nix develop), which the nix build
+#                         sandbox lacks -- tests set it to the sandbox's
+#                         `python3` so the brief runs for real there.
+#   FACTORY_WAVE_CMD      the factory-wave to launch, defaulting to this
+#                         script's sibling $here/factory-wave, so a fake on
+#                         PATH in tests is reached through it.
+set -euo pipefail
+
+here=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)
+# shellcheck source=./factory-lib.sh
+# shellcheck disable=SC1091
+. "$here/factory-lib.sh"
+
+usage() {
+  cat <<'USAGE' >&2
+usage: factory-dispatch <run> <repo-path> <plan-file> [--dry-run] [--all] [--repo-name NAME]
+USAGE
+}
+
+[ $# -ge 3 ] || {
+  usage
+  exit 2
+}
+run=$1
+repo_arg=$2
+plan_arg=$3
+shift 3
+
+dry_run=0
+all=0
+repo_name=
+while [ $# -gt 0 ]; do
+  case $1 in
+    --dry-run) dry_run=1; shift ;;
+    --all) all=1; shift ;;
+    --repo-name)
+      [ $# -ge 2 ] || factory_die 2 "--repo-name needs a value"
+      repo_name=$2
+      shift 2
+      ;;
+    *)
+      usage
+      exit 2
+      ;;
+  esac
+done
+
+repo_path=$(cd -- "$repo_arg" && pwd -P) || factory_die 2 "no such repo: $repo_arg"
+
+# <plan-file> is resolved against <repo-path> when relative (never the caller's
+# cwd), and must exist and be readable -- a stale or misspelled plan must
+# refuse, not silently schedule blocked tasks.
+case "$plan_arg" in
+  /*) plan_file=$plan_arg ;;
+  *) plan_file="$repo_path/$plan_arg" ;;
+esac
+[ -f "$plan_file" ] || factory_die 2 "factory-dispatch: no such plan: $plan_arg"
+[ -r "$plan_file" ] || factory_die 2 "factory-dispatch: plan not readable: $plan_arg"
+plan_base=$(basename -- "$plan_file")
+
+# python now runs through the shared factory_py in factory-lib.sh (P2): the
+# FACTORY_PYTHON3_CMD seam it carries is what lets the nix build sandbox run
+# the real graph without a devShell.
+
+# Expand `~` and resolve a repos.toml path to its canonical form, matching how
+# the repo-path argument itself is resolved (cd + pwd -P) above.
+canon_path() {
+  local p=$1
+  case $p in
+    '~') p=$HOME ;;
+    '~'/*) p=$HOME/${p#\~/} ;;
+  esac
+  (cd -- "$p" 2>/dev/null && pwd -P) || printf '%s\n' "$p"
+}
+
+# The repo's name in <repo-path>/docs/ledger/repos.toml, matched on the row
+# whose (expanded) path resolves to <repo-path>. The graph must know the repo,
+# so no match is a hard refusal, not a guess.
+resolve_repo_name() {
+  local rp=$1
+  local toml=$rp/docs/ledger/repos.toml
+  local line val name='' path=''
+  [ -f "$toml" ] || factory_die 2 "factory-dispatch: no repos.toml at $toml"
+  while IFS= read -r line; do
+    case "$line" in
+      '[[repo]]'*) name=''; path=''; continue ;;
+      'name ='*) val=${line#*name = }; name=${val//\"/}; continue ;;
+      'path ='*)
+        val=${line#*path = }; path=${val//\"/}
+        [ "$(canon_path "$path")" = "$rp" ] && { printf '%s\n' "$name"; return 0; }
+        path=''
+        continue
+        ;;
+    esac
+  done <"$toml"
+  factory_die 2 "factory-dispatch: no repo named in $toml resolves to $rp (the graph must know the repo)"
+}
+
+# The next wave as ONE line of shell-quoted groups, or nothing when the plan
+# has nothing schedulable. FACTORY_WAVES_CMD, when set, supplies that line
+# directly; otherwise the real graph is queried with `waves --next`. A non-zero
+# graph exit is a hard failure (die 6), never the reassuring "nothing
+# schedulable".
+next_wave_line() {
+  local out
+  if [ -n "${FACTORY_WAVES_CMD:-}" ]; then
+    if ! out=$("$FACTORY_WAVES_CMD"); then
+      factory_die 6 "factory-dispatch: graph query failed"
+    fi
+  elif ! out=$(factory_py "$FACTORY_TOOLBOX_REPO/pkgs/evidence/tasks.py" --root "$repo_path" waves --repo "$repo_name" --plan "$plan_base" --next); then
+    factory_die 6 "factory-dispatch: graph query failed"
+  fi
+  printf '%s\n' "$out"
+}
+
+if [ -z "$repo_name" ]; then
+  repo_name=$(resolve_repo_name "$repo_path")
+fi
+
+runs_dir=
+dispatch_log=
+launched=0
+prev_wave_line=
+while :; do
+  wave_line=$(next_wave_line)
+
+  if [ -z "$wave_line" ]; then
+    if [ "$launched" -eq 0 ]; then
+      printf 'factory-dispatch: nothing schedulable in %s (all landed, in flight, or blocked)\n' "$plan_base"
+      exit 0
+    fi
+    break
+  fi
+
+  # A wave line is only ever shell-quoted groups ("KEY KEY" "KEY"); validate
+  # before eval so a hostile or malformed graph line can never run as shell.
+  # shellcheck disable=SC2086  # $wave_line is the validated, quoted group list
+  if ! [[ "$wave_line" =~ ^(\"[A-Za-z0-9 -]+\" ?)+$ ]]; then
+    factory_die 5 "factory-dispatch: malformed wave line from the graph: $wave_line"
+  fi
+  # shellcheck disable=SC2294  # eval is the spec'd quoting split; the line is validated above
+  eval "set -- $wave_line"
+  groups=("$@")
+
+  if [ "$dry_run" -eq 1 ]; then
+    printf 'would run: factory-wave %s %s' "$run" "$repo_path"
+    printf ' "%s"' "${groups[@]}"
+    printf '\n'
+    exit 0
+  fi
+
+  # --all progress guard: the same wave after a wave that exited 0 means the
+  # launches are not advancing the plan -- stop rather than loop forever.
+  if [ "$launched" -eq 1 ] && [ "$wave_line" = "$prev_wave_line" ]; then
+    factory_die 7 "factory-dispatch: no progress"
+  fi
+
+  # Only an actual launch writes under the runs dir (a dry run touches nothing).
+  if [ -z "$dispatch_log" ]; then
+    runs_dir=$FACTORY_RUNS/$run
+    mkdir -p -- "$runs_dir"
+    dispatch_log=$runs_dir/dispatch.log
+  fi
+  factory_log "run '$run' plan '$plan_base': wave groups: ${groups[*]}"
+  printf 'factory-dispatch: run %s plan %s groups: %s\n' "$run" "$plan_base" "${groups[*]}" >>"$dispatch_log"
+
+  # Capture the launched wave's exit code explicitly rather than letting
+  # `set -e` kill the script first (the brief and the caller must see the real
+  # status). `if cmd; then …; else …` keeps the launch in a conditional so
+  # set -e is suppressed; `$?` in the else branch is the launch's own code.
+  # The one $run is passed to every wave on purpose: factory-wave's reuse rule
+  # (DF7c) admits a second wave whose previous wave no longer names a live
+  # factory-wave and whose plan matches, while refusing a live wave, another
+  # plan's leftovers, or a meta-less directory holding another run's files. The
+  # mkdir -p above pre-creates the directory and writes dispatch.log, which the
+  # rule admits silently, so --all's first wave is never refused.
+  if FACTORY_PLAN="$plan_file" "${FACTORY_WAVE_CMD:-$here/factory-wave}" "$run" "$repo_path" "${groups[@]}"; then
+    : # wave reached status=done
+  else
+    wave_rc=$?
+    exit "$wave_rc"
+  fi
+  launched=1
+  prev_wave_line=$wave_line
+  [ "$all" -eq 1 ] || break
+done
+
+# The task brief, printed after a successful launch (or --all run).
+factory_py "$FACTORY_TOOLBOX_REPO/pkgs/evidence/tasks.py" --root "$repo_path" brief

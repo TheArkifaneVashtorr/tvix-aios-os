@@ -1,0 +1,21 @@
+{
+  "info": {
+    "name": "comfyui-workflow-templates",
+    "version": "0.11.55",
+    "requires_dist": [
+      "comfyui-workflow-templates-core==0.3.333",
+      "comfyui-workflow-templates-json==0.1.68",
+      "comfyui-workflow-templates-media-api==0.3.84",
+      "comfyui-workflow-templates-media-video==0.3.101",
+      "comfyui-workflow-templates-media-image==0.3.160",
+      "comfyui-workflow-templates-media-other==0.3.229",
+      "comfyui-workflow-templates-media-assets-01==0.1.39"
+    ]
+  },
+  "urls": [
+    {
+      "filename": "comfyui_workflow_templates-0.11.55-py3-none-any.whl",
+      "digests": { "sha256": "0000000000000000000000000000000000000000000000000000000000000000" }
+    }
+  ]
+}

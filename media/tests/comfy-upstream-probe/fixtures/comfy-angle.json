@@ -1,0 +1,12 @@
+{
+  "info": {
+    "name": "comfy-angle",
+    "version": "0.1.2"
+  },
+  "urls": [
+    {
+      "filename": "comfy_angle-0.1.2-py3-none-manylinux_2_28_x86_64.whl",
+      "digests": { "sha256": "0000000000000000000000000000000000000000000000000000000000000000" }
+    }
+  ]
+}

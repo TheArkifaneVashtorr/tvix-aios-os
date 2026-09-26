@@ -1,0 +1,104 @@
+#!/usr/bin/env bash
+# Autolint gate: formatting and static analysis must pass before any commit.
+set -euo pipefail
+if ! command -v treefmt >/dev/null; then
+  echo "pre-commit: lint tools missing — commit from the devShell: nix develop -c git commit ..." >&2
+  exit 1
+fi
+treefmt --ci --config-file treefmt.toml --tree-root . ||
+  {
+    echo "pre-commit: treefmt found unformatted files (run: treefmt)" >&2
+    exit 1
+  }
+shellcheck pkgs/basket/basket.sh pkgs/proton-backup/push.sh pkgs/dsh-openrouter/dsh-openrouter.sh pkgs/helm/helm-switch.sh pkgs/helm/helm-open-workspace.sh tests/mocks/proton-drive-mock.sh githooks/pre-push githooks/pre-commit pkgs/fleet/mirror.sh
+# The seat driver's entry scripts are extensionless (factory-brief, -ws,
+# -task, -wave, -integrate, -review), so the `find tools -name '*.sh'` sweep
+# below misses them; their `.sh` sibling (factory-lib.sh) is swept normally.
+shellcheck tools/factory/seat/factory-brief tools/factory/seat/factory-ws tools/factory/seat/factory-task tools/factory/seat/factory-wave tools/factory/seat/factory-integrate tools/factory/seat/factory-review tools/debug/bug-note tools/debug/investigate tools/fleet tools/home-classes
+find tests -name '*.sh' -print0 2>/dev/null | xargs -0 --no-run-if-empty shellcheck
+find tools -name '*.sh' -print0 2>/dev/null | xargs -0 --no-run-if-empty shellcheck
+# Every host's hardware-configuration.nix is exempt from these two style
+# linters: hosts/core's is a byte-for-byte copy of nixos-generate-config
+# output (plan: hosts/core must stay verbatim) and hosts/forge's is the marked
+# placeholder `fleet enroll` replaces verbatim. FL5 adds
+# pkgs/fleet/fleet-join.nix, the bootstrap module TEMPLATE: its
+# @DEPLOY_KEYS@ / @PARENT_IMPORTS@ placeholders are not parseable Nix until
+# substituted (fleet join-script / checks.fleet-eval), so the linters skip it.
+# OS2: ./tvix is the fork linked for a hand cargo session (nix build
+# .#tvix-aios-src -o tvix); statix panics on the fork's own test suite when it
+# walks that link (measured 2026-09-22), so both Nix linters skip it.
+statix check --ignore .claude . -i hosts/core/hardware-configuration.nix -i hosts/forge/hardware-configuration.nix -i pkgs/fleet/fleet-join.nix -i tvix
+deadnix --fail --exclude hosts/core/hardware-configuration.nix hosts/forge/hardware-configuration.nix pkgs/fleet/fleet-join.nix .claude tvix -- .
+ruff check pkgs/broker tests/broker pkgs/helm tests/helm pkgs/lane tests/lane tests/mocks tools/ledger tests/ledger pkgs/dsh-openrouter tools/factory/seat tools/factory/route.py pkgs/evidence tests/evidence pkgs/helm-home tests/helm-home pkgs/fleet pkgs/home-classes
+ruff format --check pkgs/broker tests/broker pkgs/helm tests/helm pkgs/lane tests/lane tests/mocks tools/ledger tests/ledger pkgs/dsh-openrouter tools/factory/seat tools/factory/route.py pkgs/evidence tests/evidence pkgs/helm-home tests/helm-home pkgs/fleet pkgs/home-classes
+# P2: no '] && [' chains in bats tests (vacuous under errexit).
+tests/lint/bats-and-chain.sh
+# P12: prettier + oxlint gate every tracked JS file. The self-test runs first
+# on its own line (not joined by `&&`: under errexit a failing first command
+# in an `a && b` list is swallowed, silently gutting the vacuous-gate guard);
+# the project sweep runs only if it passes.
+bash tests/lint/js-lint.sh --self-test
+bash tests/lint/js-lint.sh
+# T1W: no writer outside evidence.py may reopen the store for writing or
+# hard-code the store root. Same self-test-first discipline as js-lint.sh: the
+# fixture sweep runs on its own line so the vacuous-gate guard is never
+# swallowed.
+bash tests/lint/store-writers.sh --self-test
+bash tests/lint/store-writers.sh
+# ER1 (plan 2026-09-24-retro-fixes): the publish and subsystems validators
+# run at commit time too — a deny word or an unowned path in the staged tree
+# fails the commit instead of turning the nightly red hours later (spec §2
+# #2: eight hours of red because no hook ran publish-gate). Same
+# self-test-first discipline as js-lint.sh: each on its own line, never
+# joined by `&&` (under errexit a failing first command in an `a && b` list
+# is swallowed).
+bash tests/lint/publish-manifest.sh --self-test
+bash tests/lint/publish-manifest.sh
+# ER1: the 47 pin (tests/evidence/test_judgements.py) ran only in
+# evidence-unit; a panel filed under docs/reviews fails the commit that
+# lands it (spec §2 #3: three evidence-unit reds from stale panels). The
+# run is guarded: only when something under docs/reviews is staged, and
+# pytest's own exit code fails the commit.
+if git diff --cached --name-only -- docs/reviews | grep -q .; then env -u GIT_INDEX_FILE -u GIT_DIR -u GIT_WORK_TREE -u GIT_OBJECT_DIRECTORY -u GIT_ALTERNATE_OBJECT_DIRECTORIES -u GIT_COMMON_DIR -u GIT_PREFIX -u GIT_NAMESPACE -u GIT_CONFIG_PARAMETERS -u GIT_CONFIG_COUNT pytest -q tests/evidence/test_judgements.py; fi
+# Board shape (plan 2026-09-05-evidence-store, E8/D5): the board carries the
+# plan; facts come from `evidence bundle`. One START HERE, one screen or two.
+test "$(grep -c '^## START HERE' docs/OPERATIONS.md)" -eq 1 || {
+  echo "lint: docs/OPERATIONS.md must have exactly one '## START HERE' heading" >&2
+  exit 1
+}
+test "$(wc -l <docs/OPERATIONS.md)" -le 160 || {
+  echo "lint: docs/OPERATIONS.md must be at most 160 lines (log and archive live under docs/board/)" >&2
+  exit 1
+}
+# CR4b: START HERE's Now paragraph is capped at ten wrapped lines at 80 columns
+# (tests/lint/now-paragraph.sh, --self-test first so the guard is never swallowed).
+bash tests/lint/now-paragraph.sh --self-test
+bash tests/lint/now-paragraph.sh
+# E2: the claims file's stale gaps fail the commit (a real clock lives in the
+# devShell, unlike the flake sandbox, which checks shape only).
+python3 pkgs/evidence/claims.py validate docs/ledger/claims.toml --today "$(date +%F)" --repo-root .
+# G5: the derived task graph must be well-formed and the repo map current.
+# tasks.py reads its repos from a `--repos` file pointing at THIS tree ($PWD),
+# not ~/nixos-agent-env (the default), so the gate inspects the commit rather
+# than the operator's live checkout.
+repos_file="$(mktemp)"
+printf '[[repo]]\nname = "nixos-agent-env"\npath = "%s"\n' "$PWD" >"$repos_file"
+python3 pkgs/evidence/tasks.py --root . --repos "$repos_file" --runs-dir /nonexistent --store /nonexistent check
+rm -f "$repos_file"
+# G8c: the board's Queued block is derived from THIS tree only (git landed +
+# reviews, never runs/store); regenerate it first and refuse a commit where it
+# drifted — a landed key leaves the queue, so staleness is by design. FA29
+# (--refuse-stale): in a factory workspace (a .factory-meta marker at the
+# root, written by factory-ws into every seat workspace) the board's bytes are
+# left alone instead — the board is the integrator's, never a seat's commit —
+# while an operator checkout still gets the regenerated file and the refusal.
+python3 pkgs/evidence/tasks.py --root . write-board --board docs/OPERATIONS.md --quiet --refuse-stale
+python3 pkgs/evidence/repomap.py --root . check
+# FA23: dark-factory.js is archived (docs/decisions/2026-09-09-redesign-answers.md,
+# row 33: the seat's bash tools only), retiring its commit-time syntax gate and the
+# render.test.mjs parity check. The registry drift check
+# now holds that parity role -- it resolves every agents.toml row through
+# route.py and byte-compares each .claude/agents shim, failing the commit on a
+# drift (checks.factory-unit runs the same check plus the graph soundness
+# check in the sandbox).
+python3 tools/factory/seat/factory-registry.py check

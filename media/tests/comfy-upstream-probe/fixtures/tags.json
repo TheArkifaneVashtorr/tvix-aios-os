@@ -1,0 +1,18 @@
+[
+  {
+    "name": "v0.34.5-rc1",
+    "commit": { "sha": "1111111111111111111111111111111111111111" }
+  },
+  {
+    "name": "v0.34.5",
+    "commit": { "sha": "7fd919f0caff66a52289ea5b19cb6eaca0da04ef" }
+  },
+  {
+    "name": "v0.34.4",
+    "commit": { "sha": "f8953c93df6c2274654e78b0f5a91baa5b5f5b6e" }
+  },
+  {
+    "name": "v0.34.3",
+    "commit": { "sha": "87465b8f1f64a27a46f16f22b13b410494dca66d" }
+  }
+]

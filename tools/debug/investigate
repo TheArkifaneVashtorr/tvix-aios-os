@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+# investigate — the debug sweep's front door: exec the sweep module. DS1
+# lands the wrapper; DS3 lands pkgs/evidence/debug_sweep.py it execs, and
+# this wrapper never changes again (plan 2026-09-23-debug-sweep).
+set -euo pipefail
+here=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)
+mod=$here/../../pkgs/evidence/debug_sweep.py
+if [ ! -f "$mod" ]; then
+  printf 'investigate: pkgs/evidence/debug_sweep.py is missing (DS3 lands it)\n' >&2
+  exit 2
+fi
+exec python3 "$mod" "$@"

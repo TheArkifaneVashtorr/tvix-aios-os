@@ -1,0 +1,1 @@
+The negative control for pkgs/evidence/publish.py (plan 2026-09-21-publish-gate, PG1): a published file that is clean.

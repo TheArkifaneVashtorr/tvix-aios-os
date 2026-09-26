@@ -1,0 +1,8 @@
+ambiguous both.txt publish,withhold
+unclassified stray.txt
+notes/leak.md:2 literals[0]
+notes/leak.md:3 literals[1]
+notes/leak.md:4 words[0]
+notes/leak.md:5 patterns[0]
+stale-pending notes/stale.md
+published 2 withheld 3 pending 1

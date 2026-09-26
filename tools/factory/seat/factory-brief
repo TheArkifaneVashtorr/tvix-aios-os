@@ -1,0 +1,164 @@
+#!/usr/bin/env bash
+# factory-brief <plan.md> <KEY>
+#
+# Prints, to stdout, the exact prompt handed to the dsh-openrouter seat for
+# one task: the plan's "Global Constraints" and "Assumptions" sections, the
+# task's own "### KEY ..." section (up to the next "### " or "## " heading),
+# and a fixed WORKSPACE RULES block. Nothing else goes to stdout -- callers
+# capture it with $(...).
+#
+# If the plan has no "### KEY ..." section (an ad-hoc task not written into
+# any plan, e.g. a smoke test), set FACTORY_TASK_TEXT and that literal text
+# stands in for the task section instead of failing.
+#
+# Two more env vars, both optional, fill placeholders in the WORKSPACE RULES
+# block's commit trailer -- factory-task sets them; run standalone they fall
+# back to a literal "<RUN>" / "<model>" the caller is expected to notice and
+# fill in by hand:
+#   FACTORY_RUN     the factory run name (Generated-By trailer)
+#   FACTORY_MODEL   the OpenRouter model id in use (Generated-By trailer)
+#   FACTORY_SEAT    exactly `codex` selects the codex trailer pair; any other
+#                   value or unset leaves today's dsh pair byte-identical
+#   FACTORY_SEAT_VERSION  the codex-cli version for the pair (<version> when
+#                         unset)
+#   FACTORY_BRIEF_PRIOR  a fix round's prior-attempt block (factory_prior_block's
+#                        output); printed between the task section and the
+#                        WORKSPACE RULES block, ignored when unset or empty
+set -euo pipefail
+
+here=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)
+# shellcheck source=./factory-lib.sh
+# shellcheck disable=SC1091
+. "$here/factory-lib.sh"
+
+usage() {
+  cat <<'USAGE' >&2
+usage: factory-brief <plan.md> <KEY>
+
+Env: FACTORY_TASK_TEXT (fallback task text when KEY has no ### section),
+     FACTORY_RUN, FACTORY_MODEL (fill the commit-trailer placeholders).
+USAGE
+}
+
+[ $# -eq 2 ] || {
+  usage
+  exit 2
+}
+plan=$1
+key=$2
+
+factory_need_file "$plan"
+
+global_constraints=$(factory_extract_h2 "$plan" '## Global Constraints')
+[ -n "$global_constraints" ] || factory_log "warning: $plan has no '## Global Constraints' section; brief will omit it"
+
+assumptions=$(factory_extract_h2 "$plan" '## Assumptions')
+[ -n "$assumptions" ] || factory_log "warning: $plan has no '## Assumptions' section; brief will omit it"
+
+task_section=$(factory_extract_task "$plan" "$key")
+if [ -z "$task_section" ]; then
+  if [ -n "${FACTORY_TASK_TEXT:-}" ]; then
+    task_section=$(printf '### %s (ad-hoc task, not in %s)\n\n%s\n' "$key" "$(basename -- "$plan")" "$FACTORY_TASK_TEXT")
+  else
+    factory_die 2 "no '### $key' section in $plan, and FACTORY_TASK_TEXT is not set"
+  fi
+fi
+
+run_label=${FACTORY_RUN:-<RUN>}
+model_label=${FACTORY_MODEL:-<model>}
+
+# CA1: the commit-trailer pair. FACTORY_SEAT=codex selects the codex pair (with
+# <ver> = FACTORY_SEAT_VERSION, else the literal `<version>` placeholder); any
+# other value or unset leaves today's dsh pair byte-identical.
+seat_label=${FACTORY_SEAT:-}
+ver_label=${FACTORY_SEAT_VERSION:-<version>}
+if [ "$seat_label" = codex ]; then
+  generated_by="Generated-By: codex-cli $ver_label / <model> (codex exec, factory run <RUN>)"
+  co_authored="Co-Authored-By: Codex CLI $ver_label <noreply@openai.com>"
+else
+  generated_by='Generated-By: dsh 0.1.2-rc.1 / <model> (seat headless, factory run <RUN>)'
+  co_authored='Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>'
+fi
+
+rules=$(
+  cat <<'RULES'
+## WORKSPACE RULES
+
+- Work only inside the current directory. This is an isolated clone made
+  for this task; the real repository lives elsewhere and nothing you do
+  here touches it.
+- Keep every temporary file inside this workspace. Your bash tool's /tmp and
+  your file-editing tools' /tmp are two different views of the filesystem --
+  a path one tool writes under /tmp may not exist for the other. Make and
+  use a directory inside this workspace for scratch files instead.
+- Never run `sudo`, `nixos-rebuild`, or `systemctl start|stop|restart`.
+  Those are the operator's actions only, never yours.
+- `git add` any new file before running `nix build` on it -- a Nix flake
+  only sees files git already tracks.
+- Practice TDD: show the failing check first (red), say in your own words
+  what failed and why, then make the change and show the check passing
+  (green). A load-bearing test only counts once it has been shown to fail.
+- Run every check named in this task's acceptance criteria with:
+    nix build .#checks.x86_64-linux.<name> -L --no-link
+- Commit ONLY through:
+    nix develop -c git commit -F <msgfile>
+  on the branch `task/<KEY>` (already checked out for you). The commit
+  subject follows this repo's convention: `<area>: summary (test: <check
+  names>)`. The commit carries BOTH of these trailers, each on its own line,
+  in this exact order:
+    <GENERATED_BY>
+    <CO_AUTHORED_BY>
+- Never `git push`.
+- A defect you meet outside this task (in the harness, the plan, a file you
+  were not asked to change) is noted, never fixed: `tools/debug/bug-note
+  "<symptom>" --evidence <path|run/KEY|commit>` from this workspace appends
+  one line to the operator's inbox and touches no tracked file. Noting it
+  never counts as fixing it, and a note is never a reason to leave the task
+  unfinished.
+- Before those four lines, print one line `FACTORY-PROBE <name>=<value>` per
+  probe the task section names (none when it names none), the value being
+  your own run's last output line.
+- End your final reply with a summary in exactly this format, each item on
+  its own line and nothing after it. The first line is exactly the result
+  line, one space, status=done|partial|failed — no colon, no markdown; any
+  other spelling is recorded as failed:
+FACTORY-RESULT status=<done|partial|failed>
+FACTORY-CHECKS <name>=<pass|fail|not-run> ...
+FACTORY-COMMITS <n>
+FACTORY-NOTES <one line>
+RULES
+)
+rules=${rules//<GENERATED_BY>/$generated_by}
+rules=${rules//<CO_AUTHORED_BY>/$co_authored}
+rules=${rules//<KEY>/$key}
+rules=${rules//<RUN>/$run_label}
+rules=${rules//<model>/$model_label}
+
+if [ -n "$global_constraints" ]; then
+  printf '## Global Constraints\n\n%s\n\n' "$global_constraints"
+fi
+if [ -n "$assumptions" ]; then
+  printf '## Assumptions\n\n%s\n\n' "$assumptions"
+fi
+printf '%s\n\n' "$task_section"
+if [ -n "${FACTORY_BRIEF_PRIOR:-}" ]; then
+  # SD4: a fix round's prior attempt (factory_prior_block's output) rides the
+  # brief between the task section and the WORKSPACE RULES block. Unset or
+  # empty, a bare factory-brief prints nothing extra.
+  printf '%s\n\n' "$FACTORY_BRIEF_PRIOR"
+fi
+printf '%s\n' "$rules"
+if [ -n "${FACTORY_BRIEF_EXTRA:-}" ]; then
+  # The template is already the RULES block's last line, but REPO NOTES follows
+  # it when FACTORY_BRIEF_EXTRA is set, so a headless seat ends its briefing on
+  # the notes, not the grammar. Re-print the four template lines after the
+  # notes so the grammar is the last thing the seat sees. The sentence must not
+  # name the literal FACTORY-RESULT label (an echoing seat would then be read as
+  # a near miss), and must not repeat the existing test's unique phrase.
+  printf '\n## REPO NOTES (these override the WORKSPACE RULES above where they conflict)\n\n%s\n\n' "$FACTORY_BRIEF_EXTRA"
+  printf 'Your final four lines, in the grammar the WORKSPACE RULES state (a space after the label, never a colon):\n'
+  printf 'FACTORY-RESULT status=<done|partial|failed>\n'
+  printf 'FACTORY-CHECKS <name>=<pass|fail|not-run> ...\n'
+  printf 'FACTORY-COMMITS <n>\n'
+  printf 'FACTORY-NOTES <one line>\n'
+fi

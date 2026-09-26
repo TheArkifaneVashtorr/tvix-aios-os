@@ -1,0 +1,18 @@
+{
+  "version": 1,
+  "vms": {},
+  "seats": {
+    "dsh": {
+      "harness": "dsh",
+      "role": "review",
+      "baskets": [],
+      "egress": "seat",
+      "placement": { "unit": {} },
+      "colour": "blue"
+    }
+  },
+  "workflows": {},
+  "worlds": {},
+  "egress": { "seat": { "listenPort": 3128, "allow": ["openrouter.ai"] } },
+  "policy": { "guard": [], "classes": {} }
+}

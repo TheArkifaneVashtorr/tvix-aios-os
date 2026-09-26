@@ -1,0 +1,324 @@
+#!/usr/bin/env bash
+# factory-wave <run> <repo-path> "<group>" ["<group>" ...] [--then <text>]
+#
+# A group is a space-separated list of task keys run sequentially in ONE
+# workspace chain: the first key gets a fresh workspace, every later key's
+# workspace is forked from the previous key's own task/<KEY> branch
+# (factory-task --after). Groups run concurrently as background jobs, capped
+# at the wave cap -- FACTORY_JOBS if set (a deliberate override), else the
+# module-declared /etc/seat-lane/wave-jobs, else the literal 5 as a last resort
+# (IS3). If a key in a chain does not finish
+# status=done, the rest of that chain is skipped (never dispatched) rather
+# than built on unfinished work -- a synthetic status=skipped .result is
+# written for each so the summary still names every key.
+#
+# CR3/CR3b: --then <text> records what the orchestrator means to do when the
+# run lands (absent when not given; the last --then wins; a value must be one
+# line). The run's identity and intent are written to
+# ~/factory/runs/<run>/run.meta at dispatch time (run:, repo:, base: = the
+# repo's HEAD sha, pid:, launched:, one quoted group: line per wave group, and
+# then: only when given) so the record exists even if the run dies mid-flight
+# (a reboot included). When this shell is not already a session leader,
+# factory-wave re-execs itself under `setsid -w` (waits and forwards the wave's
+# exit code) so a /new or a closed terminal does not kill the run and the
+# launcher still sees the wave's summary and exit status -- a reboot still does.
+#
+# Waits for every group, then prints one summary line per task key across
+# all groups, in the order the groups were given:
+#   KEY status=<done|partial|failed|skipped|unknown> checks=<...> commits=<n> minutes=<n> tokens=<in>+<out>
+# Exits non-zero if any task did not reach status=done.
+set -euo pipefail
+
+here=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)
+# shellcheck source=./factory-lib.sh
+# shellcheck disable=SC1091
+. "$here/factory-lib.sh"
+
+usage() {
+  cat <<'USAGE' >&2
+usage: factory-wave <run> <repo-path> "<group>" ["<group>" ...] [--then <text>]
+
+A <group> is one or more task keys separated by spaces, quoted as one
+argument, e.g.: factory-wave myrun ~/some-repo "A B" "C" --then "gate; ff"
+USAGE
+}
+
+# Re-exec under setsid when this shell is not already a session leader, so the
+# run outlives the launching session. `-w` makes setsid wait for the detached
+# child and forward its exit code, so the launcher still sees the wave's exit
+# status and summary lines even when setsid has to fork (a process-group
+# leader, e.g. a foreground command at an interactive prompt). The re-exec
+# passes the original arguments through verbatim and keeps the environment.
+# Skipped (the run proceeds in place) when setsid or ps is unavailable -- the
+# unit-check sandbox -- or when the shell already leads its session (the
+# launch rule already ran setsid).
+if command -v setsid >/dev/null 2>&1 && command -v ps >/dev/null 2>&1; then
+  sid=$(ps -o sid= -p "$$" 2>/dev/null | tr -d '[:space:]')
+  if [ -n "$sid" ] && [ "$sid" != "$$" ]; then
+    exec setsid -w -- "$0" "$@"
+  fi
+fi
+
+run=
+repo_path=
+then_text=
+then_given=0
+groups=()
+while [ $# -gt 0 ]; do
+  case $1 in
+    --then)
+      [ $# -ge 2 ] || factory_die 2 "--then needs a value"
+      then_text=$2
+      then_given=1
+      shift 2
+      ;;
+    -*)
+      usage
+      exit 2
+      ;;
+    *)
+      if [ -z "$run" ]; then
+        run=$1
+      elif [ -z "$repo_path" ]; then
+        repo_path=$1
+      else
+        groups+=("$1")
+      fi
+      shift
+      ;;
+  esac
+done
+
+[ -n "$run" ] && [ -n "$repo_path" ] && [ "${#groups[@]}" -ge 1 ] || {
+  usage
+  exit 2
+}
+
+# A5 (P11): the plan must be named explicitly before run.meta or any workspace
+# is written. Unset-or-empty refuses (exit 2, nothing written); a set but
+# unreadable path dies through factory_need_file's existing exit-2 message.
+if [ -z "${FACTORY_PLAN:-}" ]; then
+  factory_die 2 "FACTORY_PLAN is unset — name the plan (FACTORY_PLAN=<plan.md> …) or launch through factory-dispatch"
+fi
+plan=$FACTORY_PLAN
+factory_need_file "$plan"
+plan_abs=$(factory_abs_plan "$plan")
+# P11b: hand every factory-task this wave starts the SAME absolute path that
+# run.meta records, so a relative FACTORY_PLAN on the launch line cannot leave a
+# child with a cwd-dependent value.
+export FACTORY_PLAN="$plan_abs"
+
+# A group or --then value whose %q form is `$'...'` (a newline, tab, or any
+# byte %q must octal-escape) cannot survive the reader's eval-free unquote, so
+# it is refused here -- one line per offending value -- before run.meta is
+# written, and exit 2, so the reader never meets the `$'...'` form (CR3r
+# contract item 3). run.meta is one key per line, so a multi-line --then value
+# would also inject bare lines into it.
+unquotable=0
+i=0
+for group in "${groups[@]}"; do
+  i=$((i + 1))
+  q=$(printf %q "$group")
+  case $q in
+    \$\'*)
+      factory_log "group $i holds a byte %q cannot round-trip (a newline, tab or control byte); refused"
+      unquotable=1
+      ;;
+  esac
+done
+if [ "$then_given" -eq 1 ]; then
+  q=$(printf %q "$then_text")
+  case $q in
+    \$\'*)
+      factory_log "--then holds a byte %q cannot round-trip (a newline, tab or control byte); refused"
+      unquotable=1
+      ;;
+  esac
+fi
+[ "$unquotable" -eq 0 ] || exit 2
+
+# IS3: the wave cap has one source -- the seatLane module -- and the driver
+# reads it rather than carrying its own literal. FACTORY_JOBS wins when set
+# (tests and a deliberate operator override); the declared file
+# (/etc/seat-lane/wave-jobs, overridable via FACTORY_WAVE_JOBS_FILE for the
+# unit-check sandbox, which has no /etc) is next; the literal 5 is the last
+# resort and is logged as such. The positive-integer refusal names where the
+# value came from.
+wave_jobs_file=${FACTORY_WAVE_JOBS_FILE:-/etc/seat-lane/wave-jobs}
+jobs_cap=
+jobs_cap_src=
+if [ -n "${FACTORY_JOBS:-}" ]; then
+  jobs_cap=$FACTORY_JOBS
+  jobs_cap_src="FACTORY_JOBS"
+elif [ -r "$wave_jobs_file" ]; then
+  jobs_cap=$(tr -d '[:space:]' < "$wave_jobs_file")
+  jobs_cap_src="$wave_jobs_file"
+else
+  jobs_cap=5
+  jobs_cap_src="default"
+  factory_log "no FACTORY_JOBS and no declared wave cap at $wave_jobs_file; using default 5"
+fi
+case $jobs_cap in
+  '' | *[!0-9]* | 0) factory_die 2 "$jobs_cap_src must be a positive integer, got '$jobs_cap'" ;;
+esac
+
+runs_dir=$FACTORY_RUNS/$run
+# DF7c (BUG-run-name-reuse, second fix round): a reused run name is refused only
+# for (a) a live wave -- its run.meta pid names a live factory-wave (the SAME
+# holder rule the key lock uses: kill -0 AND /proc/<pid>/cmdline names
+# factory-wave, so a recycled pid never refuses a legitimate relaunch) -- (b)
+# another plan's leftovers (its run.meta plan differs from FACTORY_PLAN's
+# realpath, the 2026-09-09 ev1 case), or (c) a directory with NO run.meta that
+# already holds another run's files (a *.result, *.log, *.pid or wave-group-*
+# file). FACTORY_WAVE_REUSE=1 lifts (b) and (c), never (a). A dead wave of the
+# same plan is reused with a reusing-run line that names the pid it read; an
+# empty directory, or one holding only a dispatch.log (factory-dispatch's own
+# pre-creation), is a fresh start and is admitted silently.
+if [ -e "$runs_dir/run.meta" ]; then
+  run_pid=$(sed -n 's/^pid: //p' "$runs_dir/run.meta" | head -n1)
+  run_plan=$(sed -n 's/^plan: //p' "$runs_dir/run.meta" | head -n1)
+  ts=$(sed -n 's/^launched: //p' "$runs_dir/run.meta" | head -n1)
+  if factory_pid_is_live_wave "$run_pid"; then
+    factory_die 2 "run '$run' already exists at $runs_dir (launched: ${ts:-unknown}); choose a new run name or set FACTORY_WAVE_REUSE=1"
+  fi
+  if [ "$run_plan" != "$plan_abs" ] && [ "${FACTORY_WAVE_REUSE:-}" != "1" ]; then
+    factory_die 2 "run '$run' already exists at $runs_dir (launched: ${ts:-unknown}); choose a new run name or set FACTORY_WAVE_REUSE=1"
+  fi
+  if [ -n "$run_pid" ]; then
+    factory_log "reusing run '$run' (previous wave pid $run_pid dead)"
+  else
+    factory_log "reusing run '$run' (previous wave pid unknown)"
+  fi
+elif [ -d "$runs_dir" ] && [ "${FACTORY_WAVE_REUSE:-}" != "1" ]; then
+  # No run.meta: an empty directory (or one holding only dispatch.log, which
+  # factory-dispatch pre-creates) is a fresh start; anything else is another
+  # run's leftovers and is refused so two runs' records never merge.
+  leftovers=$(find "$runs_dir" -maxdepth 1 \
+    \( -name '*.result' -o -name '*.pid' -o -name 'wave-group-*' -o \( -name '*.log' ! -name 'dispatch.log' \) \) \
+    -print -quit 2>/dev/null || true)
+  if [ -n "$leftovers" ]; then
+    factory_die 2 "run '$run' already exists at $runs_dir; choose a new run name or set FACTORY_WAVE_REUSE=1"
+  fi
+fi
+mkdir -p -- "$runs_dir"
+
+# CR3b: record the run's identity and intent at dispatch time, before any group
+# is dispatched, so the record exists even if the run dies mid-flight. base:
+# is the repo's HEAD sha (a branch name is a moving target after a
+# fast-forward); one %q-quoted group: line per wave group keeps the group
+# structure, so a relaunch can reproduce the original argv byte-for-byte; then:
+# appears only when --then was given.
+base=$(git -C "$repo_path" rev-parse HEAD 2>/dev/null || true)
+{
+  printf 'run: %s\n' "$run"
+  printf 'repo: %s\n' "$repo_path"
+  printf 'plan: %s\n' "$plan_abs"
+  if [ -n "${SEAT_JOB_ID:-}" ]; then
+    printf 'driver: %s\n' "$SEAT_JOB_ID"
+  fi
+  printf 'base: %s\n' "${base:-unknown}"
+  printf 'pid: %s\n' "$$"
+  printf 'launched: %s\n' "$(date -u +%FT%TZ)"
+  for group in "${groups[@]}"; do
+    printf 'group: %q\n' "$group"
+  done
+  if [ "$then_given" -eq 1 ]; then
+    printf 'then: %s\n' "$then_text"
+  fi
+} >"$runs_dir/run.meta"
+
+write_skip() {
+  local key=$1 reason=$2
+  cat >"$runs_dir/$key.result" <<EOF
+FACTORY-RESULT status=skipped
+FACTORY-CHECKS none=not-run
+FACTORY-COMMITS 0
+FACTORY-NOTES $reason
+EOF
+}
+
+run_group() {
+  local group=$1
+  local prev='' key task_rc lock_pid
+  local chain_ok=1
+  for key in $group; do
+    if [ "$chain_ok" -eq 0 ]; then
+      factory_log "group [$group]: skipping $key (an earlier task in this chain did not complete)"
+      write_skip "$key" "earlier task in this chain (after $prev) did not reach status=done; skipped"
+      continue
+    fi
+    if ! factory_key_lock "$runs_dir" "$key"; then
+      if [ -n "${FACTORY_ORPHAN_PID:-}" ]; then
+        # shellcheck disable=SC2154  # set by factory_key_lock (factory-lib.sh) when it finds a live orphan
+        write_skip "$key" "$key has an orphan factory-task still running (pid $FACTORY_ORPHAN_PID) though its wave died; not resubmitted"
+      else
+        lock_pid=$(head -n1 "$runs_dir/$key.lock/pid" 2>/dev/null || printf 'unknown')
+        write_skip "$key" "$key already live under pid $lock_pid; not submitted twice"
+      fi
+      chain_ok=0
+      prev=$key
+      continue
+    fi
+    if [ -n "$prev" ]; then
+      "$FACTORY_BIN/factory-task" "$run" "$repo_path" "$key" --after "$prev" && task_rc=0 || task_rc=$?
+    else
+      "$FACTORY_BIN/factory-task" "$run" "$repo_path" "$key" && task_rc=0 || task_rc=$?
+    fi
+    factory_key_unlock "$runs_dir" "$key"
+    [ "$task_rc" -eq 0 ] || chain_ok=0
+    prev=$key
+  done
+}
+
+factory_log "run '$run': ${#groups[@]} group(s), wave cap=$jobs_cap"
+idx=0
+for group in "${groups[@]}"; do
+  idx=$((idx + 1))
+  while [ "$(jobs -pr | wc -l)" -ge "$jobs_cap" ]; do
+    sleep 1
+  done
+  factory_log "dispatching group $idx: $group"
+  glog=$runs_dir/wave-group-$idx.log
+  (run_group "$group") >"$glog" 2>&1 &
+done
+wait
+
+overall_rc=0
+for group in "${groups[@]}"; do
+  for key in $group; do
+    resfile=$runs_dir/$key.result
+    if [ ! -f "$resfile" ]; then
+      if [ -f "$runs_dir/$key.escalate" ]; then
+        esc=$(sed -n '1p' "$runs_dir/$key.escalate")
+        [ -n "$esc" ] || esc="$key escalated"
+        printf '%s status=escalated checks=- commits=- minutes=- tokens=- escalate=%s\n' "$key" "$esc"
+      else
+        printf '%s status=unknown checks=- commits=- minutes=- tokens=-\n' "$key"
+      fi
+      overall_rc=1
+      continue
+    fi
+    status=$(grep -m1 '^FACTORY-RESULT' "$resfile" | sed -nE 's/^FACTORY-RESULT[[:space:]]+status=([a-zA-Z_-]+).*/\1/p')
+    [ -n "$status" ] || status=unknown
+    checks=$(grep -m1 '^FACTORY-CHECKS' "$resfile" | sed -E 's/^FACTORY-CHECKS[[:space:]]*//' | tr -s ' ' ',')
+    [ -n "$checks" ] || checks=-
+    commits=$(grep -m1 '^FACTORY-COMMITS' "$resfile" | sed -E 's/^FACTORY-COMMITS[[:space:]]*//' | tr -d '[:space:]')
+    [ -n "$commits" ] || commits=-
+    wall_s=$(grep -m1 '^wall_s:' "$resfile" | awk '{print $2}' || true)
+    minutes=-
+    if [ -n "$wall_s" ]; then
+      minutes=$(awk -v s="$wall_s" 'BEGIN { printf "%.1f", s / 60 }')
+    fi
+    tokens=-
+    usage_line=$(grep -m1 '^usage:' "$resfile" || true)
+    if [ -n "$usage_line" ]; then
+      in_tok=$(printf '%s' "$usage_line" | sed -nE 's/.*"input": ?([0-9]+).*/\1/p')
+      out_tok=$(printf '%s' "$usage_line" | sed -nE 's/.*"output": ?([0-9]+).*/\1/p')
+      [ -z "$in_tok" ] || tokens="${in_tok}+${out_tok:-0}"
+    fi
+    printf '%s status=%s checks=%s commits=%s minutes=%s tokens=%s\n' "$key" "$status" "$checks" "$commits" "$minutes" "$tokens"
+    [ "$status" = "done" ] || overall_rc=1
+  done
+done
+
+exit "$overall_rc"

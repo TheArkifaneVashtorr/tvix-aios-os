@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+# tools/home-classes -- the repo shim for the home-classes checker: the
+# devShell's python3 running pkgs/home-classes/home_classes.py straight
+# from the checkout, for the operator and the bats tests before any
+# packaged command is installed on a host (US0, the user-spaces plan).
+set -euo pipefail
+here=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)
+command -v python3 >/dev/null 2>&1 || {
+  echo 'tools/home-classes: python3 is not on PATH; run under nix develop -c' >&2
+  exit 2
+}
+exec python3 "$here/../pkgs/home-classes/home_classes.py" "$@"

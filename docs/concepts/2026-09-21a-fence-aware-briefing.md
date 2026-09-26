@@ -1,0 +1,13 @@
+# Concept 2026-09-21a — fence-aware task extraction for `factory-brief`
+
+**Class:** driver tooling defect, found by judging. **Status:** proposed (found during the publish-gate plan's judge panel, errata 1–2).
+
+**Origin (judge panel, 2026-09-21):** judging the publish-gate plan (`docs/superpowers/plans/2026-09-21-publish-gate.md`), a judge ran `tools/factory/seat/factory-brief <draft> PG3` and `PG4` — the exact command `factory-task` calls to compose a real seat's brief — and found both truncated shortly after their first steps. `factory_extract_task` (and `factory_extract_h2`) in `tools/factory/seat/factory-lib.sh` is a plain `awk` match on `/^### /` or `/^## /` with no notion of being inside a fenced code block. PG3's own Step 3 embeds a README content block that begins with a bare `## License` line; PG4's Step 5 embeds a decision-file body containing `## The rule`, `## Origin`, `## First application`, `## What it asks of a plan`. Each is read as the next top-level heading and the extractor stops there — a seat briefed for either task would receive well under half of its own section (no Tests block, no probes, for PG3 none of Steps 4–6; for PG4 none of Steps 6–9).
+
+**Idea:** `pkgs/evidence/tasks.py`'s `parse_plan` already solves this — an `in_fence` flag guards heading detection so a bare `##`/`###` line inside a ` ``` ` block is never mistaken for a section boundary. Port the same guard into `factory-lib.sh`'s bash/awk extractors (`factory_extract_task`, `factory_extract_h2`), so a task section that embeds a markdown file's own heading structure (a README, a decision file, a runbook) briefs whole rather than truncating at the first embedded heading.
+
+**Payoff:** any future plan whose task creates or edits a markdown file with `##`/`###` headings of its own — a decision file, a README section, a runbook, a concept file, this very concept file's own format — is safe to write in full inside a fenced content block without silently starving the seat that implements it. Today that hazard is invisible until someone runs `factory-brief` by hand (as this judge did) or a seat visibly does a partial job with no visible cause; the fix removes a whole class of "the plan was right, the seat just never saw the rest of it" failures.
+
+**Dependencies:** none beyond reading `pkgs/evidence/tasks.py`'s existing `in_fence` handling as the reference implementation; no schema change, no plan-format change — the fix is inside the extractor only.
+
+**Earliest landing:** a task-zero fix ahead of or alongside PG3/PG4's own dispatch (both are hit by this bug); otherwise the first plan after this one whose task embeds a headed markdown body inside a fence.

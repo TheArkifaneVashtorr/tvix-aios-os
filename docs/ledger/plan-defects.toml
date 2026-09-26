@@ -1,0 +1,709 @@
+# The plan-defect ledger (plan 2026-09-06-planning-agent, task P3A).
+# Seed: the 43 rows of design Appendix B plus the two rows Appendix B names in
+# prose (sc5/G12, oi1/DA1) and the three rejections filed after the design's
+# count (cr17/CR2rb, bk3/B1b, cr18/CR2r2). bk4/B1c is an approval: no row.
+# `review` is a repo-relative path and must exist; `date` is the basename's
+# prefix. A row with two classes names the primary first; the second becomes
+# `plan_defect_secondary`.
+# A filed row's class changes only by a commit citing a re-read (the shape:
+# docs/reviews/2026-09-08-plan-defect-re-read.md — three readers per row,
+# convergence in code); an automated classifier proposes candidates
+# (docs/reviews/2026-09-08-plan-defect-audit.md), never relabels. The
+# tie-break between the plan classes and `implementer` is design §7.
+
+[meta]
+front_matter_from = 2026-09-07
+
+[[rejection]]
+review = "docs/reviews/2026-09-04-opus-review-a3-N6.md"
+run = "a3"
+key = "W2-N6b"
+date = 2026-09-04
+plan_defect = "missing-case"
+
+[[rejection]]
+review = "docs/reviews/2026-09-04-opus-review-a4-N7c.md"
+run = "a4"
+key = "N7c"
+date = 2026-09-04
+plan_defect = "missing-case"
+
+[[rejection]]
+review = "docs/reviews/2026-09-04-opus-review-a7-N16.md"
+run = "a7"
+key = "N16"
+date = 2026-09-04
+plan_defect = "wrong-fact"
+
+[[rejection]]
+review = "docs/reviews/2026-09-04-opus-review-a9-N19-H4.md"
+run = "a9"
+key = "N19"
+date = 2026-09-04
+plan_defect = "wrong-fact"
+
+[[rejection]]
+review = "docs/reviews/2026-09-04-opus-review-dsh-harness-b3.md"
+run = "b3"
+key = "F9/BFIX"
+date = 2026-09-04
+plan_defect = "missing-case"
+
+[[rejection]]
+review = "docs/reviews/2026-09-04-opus-review-dsh-harness-F6.md"
+run = "b2"
+key = "F6"
+date = 2026-09-04
+plan_defect = "wrong-fact"
+
+[[rejection]]
+review = "docs/reviews/2026-09-05-opus-review-cr2-CR1.md"
+run = "cr2"
+key = "CR1"
+date = 2026-09-05
+plan_defect = "missing-case"
+
+[[rejection]]
+review = "docs/reviews/2026-09-05-opus-review-cr6-CR3.md"
+run = "cr6"
+key = "CR3"
+date = 2026-09-05
+plan_defect = "underspecified"
+
+[[rejection]]
+review = "docs/reviews/2026-09-05-opus-review-cr8-CR2.md"
+run = "cr8"
+key = "CR2"
+date = 2026-09-05
+plan_defect = "missing-case"
+plan_defect_secondary = "implementer"
+
+[[rejection]]
+review = "docs/reviews/2026-09-05-opus-review-cr15-CR2r.md"
+run = "cr15"
+key = "CR2r"
+date = 2026-09-05
+plan_defect = "missing-case"
+plan_defect_secondary = "implementer"
+
+[[rejection]]
+review = "docs/reviews/2026-09-05-opus-review-ev1-R1.md"
+run = "ev1"
+key = "R1"
+date = 2026-09-05
+plan_defect = "vacuous"
+
+[[rejection]]
+review = "docs/reviews/2026-09-05-opus-review-ev1-R5.md"
+run = "ev1"
+key = "R5"
+date = 2026-09-05
+plan_defect = "missing-case"
+plan_defect_secondary = "wrong-fact"
+
+[[rejection]]
+review = "docs/reviews/2026-09-05-opus-review-ev1-R8.md"
+run = "ev1"
+key = "R8"
+date = 2026-09-05
+plan_defect = "vacuous"
+
+[[rejection]]
+review = "docs/reviews/2026-09-05-opus-review-ev2-E2.md"
+run = "ev2"
+key = "E2"
+date = 2026-09-05
+plan_defect = "vacuous"
+
+[[rejection]]
+review = "docs/reviews/2026-09-05-opus-review-ev2-E2b.md"
+run = "ev2"
+key = "E2b"
+date = 2026-09-05
+plan_defect = "vacuous"
+
+[[rejection]]
+review = "docs/reviews/2026-09-05-opus-review-ev2-E7.md"
+run = "ev2"
+key = "E7"
+date = 2026-09-05
+plan_defect = "vacuous"
+
+[[rejection]]
+review = "docs/reviews/2026-09-05-opus-review-ev2-E7b.md"
+run = "ev2"
+key = "E7b"
+date = 2026-09-05
+plan_defect = "vacuous"
+
+[[rejection]]
+review = "docs/reviews/2026-09-05-opus-review-ev3-E6.md"
+run = "ev3"
+key = "E6"
+date = 2026-09-05
+plan_defect = "vacuous"
+
+[[rejection]]
+review = "docs/reviews/2026-09-05-opus-review-ev3-E9.md"
+run = "ev3"
+key = "E9"
+date = 2026-09-05
+plan_defect = "vacuous"
+
+[[rejection]]
+review = "docs/reviews/2026-09-05-opus-review-ev3-R3r.md"
+run = "ev3"
+key = "R3r"
+date = 2026-09-05
+plan_defect = "missing-case"
+
+[[rejection]]
+review = "docs/reviews/2026-09-05-opus-review-fd1-FD1.md"
+run = "fd1"
+key = "FD1"
+date = 2026-09-05
+plan_defect = "wrong-fact"
+
+[[rejection]]
+review = "docs/reviews/2026-09-05-opus-review-hr1-H2.md"
+run = "hr1"
+key = "H2"
+date = 2026-09-05
+plan_defect = "wrong-fact"
+
+[[rejection]]
+review = "docs/reviews/2026-09-05-opus-review-mcf2-P1flash.md"
+run = "mcf2"
+key = "P1flash"
+date = 2026-09-05
+plan_defect = "wrong-fact"
+
+[[rejection]]
+review = "docs/reviews/2026-09-05-opus-review-mcp2-P3.md"
+run = "mcp2"
+key = "P3"
+date = 2026-09-05
+plan_defect = "vacuous"
+
+[[rejection]]
+review = "docs/reviews/2026-09-05-opus-review-og1-OG1.md"
+run = "og1"
+key = "OG1"
+date = 2026-09-05
+plan_defect = "missing-case"
+
+[[rejection]]
+review = "docs/reviews/2026-09-05-opus-review-og1-OG1b.md"
+run = "og1"
+key = "OG1b"
+date = 2026-09-05
+plan_defect = "underspecified"
+plan_defect_secondary = "implementer"
+
+[[rejection]]
+review = "docs/reviews/2026-09-05-opus-review-og3-OG1r.md"
+run = "og3"
+key = "OG1r"
+date = 2026-09-05
+plan_defect = "underspecified"
+plan_defect_secondary = "implementer"
+
+[[rejection]]
+review = "docs/reviews/2026-09-05-opus-review-og4-OG1r2.md"
+run = "og4"
+key = "OG1r2"
+date = 2026-09-05
+plan_defect = "missing-case"
+plan_defect_secondary = "implementer"
+
+[[rejection]]
+review = "docs/reviews/2026-09-05-opus-review-rt1-RT1.md"
+run = "rt1"
+key = "RT1"
+date = 2026-09-05
+plan_defect = "vacuous"
+plan_defect_secondary = "implementer"
+
+[[rejection]]
+review = "docs/reviews/2026-09-05-opus-review-rt2c-RT2.md"
+run = "rt2c"
+key = "RT2"
+date = 2026-09-05
+plan_defect = "vacuous"
+plan_defect_secondary = "implementer"
+
+[[rejection]]
+review = "docs/reviews/2026-09-05-opus-review-rt5-RT5.md"
+run = "rt5"
+key = "RT5"
+date = 2026-09-05
+plan_defect = "missing-case"
+
+[[rejection]]
+review = "docs/reviews/2026-09-05-opus-review-rt5-RT5b.md"
+run = "rt5"
+key = "RT5b"
+date = 2026-09-05
+plan_defect = "underspecified"
+
+[[rejection]]
+review = "docs/reviews/2026-09-05-opus-review-sb1-SB3.md"
+run = "sb1"
+key = "SB3"
+date = 2026-09-05
+plan_defect = "underspecified"
+
+[[rejection]]
+review = "docs/reviews/2026-09-05-opus-review-sb4-SB2.md"
+run = "sb4"
+key = "SB2"
+date = 2026-09-05
+plan_defect = "vacuous"
+
+[[rejection]]
+review = "docs/reviews/2026-09-05-opus-review-sb5-SB2b.md"
+run = "sb5"
+key = "SB2b"
+date = 2026-09-05
+plan_defect = "missing-case"
+
+[[rejection]]
+review = "docs/reviews/2026-09-05-opus-review-sc1-G1.md"
+run = "sc1"
+key = "G1"
+date = 2026-09-05
+plan_defect = "vacuous"
+
+[[rejection]]
+review = "docs/reviews/2026-09-05-opus-review-sc1-G2.md"
+run = "sc1"
+key = "G2"
+date = 2026-09-05
+plan_defect = "process"
+plan_defect_secondary = "vacuous"
+
+[[rejection]]
+review = "docs/reviews/2026-09-05-opus-review-sc1-G5.md"
+run = "sc1"
+key = "G5"
+date = 2026-09-05
+plan_defect = "underspecified"
+
+[[rejection]]
+review = "docs/reviews/2026-09-05-opus-review-sc1-G10.md"
+run = "sc1"
+key = "G10"
+date = 2026-09-05
+plan_defect = "vacuous"
+
+[[rejection]]
+review = "docs/reviews/2026-09-05-opus-review-sc4-G8b.md"
+run = "sc4"
+key = "G8b"
+date = 2026-09-05
+plan_defect = "underspecified"
+
+[[rejection]]
+review = "docs/reviews/2026-09-05-opus-review-sc5-G11.md"
+run = "sc5"
+key = "G11"
+date = 2026-09-05
+plan_defect = "missing-case"
+plan_defect_secondary = "implementer"
+
+[[rejection]]
+review = "docs/reviews/2026-09-05-opus-review-sc5-G11b.md"
+run = "sc5"
+key = "G11b"
+date = 2026-09-05
+plan_defect = "missing-case"
+
+[[rejection]]
+review = "docs/reviews/2026-09-05-opus-review-sc8-G12b.md"
+run = "sc8"
+key = "G12b"
+date = 2026-09-05
+plan_defect = "underspecified"
+
+[[rejection]]
+review = "docs/reviews/2026-09-05-opus-review-sc5-G12.md"
+run = "sc5"
+key = "G12"
+date = 2026-09-05
+plan_defect = "implementer"
+plan_defect_secondary = "missing-case"
+
+[[rejection]]
+review = "docs/reviews/2026-09-05-opus-review-oi1-DA1.md"
+run = "oi1"
+key = "DA1"
+date = 2026-09-05
+plan_defect = "implementer"
+plan_defect_secondary = "missing-case"
+
+[[rejection]]
+review = "docs/reviews/2026-09-05-opus-review-cr17-CR2rb.md"
+run = "cr17"
+key = "CR2rb"
+date = 2026-09-05
+plan_defect = "missing-case"
+plan_defect_secondary = "implementer"
+
+[[rejection]]
+review = "docs/reviews/2026-09-05-opus-review-bk3-B1b.md"
+run = "bk3"
+key = "B1b"
+date = 2026-09-05
+plan_defect = "vacuous"
+plan_defect_secondary = "implementer"
+
+[[rejection]]
+review = "docs/reviews/2026-09-06-opus-review-cr18-CR2r2.md"
+run = "cr18"
+key = "CR2r2"
+date = 2026-09-06
+plan_defect = "missing-case"
+plan_defect_secondary = "implementer"
+
+# Rows added by the orchestrator for the rejections filed on 2026-09-06 after
+# this plan was on main (front_matter_from is 2026-09-07, so these reviews
+# carry no block and are classified here).
+
+[[rejection]]
+review = "docs/reviews/2026-09-06-opus-review-cr19-CR2r2b.md"
+run = "cr19"
+key = "CR2r2b"
+date = 2026-09-06
+plan_defect = "implementer"
+
+[[rejection]]
+review = "docs/reviews/2026-09-06-opus-review-pa4-P4.md"
+run = "pa4"
+key = "P4"
+date = 2026-09-06
+plan_defect = "wrong-fact"
+
+[[rejection]]
+review = "docs/reviews/2026-09-06-opus-review-pa5-P6.md"
+run = "pa5"
+key = "P6"
+date = 2026-09-06
+plan_defect = "missing-case"
+
+[[rejection]]
+review = "docs/reviews/2026-09-06-opus-review-pa3-P11.md"
+run = "pa3"
+key = "P11"
+date = 2026-09-06
+plan_defect = "missing-case"
+
+[[rejection]]
+review = "docs/reviews/2026-09-06-opus-review-cr20-CR2r3.md"
+run = "cr20"
+key = "CR2r3"
+date = 2026-09-06
+plan_defect = "underspecified"
+plan_defect_secondary = "missing-case"
+
+[[rejection]]
+review = "docs/reviews/2026-09-06-opus-review-pa6-P2.md"
+run = "pa6"
+key = "P2"
+date = 2026-09-06
+plan_defect = "missing-case"
+plan_defect_secondary = "implementer"
+
+[[rejection]]
+review = "docs/reviews/2026-09-06-opus-review-pa10-P10.md"
+run = "pa10"
+key = "P10"
+date = 2026-09-06
+plan_defect = "implementer"
+plan_defect_secondary = "wrong-fact"
+
+[[rejection]]
+review = "docs/reviews/2026-09-06-opus-review-pb3a-P3Ab.md"
+run = "pb3a"
+key = "P3Ab"
+date = 2026-09-06
+plan_defect = "wrong-fact"
+plan_defect_secondary = "implementer"
+
+[[rejection]]
+review = "docs/reviews/2026-09-06-opus-review-pa9-P8.md"
+run = "pa9"
+key = "P8"
+date = 2026-09-06
+plan_defect = "missing-case"
+plan_defect_secondary = "wrong-fact"
+
+[[rejection]]
+review = "docs/reviews/2026-09-06-opus-review-pb3arb2-P3Arb.md"
+run = "pb3arb2"
+key = "P3Arb"
+date = 2026-09-06
+plan_defect = "implementer"
+plan_defect_secondary = "wrong-fact"
+
+[[rejection]]
+review = "docs/reviews/2026-09-06-opus-review-pb3ar2-P3Ar2.md"
+run = "pb3ar2"
+key = "P3Ar2"
+date = 2026-09-06
+plan_defect = "implementer"
+
+[[rejection]]
+review = "docs/reviews/2026-09-06-opus-review-pb3ar2b-P3Ar2b.md"
+run = "pb3ar2b"
+key = "P3Ar2b"
+date = 2026-09-06
+plan_defect = "missing-case"
+plan_defect_secondary = "implementer"
+
+[[rejection]]
+review = "docs/reviews/2026-09-06-opus-review-pb11-P11b.md"
+run = "pb11"
+key = "P11b"
+date = 2026-09-06
+plan_defect = "implementer"
+plan_defect_secondary = "underspecified"
+
+[[rejection]]
+review = "docs/reviews/2026-09-07-opus-review-tel1b-T1.md"
+run = "tel1b"
+key = "T1"
+date = 2026-09-07
+plan_defect = "implementer"
+plan_defect_secondary = "missing-case"
+
+[[rejection]]
+review = "docs/reviews/2026-09-07-opus-review-tel2-T1W.md"
+run = "tel2"
+key = "T1W"
+date = 2026-09-07
+plan_defect = "implementer"
+plan_defect_secondary = "vacuous"
+
+[[rejection]]
+review = "docs/reviews/2026-09-07-opus-review-tel2-T3.md"
+run = "tel2"
+key = "T3"
+date = 2026-09-07
+plan_defect = "implementer"
+plan_defect_secondary = "vacuous"
+
+[[rejection]]
+review = "docs/reviews/2026-09-07-opus-review-tel2-T2.md"
+run = "tel2"
+key = "T2"
+date = 2026-09-07
+plan_defect = "implementer"
+plan_defect_secondary = "missing-case"
+
+[[rejection]]
+review = "docs/reviews/2026-09-07-opus-review-tel3-T3M.md"
+run = "tel3"
+key = "T3M"
+date = 2026-09-07
+plan_defect = "implementer"
+
+[[rejection]]
+review = "docs/reviews/2026-09-07-opus-review-sb9-SB7.md"
+run = "sb9"
+key = "SB7"
+date = 2026-09-07
+plan_defect = "vacuous"
+plan_defect_secondary = "wrong-fact"
+
+[[rejection]]
+review = "docs/reviews/2026-09-07-opus-review-cx1-CX1.md"
+run = "cx1"
+key = "CX1"
+date = 2026-09-07
+plan_defect = "implementer"
+
+[[rejection]]
+review = "docs/reviews/2026-09-07-opus-review-sh2-SH3.md"
+run = "sh2"
+key = "SH3"
+date = 2026-09-07
+plan_defect = "implementer"
+plan_defect_secondary = "missing-case"
+
+[[rejection]]
+review = "docs/reviews/2026-09-07-opus-review-sh2f-SH3b.md"
+run = "sh2f"
+key = "SH3b"
+date = 2026-09-07
+plan_defect = "implementer"
+plan_defect_secondary = "missing-case"
+
+[[rejection]]
+review = "docs/reviews/2026-09-07-opus-review-sh4-SH5.md"
+run = "sh4"
+key = "SH5"
+date = 2026-09-07
+plan_defect = "implementer"
+plan_defect_secondary = "wrong-fact"
+
+[[rejection]]
+review = "docs/reviews/2026-09-08-opus-review-ca1-CA2.md"
+run = "ca1"
+key = "CA2"
+date = 2026-09-08
+plan_defect = "wrong-fact"
+plan_defect_secondary = "missing-case"
+
+[[rejection]]
+review = "docs/reviews/2026-09-08-opus-review-ca1-CA1.md"
+run = "ca1"
+key = "CA1"
+date = 2026-09-08
+plan_defect = "implementer"
+plan_defect_secondary = "vacuous"
+
+[[rejection]]
+review = "docs/reviews/2026-09-08-opus-review-sb10-SB6b.md"
+run = "sb10"
+key = "SB6b"
+date = 2026-09-08
+plan_defect = "implementer"
+
+[[rejection]]
+review = "docs/reviews/2026-09-08-opus-review-sd1-SD1.md"
+run = "sd1"
+key = "SD1"
+date = 2026-09-08
+plan_defect = "wrong-fact"
+plan_defect_secondary = "missing-case"
+
+[[rejection]]
+review = "docs/reviews/2026-09-08-opus-review-sd1-SD4.md"
+run = "sd1"
+key = "SD4"
+date = 2026-09-08
+plan_defect = "missing-case"
+plan_defect_secondary = "implementer"
+
+[[rejection]]
+review = "docs/reviews/2026-09-08-opus-review-sd2-SD7.md"
+run = "sd2"
+key = "SD7"
+date = 2026-09-08
+plan_defect = "implementer"
+plan_defect_secondary = "wrong-fact"
+
+[[rejection]]
+review = "docs/reviews/2026-09-08-opus-review-hg1-OG3.md"
+run = "hg1"
+key = "OG3"
+date = 2026-09-08
+plan_defect = "underspecified"
+plan_defect_secondary = "wrong-fact"
+
+[[rejection]]
+review = "docs/reviews/2026-09-08-opus-review-sd2-SD3.md"
+run = "sd2"
+key = "SD3"
+date = 2026-09-08
+plan_defect = "missing-case"
+plan_defect_secondary = "implementer"
+
+[[rejection]]
+review = "docs/reviews/2026-09-08-opus-review-hg2-OG3b.md"
+run = "hg2"
+key = "OG3b"
+date = 2026-09-08
+plan_defect = "wrong-fact"
+plan_defect_secondary = "missing-case"
+
+[[rejection]]
+review = "docs/reviews/2026-09-08-opus-review-sd11-SD11.md"
+run = "sd11"
+key = "SD11"
+date = 2026-09-08
+plan_defect = "implementer"
+
+[[rejection]]
+review = "docs/reviews/2026-09-08-opus-review-sd11b-SD11b.md"
+run = "sd11b"
+key = "SD11b"
+date = 2026-09-08
+plan_defect = "wrong-fact"
+plan_defect_secondary = "vacuous"
+
+[[rejection]]
+review = "docs/reviews/2026-09-09-opus-review-bug1ab-BUG1ab.md"
+run = "bug1ab"
+key = "BUG1ab"
+date = 2026-09-09
+plan_defect = "implementer"
+
+[[rejection]]
+review = "docs/reviews/2026-09-09-opus-review-bug1a-BUG1a.md"
+run = "bug1a"
+key = "BUG1a"
+date = 2026-09-09
+plan_defect = "implementer"
+plan_defect_secondary = "wrong-fact"
+
+[[rejection]]
+review = "docs/reviews/2026-09-09-opus-review-bug2b3-BUG2b.md"
+run = "bug2b3"
+key = "BUG2b"
+date = 2026-09-09
+plan_defect = "implementer"
+
+[[rejection]]
+review = "docs/reviews/2026-09-09-opus-review-bug2-BUG2.md"
+run = "bug2"
+key = "BUG2"
+date = 2026-09-09
+plan_defect = "implementer"
+plan_defect_secondary = "missing-case"
+
+[[rejection]]
+review = "docs/reviews/2026-09-09-opus-review-bug3b-BUG3b.md"
+run = "bug3b"
+key = "BUG3b"
+date = 2026-09-09
+plan_defect = "wrong-fact"
+plan_defect_secondary = "implementer"
+
+[[rejection]]
+review = "docs/reviews/2026-09-09-opus-review-bug3-BUG3.md"
+run = "bug3"
+key = "BUG3"
+date = 2026-09-09
+plan_defect = "implementer"
+
+[[rejection]]
+review = "docs/reviews/2026-09-09-opus-review-fix3-FIX3.md"
+run = "fix3"
+key = "FIX3"
+date = 2026-09-09
+plan_defect = "vacuous"
+plan_defect_secondary = "implementer"
+
+[[rejection]]
+review = "docs/reviews/2026-09-09-opus-review-hh1f-HH1b.md"
+run = "hh1f"
+key = "HH1b"
+date = 2026-09-09
+plan_defect = "wrong-fact"
+
+[[rejection]]
+review = "docs/reviews/2026-09-09-opus-review-sd12b-SD12b.md"
+run = "sd12b"
+key = "SD12b"
+date = 2026-09-09
+plan_defect = "implementer"
+plan_defect_secondary = "underspecified"
+
+[[rejection]]
+review = "docs/reviews/2026-09-10-opus-review-pr1b-KN1.md"
+run = "pr1b"
+key = "KN1"
+date = 2026-09-10
+plan_defect = "missing-case"
+plan_defect_secondary = "implementer"

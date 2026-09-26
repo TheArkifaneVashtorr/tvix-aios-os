@@ -1,0 +1,72 @@
+{
+  "version": 1,
+  "vms": {
+    "guest-a": {
+      "config": "/nix/store/00000000000000000000000000000000-guest-a",
+      "shares": [{ "source": "/var/lib/aios/workspaces/a", "mountPoint": "/workspace" }],
+      "vsock": { "cid": 3 },
+      "baskets": ["public"],
+      "egress": "seat"
+    },
+    "guest-b": {
+      "config": "/nix/store/11111111111111111111111111111111-guest-b",
+      "shares": [],
+      "vsock": { "cid": 4 },
+      "baskets": [],
+      "egress": "media"
+    }
+  },
+  "seats": {
+    "claude": {
+      "harness": "claude-code",
+      "role": "implement",
+      "baskets": ["public"],
+      "egress": "seat",
+      "placement": { "vm": "guest-a" }
+    },
+    "dsh": {
+      "harness": "dsh",
+      "role": "review",
+      "baskets": [],
+      "egress": "seat",
+      "placement": { "unit": {} }
+    },
+    "codex": {
+      "harness": "codex",
+      "role": "implement",
+      "baskets": [],
+      "egress": "seat",
+      "placement": { "vm": "guest-b" }
+    }
+  },
+  "workflows": {
+    "step1": {
+      "source": { "plan": "docs/superpowers/plans/2026-09-22-tvix-aios-step1.md", "keys": ["OS1", "OS2"] },
+      "ladder": "implement",
+      "gates": ["review"],
+      "cap": 2
+    }
+  },
+  "worlds": {
+    "sfw": {
+      "generator": "comfy-world-sfw",
+      "loop": { "rounds": 1, "judge": "local-vision" },
+      "sink": "world-pick",
+      "placement": { "unit": {} }
+    }
+  },
+  "egress": {
+    "seat": { "listenPort": 3128, "allow": ["openrouter.ai"] },
+    "media": { "listenPort": 3130, "allow": ["pypi.org", "github.com"] }
+  },
+  "policy": {
+    "guard": [
+      { "path": "docs/OPERATIONS.md", "kind": "file", "reason": "the board is derived" },
+      { "path": "docs/superpowers/plans", "kind": "dir", "reason": "plan headings are append-only" }
+    ],
+    "classes": {
+      "public": { "classification": "public", "mount": "/data/public" },
+      "redacted": { "classification": "redacted", "mount": "/data/redacted" }
+    }
+  }
+}

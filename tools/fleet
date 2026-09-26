@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+# tools/fleet -- the repo shim for the fleet command: the devShell's python3
+# running pkgs/fleet/fleet.py straight from the checkout, for the operator
+# and the bats tests before the packaged `fleet` (flake packages.fleet) is
+# installed on a host (FL5, plan 2026-09-24-fleet-and-forge.md).
+set -euo pipefail
+here=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)
+command -v python3 >/dev/null 2>&1 || {
+  echo 'tools/fleet: python3 is not on PATH; run under nix develop -c, or use the fleet command core installs after the switch' >&2
+  exit 2
+}
+exec python3 "$here/../pkgs/fleet/fleet.py" "$@"

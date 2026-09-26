@@ -1,0 +1,18 @@
+/* The self-test prober: deliberately misformatted — selectors and braces
+one to a line, cramped declarations, uneven indentation. prettier would
+reflow every rule; the css arm's self-test asserts this file FAILS. */
+.scroller
+{
+height:100dvh;
+    scroll-snap-type: y mandatory;
+            overflow-y: scroll;
+}
+.card
+{
+    height:100dvh;
+scroll-snap-align: start;
+}
+.rail
+{   position: absolute;
+  right: 8px;
+}

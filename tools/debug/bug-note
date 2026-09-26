@@ -1,0 +1,144 @@
+#!/usr/bin/env bash
+# bug-note — append exactly one JSON line to the debug-sweep inbox
+# (plan 2026-09-23-debug-sweep, DS1). The line is the inbox line of the
+# plan's Global Constraints:
+#   {"v":1,"ts":"<UTC RFC3339 Z>","reporter":"<str>",
+#    "symptom":"<str>","evidence":<str|null>}
+# Bash and coreutils only (printf, date, mkdir, pwd): the seat and the
+# operator's shell have no jq, python3 or bats on PATH (D10, F12).
+set -euo pipefail
+export LC_ALL=C
+
+usage() {
+  printf 'usage: bug-note "<symptom>" [--evidence <path>|<run>/<KEY>|<commit>]\n'
+}
+
+die() {
+  printf 'bug-note: %s\n' "$1" >&2
+  exit 2
+}
+
+# json_str <s> — one JSON string's contents (no quotes) with LC_ALL=C byte
+# semantics: '"' -> \", '\' -> \\, every byte below 0x20 -> \u00xx (lowercase
+# hex), every other byte verbatim.
+json_str() {
+  local s=$1 out='' i code
+  for ((i = 0; i < ${#s}; i++)); do
+    code=$(printf '%d' "'${s:i:1}")
+    ((code < 0)) && ((code += 256))
+    if ((code == 34)); then
+      out+='\"'
+    elif ((code == 92)); then
+      out+="\\\\"
+    elif ((code < 32)); then
+      out+=$(printf '\\u%04x' "$code")
+    else
+      out+="${s:i:1}"
+    fi
+  done
+  printf '%s' "$out"
+}
+
+# derive_reporter — BUG_NOTE_REPORTER when it matches its pattern (checked by
+# the caller), else the first directory from $(pwd -P) up to / holding a
+# .factory-meta file: <run>/<KEY> when its path ends in /ws/<run>/<KEY>,
+# else its last two components joined by /. No marker above: "operator".
+derive_reporter() {
+  local d=$1 found=''
+  while :; do
+    if [ -f "$d/.factory-meta" ]; then
+      found=$d
+      break
+    fi
+    [ "$d" = "/" ] && break
+    d=${d%/*}
+    [ -n "$d" ] || d=/
+  done
+  [ -n "$found" ] || {
+    printf 'operator'
+    return
+  }
+  local p=${found%/} name parent
+  name=${p##*/}
+  parent=${p%/*}
+  parent=${parent##*/}
+  if [ -z "$parent" ]; then
+    printf '%s' "$name"
+  else
+    printf '%s/%s' "$parent" "$name"
+  fi
+}
+
+symptom=''
+evidence=''
+reporter=''
+
+while (($# > 0)); do
+  case $1 in
+    --help)
+      usage
+      exit 0
+      ;;
+    --evidence)
+      (($# >= 2)) || die '--evidence needs a value'
+      evidence=$2
+      shift
+      ;;
+    -*)
+      die "unknown option $1"
+      ;;
+    *)
+      if [ -n "$symptom" ]; then
+        die 'one symptom, then options'
+      fi
+      symptom=$1
+      ;;
+  esac
+  shift
+done
+
+# Refusals, Interface 3's order: the symptom first, then the evidence, then
+# the reporter. Each is one line on stderr, exit 2, nothing appended.
+[ -n "$symptom" ] || die 'the symptom is empty'
+[[ $symptom =~ [^[:space:]] ]] || die 'the symptom is empty'
+case $symptom in
+  *$'\n'*) die 'the symptom must be one line' ;;
+esac
+((${#symptom} <= 2000)) || die 'the symptom is over 2000 bytes'
+
+if [ -n "$evidence" ]; then
+  case $evidence in
+    */* | .*) : ;;
+    *)
+      [[ $evidence =~ ^[0-9a-f]{7,40}$ ]] ||
+        die '--evidence must be a path, <run>/<KEY> or a commit'
+      ;;
+  esac
+fi
+
+if [ -n "${BUG_NOTE_REPORTER:-}" ]; then
+  [[ $BUG_NOTE_REPORTER =~ ^[A-Za-z0-9._:/@-]{1,80}$ ]] ||
+    die 'BUG_NOTE_REPORTER must match ^[A-Za-z0-9._:/@-]{1,80}$'
+  reporter=$BUG_NOTE_REPORTER
+else
+  reporter=$(derive_reporter "$(pwd -P)")
+fi
+
+inbox=${BUG_NOTE_INBOX:-$HOME/factory/debug/inbox.jsonl}
+ts=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+if [ -n "$evidence" ]; then
+  evidence_json="\"$(json_str "$evidence")\""
+else
+  evidence_json=null
+fi
+line='{"v":1,"ts":"'"$ts"'","reporter":"'"$reporter"'","symptom":"'"$(json_str "$symptom")"'","evidence":'"$evidence_json"'}'
+
+case $inbox in
+  */*) dir=${inbox%/*} ;;
+  *) dir=. ;;
+esac
+if ! mkdir -p "$dir" 2>/dev/null || ! printf '%s\n' "$line" >>"$inbox" 2>/dev/null; then
+  printf 'bug-note: cannot append to %s\n' "$inbox" >&2
+  exit 3
+fi
+printf '%s\n' "$line"

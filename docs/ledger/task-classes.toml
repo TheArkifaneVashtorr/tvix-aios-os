@@ -1,0 +1,210 @@
+# Task classes derived from `touches` (SD2). Each `[[rule]]` maps one `glob`
+# (a plain fnmatch pattern; `*` spans `/`, `?` one character, no `[` and no
+# `**` semantics, no leading `/` or `..`) to one `class` of the thirteen
+# names.
+# A file's class is the FIRST rule whose glob matches it; a task's class is the
+# class with the most files, a tie going to the class whose rule appears
+# earliest. Order is priority. Change rules here, nowhere else.
+
+# FA1: docs-spec and docs-plan-run resolve before the broader docs/superpowers
+# and docs/reviews globs, so a specs file or a plan-judgement classifies to its
+# named class rather than docs-plan / docs-board.
+[[rule]]
+class = "docs-spec"
+glob = "docs/superpowers/specs/*"
+
+[[rule]]
+class = "docs-plan-run"
+glob = "docs/reviews/plan-judgements/*"
+
+[[rule]]
+class = "nix-module"
+glob = "nixosModules/*"
+
+[[rule]]
+class = "nix-module"
+glob = "hosts/*"
+
+[[rule]]
+class = "nix-module"
+glob = "lib/*"
+
+[[rule]]
+class = "vm-test"
+glob = "tests/integration/*"
+
+[[rule]]
+class = "nix-check"
+glob = "flake.nix"
+
+[[rule]]
+class = "nix-check"
+glob = "treefmt.toml"
+
+[[rule]]
+class = "nix-check"
+glob = "pkgs/*/default.nix"
+
+[[rule]]
+class = "nix-check"
+glob = "pkgs/*/*.nix"
+
+# FA33: the rust class -- goal 2's Rust OS work (pkgs/aiosd, the root Cargo
+# manifest and lockfile). `*` spans `/`, so pkgs/aiosd/* matches every nested
+# file; the root Cargo.toml and Cargo.lock need their own rows because they
+# are not under pkgs/aiosd/.
+[[rule]]
+class = "rust"
+glob = "pkgs/aiosd/*"
+
+[[rule]]
+class = "rust"
+glob = "Cargo.toml"
+
+[[rule]]
+class = "rust"
+glob = "Cargo.lock"
+
+[[rule]]
+class = "bash-driver"
+glob = "tools/factory/seat/*"
+
+[[rule]]
+class = "bash-driver"
+glob = "tools/*.sh"
+
+[[rule]]
+class = "bash-driver"
+glob = "githooks/*"
+
+[[rule]]
+class = "bash-driver"
+glob = "pkgs/*/*.sh"
+
+[[rule]]
+class = "bash-driver"
+glob = "tests/*/*.sh"
+
+[[rule]]
+class = "bats-test"
+glob = "tests/unit/*"
+
+[[rule]]
+class = "js-workflow"
+glob = ".claude/workflows/*"
+
+[[rule]]
+class = "js-workflow"
+glob = "tools/factory/dark-factory.js"
+
+[[rule]]
+class = "js-workflow"
+glob = "tests/factory/*"
+
+[[rule]]
+class = "python-evidence"
+glob = "pkgs/evidence/*"
+
+[[rule]]
+class = "python-evidence"
+glob = "tests/evidence/*"
+
+[[rule]]
+class = "python-evidence"
+glob = "pkgs/seat/*"
+
+[[rule]]
+class = "python-evidence"
+glob = "tests/seat/*"
+
+[[rule]]
+class = "python-evidence"
+glob = "pkgs/helm/*"
+
+[[rule]]
+class = "python-evidence"
+glob = "tests/helm/*"
+
+[[rule]]
+class = "python-evidence"
+glob = "pkgs/broker/*"
+
+[[rule]]
+class = "python-evidence"
+glob = "tests/broker/*"
+
+[[rule]]
+class = "python-evidence"
+glob = "pkgs/lane/*"
+
+[[rule]]
+class = "python-evidence"
+glob = "tests/lane/*"
+
+[[rule]]
+class = "python-evidence"
+glob = "pkgs/dsh-openrouter/*.py"
+
+[[rule]]
+class = "python-evidence"
+glob = "tools/ledger/*"
+
+[[rule]]
+class = "python-evidence"
+glob = "tests/ledger/*"
+
+[[rule]]
+class = "python-evidence"
+glob = "tools/factory/route.py"
+
+[[rule]]
+class = "python-evidence"
+glob = "tests/mocks/*"
+
+[[rule]]
+class = "docs-plan"
+glob = "docs/superpowers/*"
+
+[[rule]]
+class = "docs-board"
+glob = "docs/OPERATIONS.md"
+
+[[rule]]
+class = "docs-board"
+glob = "docs/board/*"
+
+[[rule]]
+class = "docs-board"
+glob = "docs/MAP.md"
+
+[[rule]]
+class = "docs-board"
+glob = "docs/reviews/*"
+
+[[rule]]
+class = "docs-runbook"
+glob = "docs/runbooks/*"
+
+[[rule]]
+class = "docs-runbook"
+glob = "docs/decisions/*"
+
+[[rule]]
+class = "docs-runbook"
+glob = "docs/concepts/*"
+
+[[rule]]
+class = "docs-runbook"
+glob = "docs/ledger/*"
+
+[[rule]]
+class = "docs-runbook"
+glob = "README.md"
+
+[[rule]]
+class = "docs-runbook"
+glob = "CLAUDE.md"
+
+[[rule]]
+class = "docs-runbook"
+glob = "docs/*.md"

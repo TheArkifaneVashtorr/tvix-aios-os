@@ -1,0 +1,69 @@
+[formatter.nix]
+command = "nixfmt"
+includes = ["*.nix"]
+# Every host's hardware-configuration.nix is exempt from nixfmt:
+# hosts/core's is a byte-for-byte copy of nixos-generate-config output (plan:
+# hosts/core must stay verbatim) and hosts/forge's is the marked placeholder
+# `fleet enroll` replaces verbatim.
+# pkgs/fleet/fleet-join.nix (FL5, plan 2026-09-24-fleet-and-forge.md) is the
+# bootstrap module TEMPLATE: its @DEPLOY_KEYS@ / @PARENT_IMPORTS@ placeholders
+# sit in expression position, so the file is not parseable Nix until
+# `fleet join-script` or checks.fleet-eval substitutes them -- nixfmt cannot
+# run on it. statix and deadnix exclude it for the same reason.
+# vendor/ is imperatively-installed payload (vendor/README.md, operator
+# decision 2026-09-19): untracked, outside the flake, and not covered by the
+# lint gate — this sweep is where that sentence gets enforced.
+excludes = ["hosts/*/hardware-configuration.nix", "pkgs/fleet/fleet-join.nix", "vendor/*"]
+
+[formatter.shell]
+command = "shfmt"
+options = ["-i", "2", "-ci", "-w"]
+includes = ["*.sh", "githooks/pre-push", "githooks/pre-commit"]
+# pkgs/dsh-harness is vendored upstream history (Q6(b), 4564fe1), not this
+# repo's own shell: shfmt would re-indent content we did not author.
+# vendor/ (same README decision): additionally, the zcode AppImage payload it
+# holds is a live process that rewrites its own resources mid-walk, which
+# trips treefmt's fail-on-change guard on every gate run while the app runs.
+excludes = ["pkgs/dsh-harness/*", "vendor/*"]
+
+[formatter.python]
+command = "ruff"
+options = ["format"]
+includes = ["*.py"]
+# vendor/ (vendor/README.md, operator decision 2026-09-19): the AppImage's
+# bundled skill scripts are upstream payload, not this repo's Python.
+excludes = ["vendor/*"]
+
+# P12: prettier formats every JavaScript file (semi: false, singleQuote, 120
+# cols — see .prettierrc.json). The lint fixtures live outside the sweep on
+# purpose: they are the probers that tests/lint/js-lint.sh --self-test asserts
+# FAIL prettier/oxlint, so formatting them would gut the gate.
+[formatter.js]
+command = "prettier"
+options = ["--write"]
+includes = ["*.js", "*.mjs"]
+# pkgs/dsh-harness is vendored upstream history (Q6(b), 4564fe1), not this
+# repo's own JavaScript: prettier would fork its style out from upstream.
+# vendor/ (vendor/README.md, operator decision 2026-09-19): upstream payload,
+# and raced by the live app's own writes (see formatter.shell above).
+excludes = ["tests/lint/fixtures/js/*", "pkgs/dsh-harness/*", "vendor/*"]
+
+# GN25 (G10: the formatter lands with the language): prettier formats every
+# stylesheet — the deck client's app.css and any css that follows it. The
+# excludes mirror the js block's (the fixtures are the css arm's probers;
+# dsh-harness and vendor are upstream payload we do not author).
+[formatter.css]
+command = "prettier"
+options = ["--write"]
+includes = ["*.css"]
+excludes = ["tests/lint/fixtures/css/*", "pkgs/dsh-harness/*", "vendor/*"]
+
+# OS2 (2026-09-22-tvix-aios-step1; the formatter lands with the language):
+# rustfmt formats every tracked Rust file at edition 2021. ./tvix is the fork
+# linked for a hand cargo session and ./target is cargo's own output; neither
+# is this repo's Rust.
+[formatter.rust]
+command = "rustfmt"
+options = ["--edition", "2021"]
+includes = ["*.rs"]
+excludes = ["tvix/*", "target/*", "vendor/*"]

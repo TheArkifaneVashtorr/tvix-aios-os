@@ -1,0 +1,290 @@
+# Starter model manifest for media-fetch-models (Task 2 of
+# docs/superpowers/plans/2026-09-02-media-flake.md).
+#
+# Every sha256 below was read from the Hugging Face file's own Git-LFS
+# pointer (`curl https://huggingface.co/<repo>/raw/main/<path>`, which
+# returns the literal `oid sha256:<hash>` line Hugging Face's LFS storage
+# is keyed on — not typed or estimated) on 2026-09-02. Never hand-guess a
+# hash here: an entry that cannot be verified this way is recorded with
+# sha256 = "UNVERIFIED" and enabled = false; media-fetch-models refuses to
+# fetch an UNVERIFIED entry even if named explicitly via --only.
+#
+# `dest` paths are relative to dataDir/models and follow ComfyUI's current
+# split-file model folders (checkpoints/, diffusion_models/, text_encoders/,
+# vae/) — the folders the native UNETLoader/CLIPLoader/VAELoader and
+# CheckpointLoaderSimple nodes read from.
+
+# --- Image -------------------------------------------------------------
+
+[[model]]
+name = "sdxl-base-1.0"
+url = "https://huggingface.co/stabilityai/stable-diffusion-xl-base-1.0/resolve/main/sd_xl_base_1.0.safetensors"
+sha256 = "31e35c80fc4829d14f90153f4c74cd59c90b779f6afe05a74cd6120b893f7e5b"
+dest = "checkpoints/sd_xl_base_1.0.safetensors"
+size = 6938078334
+license = "openrail++"
+gated = false
+enabled = true
+
+# Z-Image Turbo ships as three native-ComfyUI split files (diffusion model +
+# text encoder + VAE), the same shape as Wan below. Comfy-Org's own
+# z_image_turbo repackage has bf16/int8/nvfp4 diffusion-model builds but no
+# fp8 one; Kijai/Z-Image_comfy_fp8_scaled is the fp8 build in the same
+# native-loader format (file naming and "_scaled" convention match
+# Comfy-Org's own fp8_scaled files), so it is used for the fp8 tensor.
+
+[[model]]
+name = "z-image-turbo-fp8"
+url = "https://huggingface.co/Kijai/Z-Image_comfy_fp8_scaled/resolve/main/z-image-turbo_fp8_scaled_e4m3fn_KJ.safetensors"
+sha256 = "59610861d46ae8d5d1d371ab7b2532ce64c0835052b395551a8550fa0e3eb3cf"
+dest = "diffusion_models/z-image-turbo_fp8_scaled_e4m3fn_KJ.safetensors"
+size = 6158115074
+license = "apache-2.0"
+gated = false
+enabled = true
+
+[[model]]
+name = "z-image-turbo-text-encoder"
+url = "https://huggingface.co/Comfy-Org/z_image_turbo/resolve/main/split_files/text_encoders/qwen_3_4b_fp8_mixed.safetensors"
+sha256 = "72450b19758172c5a7273cf7de729d1c17e7f434a104a00167624cba94f68f15"
+dest = "text_encoders/qwen_3_4b_fp8_mixed.safetensors"
+size = 5631994051
+license = "apache-2.0"
+gated = false
+enabled = true
+
+[[model]]
+name = "z-image-turbo-vae"
+url = "https://huggingface.co/Comfy-Org/z_image_turbo/resolve/main/split_files/vae/ae.safetensors"
+sha256 = "afc8e28272cd15db3919bacdb6918ce9c1ed22e96cb12c4d5ed0fba823529e38"
+dest = "vae/z_image_ae.safetensors"
+size = 335304388
+license = "apache-2.0"
+gated = false
+enabled = true
+
+# Krea-2 (Comfy-Org/Krea-2) — the CLIPLoader `krea2` type ComfyUI v0.34.3
+# adds reads this Qwen3-VL-based text encoder and the qwen_image VAE. Both
+# sha256 values were read from the files' own Git-LFS pointers
+# (curl https://huggingface.co/Comfy-Org/Krea-2/raw/main/<path> → the
+# literal `oid sha256:<hash>` line), per this manifest's discipline, and
+# cross-checked against the operator's own copies under
+# ~/comfyui/models/{text_encoders,vae} (sizes and sha256 match exactly).
+
+[[model]]
+name = "krea2-text-encoder"
+url = "https://huggingface.co/Comfy-Org/Krea-2/resolve/main/text_encoders/qwen3vl_4b_bf16.safetensors"
+sha256 = "36f3ff447ef59201722e8f9ce6020c9819fdcfba6aa2608c4e09b1c0ce114e34"
+dest = "text_encoders/qwen3vl_4b_bf16.safetensors"
+size = 8875719384
+license = "krea-2-community-license"
+gated = false
+enabled = true
+
+[[model]]
+name = "krea2-vae"
+url = "https://huggingface.co/Comfy-Org/Krea-2/resolve/main/vae/qwen_image_vae.safetensors"
+sha256 = "a70580f0213e67967ee9c95f05bb400e8fb08307e017a924bf3441223e023d1f"
+dest = "vae/qwen_image_vae.safetensors"
+size = 253806246
+license = "krea-2-community-license"
+gated = false
+enabled = true
+
+# Krea-2 turbo diffusion model and its nine style LoRAs (Comfy-Org/Krea-2).
+# Sizes and sha256 read from the HF tree API's LFS oids on 2026-09-15 — the
+# same values the krea2-text-encoder/krea2-vae rows' LFS-pointer discipline
+# above yields.
+
+[[model]]
+name = "krea2-turbo-fp8"
+url = "https://huggingface.co/Comfy-Org/Krea-2/resolve/main/diffusion_models/krea2_turbo_fp8_scaled.safetensors"
+sha256 = "eb4dd8c612cfd10f64f25b057e6e6bbcb5737c94a7372177e456dbf7579502f1"
+dest = "diffusion_models/krea2_turbo_fp8_scaled.safetensors"
+size = 13141730784
+license = "krea-2-community-license"
+gated = false
+enabled = true
+
+[[model]]
+name = "krea2-lora-darkbrush"
+url = "https://huggingface.co/Comfy-Org/Krea-2/resolve/main/loras/krea2_darkbrush.safetensors"
+sha256 = "f47c4316dd93af66e0518c93b582f459571d4925b519133770c73a52cd5db7c6"
+dest = "loras/krea2_darkbrush.safetensors"
+size = 469291992
+license = "krea-2-community-license"
+gated = false
+enabled = true
+
+[[model]]
+name = "krea2-lora-dotmatrix"
+url = "https://huggingface.co/Comfy-Org/Krea-2/resolve/main/loras/krea2_dotmatrix.safetensors"
+sha256 = "805aa30d863347222485b9d3ce81642dbc70a73cebc95ab57219d98b878fceec"
+dest = "loras/krea2_dotmatrix.safetensors"
+size = 469291992
+license = "krea-2-community-license"
+gated = false
+enabled = true
+
+[[model]]
+name = "krea2-lora-kidsdrawing"
+url = "https://huggingface.co/Comfy-Org/Krea-2/resolve/main/loras/krea2_kidsdrawing.safetensors"
+sha256 = "8c1d45d204aeb4e34a7d9e16a7d473917592ba0048b03f4e03e037e3578ca500"
+dest = "loras/krea2_kidsdrawing.safetensors"
+size = 469291992
+license = "krea-2-community-license"
+gated = false
+enabled = true
+
+[[model]]
+name = "krea2-lora-neondrip"
+url = "https://huggingface.co/Comfy-Org/Krea-2/resolve/main/loras/krea2_neondrip.safetensors"
+sha256 = "a779c14435949eabae9ce0bface4320cad6672ef3547e8489107e3498d65e871"
+dest = "loras/krea2_neondrip.safetensors"
+size = 469291992
+license = "krea-2-community-license"
+gated = false
+enabled = true
+
+[[model]]
+name = "krea2-lora-rainywindow"
+url = "https://huggingface.co/Comfy-Org/Krea-2/resolve/main/loras/krea2_rainywindow.safetensors"
+sha256 = "7063a6f15ec6112ad3c06d79097b2a30a3ea7d9072821cb36021010d55989fe5"
+dest = "loras/krea2_rainywindow.safetensors"
+size = 469291992
+license = "krea-2-community-license"
+gated = false
+enabled = true
+
+[[model]]
+name = "krea2-lora-retroanime"
+url = "https://huggingface.co/Comfy-Org/Krea-2/resolve/main/loras/krea2_retroanime.safetensors"
+sha256 = "ca42107783d9e517c5d62cb9a9db9ab2ba4887d90e9dad97a9d1a7fe6ff14c56"
+dest = "loras/krea2_retroanime.safetensors"
+size = 469291992
+license = "krea-2-community-license"
+gated = false
+enabled = true
+
+[[model]]
+name = "krea2-lora-softwatercolor"
+url = "https://huggingface.co/Comfy-Org/Krea-2/resolve/main/loras/krea2_softwatercolor.safetensors"
+sha256 = "3805e8655f19fbcac116542685e3f78f3a642e8fbfb857b5352bb32a4b3d445a"
+dest = "loras/krea2_softwatercolor.safetensors"
+size = 469291992
+license = "krea-2-community-license"
+gated = false
+enabled = true
+
+[[model]]
+name = "krea2-lora-sunsetblur"
+url = "https://huggingface.co/Comfy-Org/Krea-2/resolve/main/loras/krea2_sunsetblur.safetensors"
+sha256 = "194abdd531ca190d32799f26ab5bab634aa5ba3f07b7a60ffb282657db8bf3a0"
+dest = "loras/krea2_sunsetblur.safetensors"
+size = 469291992
+license = "krea-2-community-license"
+gated = false
+enabled = true
+
+[[model]]
+name = "krea2-lora-vintagetarot"
+url = "https://huggingface.co/Comfy-Org/Krea-2/resolve/main/loras/krea2_vintagetarot.safetensors"
+sha256 = "8cca96c56658fb3ac5269f9ef2245bd07cbf1b7a189f517c8763470bb1385f9f"
+dest = "loras/krea2_vintagetarot.safetensors"
+size = 469291992
+license = "krea-2-community-license"
+gated = false
+enabled = true
+
+# --- Music ---------------------------------------------------------------
+
+# Comfy-Org's repackage is a genuine all-in-one file (diffusion model, text
+# conditioning and VAE baked into one checkpoint) — confirmed from the
+# repo's file listing, which has exactly one file under all_in_one/ — so
+# there is no separate encoder/VAE entry to add here.
+
+[[model]]
+name = "ace-step-v1"
+url = "https://huggingface.co/Comfy-Org/ACE-Step_ComfyUI_repackaged/resolve/main/all_in_one/ace_step_v1_3.5b.safetensors"
+sha256 = "f07cad74c4adce52ca14ca1bdf74cf3c14cbafb0823b95eca4459467fa369f40"
+dest = "checkpoints/ace_step_v1_3.5b.safetensors"
+size = 7699743341
+license = "apache-2.0"
+gated = false
+enabled = true
+
+# --- Video -----------------------------------------------------------------
+
+# Comfy-Org/Wan_2.2_ComfyUI_Repackaged ships the TI2V-5B diffusion model
+# only as fp16 (fp8_scaled exists there only for the 14B variants); the fp8
+# 5B build is Kijai/WanVideo_comfy_fp8_scaled's TI2V/ file, same native
+# loader format and "_scaled" naming as Comfy-Org's own fp8 files.
+
+[[model]]
+name = "wan2.2-ti2v-5b-fp8"
+url = "https://huggingface.co/Kijai/WanVideo_comfy_fp8_scaled/resolve/main/TI2V/Wan2_2-TI2V-5B_fp8_e4m3fn_scaled_KJ.safetensors"
+sha256 = "a83f54a2450d5471e5721e59ab556afa2d8793e30280713e3796b254c5286b48"
+dest = "diffusion_models/Wan2_2-TI2V-5B_fp8_e4m3fn_scaled_KJ.safetensors"
+size = 5277255650
+license = "apache-2.0"
+gated = false
+enabled = true
+
+[[model]]
+name = "wan2.2-text-encoder"
+url = "https://huggingface.co/Comfy-Org/Wan_2.2_ComfyUI_Repackaged/resolve/main/split_files/text_encoders/umt5_xxl_fp8_e4m3fn_scaled.safetensors"
+sha256 = "c3355d30191f1f066b26d93fba017ae9809dce6c627dda5f6a66eaa651204f68"
+dest = "text_encoders/umt5_xxl_fp8_e4m3fn_scaled.safetensors"
+size = 6735906897
+license = "apache-2.0"
+gated = false
+enabled = true
+
+[[model]]
+name = "wan2.2-vae"
+url = "https://huggingface.co/Comfy-Org/Wan_2.2_ComfyUI_Repackaged/resolve/main/split_files/vae/wan2.2_vae.safetensors"
+sha256 = "e40321bd36b9709991dae2530eb4ac303dd168276980d3e9bc4b6e2b75fed156"
+dest = "vae/wan2.2_vae.safetensors"
+size = 1409400960
+license = "apache-2.0"
+gated = false
+enabled = true
+
+# --- Off by default (gated and/or large) ------------------------------
+
+# Flux.1-dev is gated: Hugging Face requires an accepted license + a
+# Bearer token even to read the file's LFS metadata (the tree API masks
+# `lfs.oid` with asterisks for an unauthenticated request; `raw/main/`
+# 401s). There is no way to verify this sha256 without a token this
+# implementer does not have — recorded as UNVERIFIED and left disabled per
+# the plan; a human with Hub access must fill in the real hash before
+# flipping enabled = true. Size (23802932552 bytes) came from the same
+# unauthenticated tree API, which does expose sizes for gated repos.
+
+[[model]]
+name = "flux1-dev"
+url = "https://huggingface.co/black-forest-labs/FLUX.1-dev/resolve/main/flux1-dev.safetensors"
+sha256 = "UNVERIFIED"
+dest = "diffusion_models/flux1-dev.safetensors"
+size = 23802932552
+license = "flux-1-dev-non-commercial-license"
+gated = true
+enabled = false
+
+# LTX-2 (not gated, unlike the newer LTX-2.5): the fp8 19B dev transformer
+# alone is 27 GB, and per the plan this only lands as a native model in
+# the acceptance drill if the shipped ComfyUI image's version supports it
+# (verify-first item 5, Task 3/4) — off by default until that's confirmed.
+# The sha256 here IS verified (LTX-2 is not gated); the full pipeline also
+# needs Gemma-3 text-encoder and video/audio VAE files not listed here —
+# add them alongside this entry before enabling.
+
+[[model]]
+name = "ltx-2-19b-dev-fp8"
+url = "https://huggingface.co/Lightricks/LTX-2/resolve/main/ltx-2-19b-dev-fp8.safetensors"
+sha256 = "8a67e709b6d1adc061cb19921887a5c15754178199e45801a04310e9b522760d"
+dest = "diffusion_models/ltx-2-19b-dev-fp8.safetensors"
+size = 27078716018
+license = "ltx-2-community-license-agreement"
+gated = false
+enabled = false

@@ -1,0 +1,36 @@
+# Repos the derived task graph reads (plan 2026-09-05-session-context, G3).
+# Read-only: nothing here writes to a sibling. `plans` defaults to
+# docs/superpowers/plans/*.md. Order = display order in the brief.
+
+[[repo]]
+name = "nixos-agent-env"
+path = "~/nixos-agent-env"
+ledger = true
+
+[[repo]]
+name = "media"
+path = "~/nixos-agent-env"
+plans = "media/docs/superpowers/plans/*.md"
+# absorbed 2026-09-17 under media/ (GN11, tag absorbed/media-acefcf3); the sibling clone is archived by the operator
+
+[[repo]]
+name = "gaming"
+path = "~/flakes/gaming"
+
+[[repo]]
+name = "nixos-skill"
+path = "~/flakes/nixos-skill"
+
+[[repo]]
+name = "dsh-harness"
+path = "~/nixos-agent-env"
+plans = "docs/superpowers/plans/absorbed/dsh-harness/*.md"
+# absorbed 2026-09-17 into pkgs/dsh-harness (PL5, tag absorbed/dsh-harness-d1b5f85); the clone is archived by the operator (plan 2026-09-11-platform.md, Operator step 7)
+
+[[repo]]
+name = "codex"
+path = "~/flakes/codex"
+
+[[repo]]
+name = "openai-lab"
+path = "~/flakes/openai-lab"

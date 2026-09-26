@@ -1,0 +1,14 @@
+# ComfyUI v0.34.5 requirements.txt (excerpt, as fetched 2026-09-05).
+# The five ==pins are the target for DEPS; comfy-angle is named unpinned
+# under "non essential dependencies", so it falls back to PyPI info.version.
+comfy-aimdo==0.4.15
+comfy-kitchen==0.2.31
+comfyui-frontend-package==1.49.6
+comfyui-workflow-templates==0.11.55
+comfyui-embedded-docs==0.5.10
+torch
+torchsde
+transformers
+sentencepiece
+# non essential dependencies
+comfy-angle

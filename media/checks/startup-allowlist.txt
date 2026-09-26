@@ -1,0 +1,6 @@
+# Lines the packaged ComfyUI may still print at start. Every other WARNING is a red check.
+# The two below come from the host pin's cu128 torch-bin; they leave when the driver bump
+# and the nixpkgs-host refresh land (claim nixpkgs-host-pin-age, decision 2026-09-05-driver-580-unparked
+# in ~/nixos-agent-env). Delete them then: the check must demand a clean log.
+^.*WARNING: You need pytorch with cu130 or higher to use optimized CUDA operations\.$
+^WARNING WARNING WARNING$

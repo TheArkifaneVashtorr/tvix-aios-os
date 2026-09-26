@@ -1,0 +1,28 @@
+[formatter.nix]
+command = "nixfmt"
+includes = ["*.nix"]
+
+[formatter.shell]
+command = "shfmt"
+options = ["-i", "2", "-ci", "-w"]
+includes = ["*.sh", "githooks/pre-push", "githooks/pre-commit"]
+
+[formatter.python]
+command = "ruff"
+options = ["format"]
+includes = ["*.py"]
+
+# GN25 (G10: the formatter lands with the language): the deck client's
+# app.js/app.css, swept by media-lint's treefmt run with the same
+# .prettierrc.json the root's js formatter uses (semi: false, singleQuote,
+# 120 cols). The linter half (oxlint) runs in media-lint's script, since
+# oxlint is no formatter.
+[formatter.js]
+command = "prettier"
+options = ["--write"]
+includes = ["*.js", "*.mjs"]
+
+[formatter.css]
+command = "prettier"
+options = ["--write"]
+includes = ["*.css"]

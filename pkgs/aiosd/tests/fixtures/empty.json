@@ -1,0 +1,9 @@
+{
+  "version": 1,
+  "vms": {},
+  "seats": {},
+  "workflows": {},
+  "worlds": {},
+  "egress": {},
+  "policy": { "guard": [], "classes": {} }
+}
