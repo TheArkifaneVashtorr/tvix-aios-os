@@ -1,0 +1,27 @@
+[formatter.nix]
+command = "nixfmt"
+includes = ["*.nix"]
+# hosts/core/hardware-configuration.nix is a byte-for-byte copy of
+# nixos-generate-config output (plan: hosts/core must stay verbatim) and is
+# exempt from nixfmt accordingly.
+excludes = ["hosts/core/hardware-configuration.nix"]
+
+[formatter.shell]
+command = "shfmt"
+options = ["-i", "2", "-ci", "-w"]
+includes = ["*.sh", "githooks/pre-push", "githooks/pre-commit"]
+
+[formatter.python]
+command = "ruff"
+options = ["format"]
+includes = ["*.py"]
+
+# P12: prettier formats every JavaScript file (semi: false, singleQuote, 120
+# cols — see .prettierrc.json). The lint fixtures live outside the sweep on
+# purpose: they are the probers that tests/lint/js-lint.sh --self-test asserts
+# FAIL prettier/oxlint, so formatting them would gut the gate.
+[formatter.js]
+command = "prettier"
+options = ["--write"]
+includes = ["*.js", "*.mjs"]
+excludes = ["tests/lint/fixtures/js/*"]

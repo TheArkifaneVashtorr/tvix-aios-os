@@ -1,0 +1,26 @@
+FACTORY-RESULT status=unreported exit_code=0
+FACTORY-CHECKS none=not-run
+FACTORY-COMMITS 1
+FACTORY-NOTES result-misparse: FACTORY-RESULT: status=done
+
+run: sh1
+key: SH2
+model: deepseek/deepseek-v4-pro-0813
+effort: medium
+route: implement/code/S
+workspace: /gone/base/ws/sh1/SH2
+branch: task/SH2
+head: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+base: bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
+wall_s: 100
+exit_code: 0
+error_class: no-result-line
+derived: checks commits
+
+commits (base..task/SH2):
+abc1234 subject
+
+diffstat:
+ 1 file changed
+
+usage: {"input":1,"output":1,"cacheRead":0,"reasoning":0,"events":1,"duration_s":1.0}

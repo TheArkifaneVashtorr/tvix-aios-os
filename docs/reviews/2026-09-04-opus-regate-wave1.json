@@ -1,0 +1,148 @@
+{
+  "regate": "opus re-gate, wave 1 (eight units as merged at 5a0e664; lines re-verified at 76d1620)",
+  "units": [
+    { "unit": "N1", "verdict": "rework" },
+    { "unit": "N2", "verdict": "approve" },
+    { "unit": "N3", "verdict": "rework" },
+    { "unit": "N5", "verdict": "approve" },
+    { "unit": "N6", "verdict": "rework" },
+    { "unit": "N8", "verdict": "approve" },
+    { "unit": "N10", "verdict": "rework" },
+    { "unit": "N11", "verdict": "approve" }
+  ],
+  "surviving": [
+    {
+      "id": "N1-1",
+      "unit": "N1",
+      "severity": "major",
+      "file": "tests/unit/70-dsh-openrouter.bats",
+      "line": 32,
+      "title": "Suite reaches outside its temp root: teardown deletes the live seat cache, and case 1 is green on inherited state",
+      "votes": "3/3 confirmed",
+      "evidence": "Canary in the live cache deleted by a suite run while the seat was live; at c579081^ case 1 prints ok when the path pre-exists and fails when absent. Escalations: the symlink case plants a symlink at the live path (a seat launch then dies at dsh-openrouter.sh:217), and on a host where the seat has run, cases at :313 and :316 fail against correct code.",
+      "fix": "Add an overridable cache root (DSH_CACHE_ROOT, default /tmp), scope the test to $TMPHOME, assert prior absence, drop the /tmp rm -rf from teardown. Do not default to TMPDIR (follows PrivateTmp, fragments the warm cache).",
+      "task": "W2-N1a"
+    },
+    {
+      "id": "N1-2",
+      "unit": "N1",
+      "severity": "major",
+      "file": "pkgs/dsh-openrouter/dsh-openrouter.sh",
+      "line": 219,
+      "title": "chmod runs before the ownership guard: guard unreachable, documented exit 5 becomes exit 1",
+      "votes": "2/3 confirmed, 1 refuted on impact",
+      "evidence": "XDG_CACHE_HOME=/var/empty -> rc=1 'chmod: Operation not permitted'; plan ordering -> rc=5 'not owned by you'. Deleting line 220 leaves all 26 bats cases green.",
+      "fix": "Order mkdir -p -- ; stat/die 5 ; chmod 700 -- (not mkdir -p -m 700: SC2174 and it will not fix an existing dir's mode). Add the exit-5 red case.",
+      "task": "W2-N1a"
+    },
+    {
+      "id": "N1-3",
+      "unit": "N1",
+      "severity": "major",
+      "file": "pkgs/dsh-openrouter/dsh-openrouter.sh",
+      "line": 239,
+      "title": "The deployed payload shape (working symlink to a non-empty directory) is untested; the load-bearing find -H is unguarded",
+      "votes": "2/3 confirmed, 1 refuted as coverage-only",
+      "evidence": "Mutation find -H -> find leaves all 26 cases green while a real deployment prints a false 'is empty' warning; the proposed case is red under the mutation, green at HEAD.",
+      "fix": "Add the deployed-symlink case, or replace find with a bash glob probe (shopt -s nullglob dotglob), which also removes the findutils dependency.",
+      "task": "W2-N1b"
+    },
+    {
+      "id": "N3-1",
+      "unit": "N3",
+      "severity": "major",
+      "file": "nixosModules/egressBroker.nix",
+      "line": 19,
+      "title": "Both new options' Nix->policy-JSON wiring is exercised by zero checks; lane-vm's ZDR assertion is satisfied by the client, not the broker",
+      "votes": "3/3 confirmed",
+      "evidence": "Renaming the emitted key leaves addon, lane-eval, host-core, lint and the full lane-vm run at exit 0. Stronger: emitting body_patch = { } (or making _patch_body an immediate return) also leaves lane-vm green (~14s) because pkgs/lane/lane-run.py:98 already sends the provider block.",
+      "fix": "lane-vm step pushing a provider-less body through /run/netns/egress-openrouter asserting the upstream sees zdr, plus an unlisted path arriving unpatched; and/or an eval assertion on the generated policy attrset beside flake.nix:673.",
+      "trimmed": "The 'credential containment fails open' direction is a no-op today (nothing sets inject.paths); the rename fails toward over-patching, not toward no ZDR.",
+      "task": "W2-N3"
+    },
+    {
+      "id": "N6-1",
+      "unit": "N6",
+      "severity": "major",
+      "file": "tools/ledger/factory.py",
+      "line": 398,
+      "title": "rollup --week applies no time window - lifetime totals reported as the week",
+      "votes": "3/3 confirmed",
+      "evidence": "A dsh session started 2024-01-01 (in=1,000,000) is counted in full in the 2026-09-04 rollup; --costs inherits the same scope; backfill ingests all past wf_* dirs, so the first real weekly report is the whole history.",
+      "fix": "--since/--until (default trailing 7 days UTC), filter on started, print the window bounds. Join agents to their run by run_id (agents carry no timestamp; run started is ISO-8601, dsh started is epoch ms).",
+      "task": "W2-N6a"
+    },
+    {
+      "id": "N6-2",
+      "unit": "N6",
+      "severity": "major",
+      "file": "tools/ledger/factory.py",
+      "line": 336,
+      "title": "rollup --costs prints a confident total for unpriced sessions and cannot read the O2 activity export it names",
+      "votes": "3/3 confirmed",
+      "evidence": "Partial price coverage prints cost: 0.000798 USD instead of 0.004788 with no indication; all-mismatch prints 0.000000 USD; an activity-export-shaped CSV raises KeyError 'in_per_1m'. schema.md:20-21 forbids the local price table that schema.md:102 specifies. One all-rows-match test, substring assertion.",
+      "fix": "Name the unpriced count and the missing (date, model) key; raise a named error listing the columns found; either consume the real activity export or rename the argument and the schema heading.",
+      "task": "W2-N6b"
+    },
+    {
+      "id": "N10-1",
+      "unit": "N10",
+      "severity": "major",
+      "file": "tools/factory/dark-factory.js",
+      "line": 362,
+      "title": "Every wave branch is merged regardless of the review verdict, and the run tells the operator to fast-forward it",
+      "votes": "3/3 confirmed",
+      "evidence": "Blocker on A every round -> merge list still A,B,C, integrations ok=true, closing log prints a bare git merge --ff-only and the summary says unreviewed=none; all-null reviews merge every unreviewed branch; a wave-2 task is dispatched onto that tip. Adding a status filter flips it.",
+      "fix": "Filter the merge list by verdict, log each withheld branch with its status, and make the not-delivered line name the non-approved keys.",
+      "bound": "allOk keeps delivered=false, so the script does not fast-forward itself; the exposure is the printed instruction and wave-2 contamination.",
+      "task": "W2-N10a"
+    },
+    {
+      "id": "N10-2",
+      "unit": "N10",
+      "severity": "major",
+      "file": "tools/factory/dark-factory.js",
+      "line": 502,
+      "title": "A task group swallowed by parallel() vanishes from tasks[] and makes the delivery gate vacuously true",
+      "votes": "3/3 confirmed",
+      "evidence": "With impl:B throwing and parallel's documented catch-to-null semantics: 4 tasks in, 3 out, delivered=true, deliver agent spawned, summary verify=pass unreviewed=none. The suite's stub (render.test.mjs:183) is a bare Promise.all, so the path is unreachable. Dependents of a lost task are marked blocked; the silent window is leaf tasks.",
+      "fix": "Push an 'unreported' entry per null slice task and add results.length === A.tasks.length to the gate; add a scenario using a catch-to-null parallel stub.",
+      "task": "W2-N10a"
+    },
+    {
+      "id": "N10-3",
+      "unit": "N10",
+      "severity": "major",
+      "file": "tools/factory/dark-factory.js",
+      "line": 502,
+      "title": "The delivery gate's task-approval term is untested - deleting it leaves the whole suite green",
+      "votes": "3/3 confirmed",
+      "evidence": "Replacing line 502 with integrations.every((i) => i.ok) leaves factory-unit green (exit 0); the control mutation at :363 fails at render.test.mjs:459. The mutant is not equivalent: with a blocker on A and integration/verify green, the original refuses to deliver and the mutant delivers.",
+      "fix": "One scenario: blocker on A every round with integrate:w1 and verify green; assert delivered === false, no deliver spawn, and (after N10-1) A absent from the merge list.",
+      "task": "W2-N10a"
+    },
+    {
+      "id": "N10-4",
+      "unit": "N10",
+      "severity": "major",
+      "file": "tools/factory/dark-factory.js",
+      "line": 113,
+      "title": "RULES_ORCH's closing clause contradicts the integfix conflict-resolution instruction it is injected into",
+      "votes": "2/3 confirmed, 1 refuted as prompt-wording in a fail-closed path",
+      "evidence": "Rendered integfix:w1 carries both 'never edit tracked files by hand' and 'Resolve conflicts by keeping BOTH sides' intent' (:379); the text is unpinned - a maximally contradictory clause ('NEVER resolve a merge conflict') passes the suite, since render.test.mjs:517 checks only two removed strings.",
+      "fix": "Permit exactly the named conflict resolution and nothing else; assert positively that the integfix prompt does not forbid it.",
+      "trimmed": "The baseline half of the original finding is dropped: committing an untracked plan file edits no tracked file.",
+      "task": "W2-N10b"
+    }
+  ],
+  "refuted": [],
+  "dissents_upheld": [
+    { "id": "N1-2", "reason": "Both orderings abort at the same point, nothing consumes exit 5, and the suggested mkdir -p -m 700 does not close the symlink race. Upheld: the guard cannot fire and its deletion is invisible to the suite." },
+    { "id": "N1-3", "reason": "Correct behaviour today, warn-only, and outside the written N1 acceptance. Upheld as an unguarded regression channel on a warning the operator must trust." },
+    { "id": "N10-4", "reason": "The clause is subordinated to 'do exactly the operations your instructions name', the path fails closed, and the proposed wording loosens a guard rail. Upheld narrowly: the text is unpinned and self-contradictory at the recovery step." }
+  ],
+  "checks_reanchored_at_76d1620": [
+    { "check": "factory-unit", "result": "pass" },
+    { "check": "ledger-unit", "result": "pass" }
+  ]
+}

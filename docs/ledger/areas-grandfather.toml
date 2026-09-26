@@ -1,0 +1,35 @@
+# Grandfathered keys for the cross-area refusal (EV2).
+# Written once at EV2's commit: every key whose touches span more than one
+# manifest area and whose derived state is ready, blocked, ran or running at
+# HEAD <head> — the keys this plan's predecessors typed before the area
+# dimension existed, so none carries an `areas:` declaration. `check()`
+# exempts exactly these keys from the cross-area refusal and nothing else; a
+# key typed later into any plan file is refused like any other.
+head = "dbedfe90374250c568d55e5049668bb3af6f4775"
+keys = [
+  "EV1",
+  "EV2",
+  "EV3",
+  "EV4",
+  "EV6",
+  "FA1",
+  "FA2",
+  "FIX5",
+  "FIX5b",
+  "FIX5c",
+  "FIX5d",
+  "FIX6",
+  "FIX7",
+  "HH2",
+  "HH3",
+  "HH6",
+  "HH9",
+  "IS3",
+  "N13",
+  "N14",
+  "N15",
+  "N17",
+  "N18",
+  "SP5",
+  "UI1",
+]

@@ -1,0 +1,277 @@
+# The subsystem manifest (PR1, decision 1a). Eight [[subsystem]] rows name the
+# charter's §2 subsystems (decision 2b) and a ninth names `program`. `owns` is a
+# set of fnmatch globs over repo-relative tracked paths (`*` spans `/`, no `**`,
+# same matcher as task-classes.toml); every tracked path must match exactly one
+# row. `plans` is the plan files allowed to define keys under the prefix (the
+# EV2 reservation guard reads it). `depends` names other rows and must stay
+# acyclic (charter §6's order: patches+payload -> Helm, manifest -> the import
+# assertion, rules audit -> the generated rules). `gate` is the review model
+# for the subsystem (opus | sonnet; Helm's API carries the opus gate).
+
+[[subsystem]]
+name = "Isolation"
+prefix = "IS"
+area = "isolation"
+gate = "opus"
+owns = [
+  "pkgs/basket/*",
+  "pkgs/broker/*",
+  "pkgs/lane/*",
+  "tools/lane/*",
+  "tools/enroll-yubikey.sh",
+  "tools/reset-yubikey-piv.sh",
+  "tools/orchestrator-guard.sh",
+  "keys.toml",
+  "keys/recipients.txt",
+  "examples/manifest.json",
+  "nixosModules/basketStore.nix",
+  "nixosModules/egressBroker.nix",
+  "nixosModules/modelLane.nix",
+  "nixosModules/seatLane.nix",
+  "tests/broker/*",
+  "tests/lane/*",
+  "tests/run-mount-tests.sh",
+  "tests/acceptance/phase1.sh",
+  "tests/acceptance/phase1-softkey.sh",
+  "tests/acceptance/phase2.sh",
+  "tests/acceptance/phase3.sh",
+  "tests/integration/broker-vm.nix",
+  "tests/integration/lane-vm.nix",
+  "tests/unit/10-manifest.bats",
+  "tests/unit/20-crypto.bats",
+  "tests/unit/30-mount.bats",
+  "tests/unit/40-lock.bats",
+  "tests/unit/91-orchestrator-guard.bats",
+  "tests/unit/91-orchestrator-guard-sweep.txt",
+  "tests/unit/93-house-guard.bats",
+]
+plans = [
+  "docs/superpowers/plans/2026-09-09-program.md",
+  "docs/superpowers/plans/2026-09-11-isolation.md",
+]
+depends = ["Program", "Platform"]
+
+[[subsystem]]
+name = "Platform"
+prefix = "PL"
+area = "platform"
+gate = "opus"
+owns = [
+  "flake.nix",
+  "flake.lock",
+  "hosts/*",
+  "lib/*",
+  "helm.nix",
+  "githooks/*",
+  "treefmt.toml",
+  ".oxlintrc.json",
+  ".prettierrc.json",
+  ".gitignore",
+  "nixosModules/claudeManagedSettings.nix",
+  "nixosModules/cowork.nix",
+  "nixosModules/protonBackup.nix",
+  "pkgs/proton-backup/*",
+  "pkgs/proton-drive-cli/*",
+  "tools/cowork-down.sh",
+  "tools/cowork-up.sh",
+  "tests/acceptance/phase4a.sh",
+  "tests/acceptance/phase4b.sh",
+  "tests/acceptance/backup.sh",
+  "tests/integration/proton-backup-vm.nix",
+  "tests/lint/*",
+  "tests/mocks/*",
+  "tests/unit/00-smoke.bats",
+  "tests/unit/50-doctor.bats",
+  "tests/unit/60-proton-push.bats",
+  "tests/unit/95-codex-arm.bats",
+]
+plans = [
+  "docs/superpowers/plans/2026-09-02-host-wiring.md",
+  "docs/superpowers/plans/2026-09-02-phase4a-host-absorption.md",
+  "docs/superpowers/plans/2026-09-11-platform.md",
+]
+depends = []
+
+[[subsystem]]
+name = "Helm"
+prefix = "HM"
+area = "helm"
+gate = "opus"
+owns = [
+  "pkgs/helm/*",
+  "pkgs/helm-home/*",
+  "nixosModules/helm.nix",
+  "nixosModules/helmHome.nix",
+  "tests/helm/*",
+  "tests/helm-home/*",
+  "tests/acceptance/helm.sh",
+  "tests/acceptance/helm-v1.sh",
+  "tests/integration/helm-vm.nix",
+  "tests/integration/helm-control-vm.nix",
+  "tests/unit/80-helm-switch.bats",
+  "tests/unit/81-helm-open-workspace.bats",
+]
+plans = [
+  "docs/superpowers/plans/2026-09-08-helm-home-1.md",
+  "docs/superpowers/plans/2026-09-11-helm.md",
+]
+depends = ["Platform", "Seat/Harness"]
+
+[[subsystem]]
+name = "Seat/Harness"
+prefix = "SA"
+area = "seat"
+gate = "opus"
+owns = [
+  "pkgs/seat/*",
+  "pkgs/dsh/*",
+  "pkgs/dsh-openrouter/*",
+  "tests/seat/*",
+  "tests/fixtures/*",
+  "tests/integration/seat-vm.nix",
+  "tests/unit/70-dsh-openrouter.bats",
+  "tests/unit/80-seat-driver.bats",
+  "tests/unit/88-seat-drive.bats",
+  "tests/unit/94-seat-harness.bats",
+]
+plans = [
+  "docs/superpowers/plans/2026-09-07-seat-harness-redesign.md",
+  "docs/superpowers/plans/2026-09-11-seat-harness.md",
+]
+depends = ["Platform"]
+
+[[subsystem]]
+name = "Factory"
+prefix = "FA"
+area = "factory"
+gate = "opus"
+owns = [
+  "tools/factory/*",
+  ".claude/workflows/*",
+  "docs/ledger/routing.toml",
+  "tests/factory/*",
+  "tests/unit/82-factory-dispatch.bats",
+  "tests/unit/83-plan-brief.bats",
+  "tests/unit/84-factory-integrate-reviews.bats",
+  "tests/unit/84-routing-ladder.bats",
+  "tests/unit/85-task-class.bats",
+  "tests/unit/86-rung-and-escalate.bats",
+  "tests/unit/87-prior-attempt.bats",
+  "docs/superpowers/plans/2026-09-02*",
+  "docs/superpowers/plans/2026-09-03*",
+  "docs/superpowers/plans/2026-09-04*",
+  "docs/superpowers/plans/2026-09-05*",
+  "docs/superpowers/plans/2026-09-06*",
+  "docs/superpowers/plans/2026-09-07*",
+  "docs/superpowers/plans/2026-09-08*",
+  "docs/superpowers/plans/2026-09-09-bugs.md",
+  "docs/superpowers/specs/*",
+]
+plans = [
+  "docs/superpowers/plans/2026-09-09-program.md",
+  "docs/superpowers/plans/2026-09-11-factory.md",
+]
+depends = ["Program", "Evidence"]
+
+[[subsystem]]
+name = "Evidence"
+prefix = "EV"
+area = "evidence"
+gate = "sonnet"
+owns = [
+  "pkgs/evidence/*",
+  "tools/ledger/*",
+  "tests/evidence/*",
+  "tests/ledger/*",
+  "tests/integration/telemetry-vm.nix",
+  "tests/unit/96-evidence-runbook.bats",
+  "nixosModules/evidenceStore.nix",
+  "nixosModules/usageIngest.nix",
+  "nixosModules/claudeTelemetry.nix",
+  "docs/bugs/*",
+  "docs/reviews/*",
+  "docs/MAP.md",
+  "docs/subsystems.md",
+  "docs/ledger/claims.toml",
+  "docs/ledger/plan-defects.toml",
+  "docs/ledger/plan-status.toml",
+  "docs/ledger/repos.toml",
+  "docs/ledger/task-classes.toml",
+  "docs/ledger/task-status.toml",
+  "docs/ledger/subsystems.toml",
+  "docs/ledger/rules.toml",
+  "docs/ledger/claude-prices.csv",
+  "docs/ledger/openrouter-prices.csv",
+]
+plans = [
+  "docs/superpowers/plans/2026-09-09-program.md",
+  "docs/superpowers/plans/2026-09-11-evidence.md",
+]
+depends = ["Platform"]
+
+[[subsystem]]
+name = "Generation"
+prefix = "GN"
+area = "generation"
+gate = "sonnet"
+owns = []
+plans = [
+  "docs/superpowers/plans/2026-09-02-media-flake.md",
+  "docs/superpowers/plans/2026-09-11-generation.md",
+]
+depends = ["Platform"]
+
+[[subsystem]]
+name = "Knowledge"
+prefix = "KN"
+area = "knowledge"
+gate = "sonnet"
+owns = [
+  "CLAUDE.md",
+  "README.md",
+  ".claude/settings.json",
+  "tools/ritual.sh",
+  "tools/session-start.sh",
+  "docs/brief.md",
+  "docs/OPERATIONS.md",
+  "docs/upstream-verification-2026-09-02.md",
+  "docs/research-*",
+  "docs/board/*",
+  "docs/runbooks/*",
+  "docs/concepts/2026-09-02*",
+  "docs/concepts/2026-09-03*",
+  "docs/concepts/2026-09-04*",
+  "docs/concepts/2026-09-05*",
+  "docs/concepts/2026-09-06*",
+  "docs/concepts/2026-09-07*",
+  "docs/concepts/2026-09-08*",
+  "docs/concepts/concept-*",
+  "docs/decisions/2026-09-02*",
+  "docs/decisions/2026-09-03*",
+  "docs/decisions/2026-09-04*",
+  "docs/decisions/2026-09-05*",
+  "docs/decisions/2026-09-06*",
+  "docs/decisions/2026-09-07*",
+  "docs/decisions/2026-09-09-seat-driving-authority.md",
+  "tests/unit/90-session-start.bats",
+  "tests/unit/92-ritual.bats",
+  "tests/unit/96-now-paragraph.bats",
+]
+plans = [
+  "docs/superpowers/plans/2026-09-09-program.md",
+  "docs/superpowers/plans/2026-09-11-knowledge.md",
+]
+depends = []
+
+[[subsystem]]
+name = "Program"
+prefix = "PR"
+area = "program"
+gate = "opus"
+owns = [
+  "docs/superpowers/plans/2026-09-09-program.md",
+  "docs/concepts/2026-09-09a-redesign-charter.md",
+  "docs/decisions/2026-09-09-redesign-answers.md",
+]
+plans = ["docs/superpowers/plans/2026-09-09-program.md"]
+depends = []

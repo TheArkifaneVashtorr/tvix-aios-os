@@ -1,0 +1,50 @@
+---
+reviewer: opus
+majors: null
+minors: null
+---
+# Opus gate — seat run ev3, task R10 — APPROVED
+
+Branch head `85e0fba83b14` (`~/factory/ws/ev3/R10`, `task/R10`). Reviewer: Opus, high effort, throwaway clone; checks re-run by ref.
+
+## Summary
+
+APPROVED. R10 is a small, exactly-scoped change: `tools/factory/seat/factory-lib.sh:23` becomes `FACTORY_BIN=${FACTORY_BIN_OVERRIDE:-$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)}` (SC2034 directive kept, verbatim the plan's Step 3), factory-task and factory-review drop their own `${XDG_CACHE_HOME:-…}` default plus the `mkdir -p -m 700` and the `XDG_CACHE_HOME=$xdg_cache_home` prefix on the launch subshell, and README.md restates the dispatch rule and the retirement of `~/factory/bin`. Five files, all inside the touches list; commit subject byte-identical to the plan's and the Co-Authored-By trailer exact.
+
+I tried to break it three ways and could not. (a) The cache-dir removal is safe, not merely plausible: `pkgs/dsh-openrouter/dsh-openrouter.sh:344-349` sets `XDG_CACHE_HOME=${XDG_CACHE_HOME:-$cache_root/dsh-openrouter-cache-$(id -u)}`, then symlink-refuses, `mkdir -p`, ownership-guards and `chmod 700` — so the driver's mkdir was strictly redundant, and dropping the unconditional export is what finally lets `DSH_CACHE_ROOT` reach a seat run (the residual the R5b gate flagged at docs/reviews/2026-09-05-opus-review-ev1-R5b.md:32). (b) `${BASH_SOURCE[0]}` is read at the top level of a sourced file, and every script sources it as `. "$here/factory-lib.sh"`, so the resolution is the running script's own directory — mutation 3 (`$PWD`) proves the test pins that, not merely "not FACTORY_ROOT/bin". (c) Red-before-green is real and matches the plan's predicted reason: exit 127, `[ "$status" -eq 7 ]' failed`.
+
+Acceptance is green on both named checks (unit, lint) plus the pre-commit gate, run in a throwaway clone of task/R10 (now deleted). Four of five mutations behaved as expected; the two survivors are coverage gaps the plan never asked to close (FACTORY_BIN_OVERRIDE, and factory-review/factory-wave call sites), filed as minors. The one substantive gap is a plan omission rather than an implementer error: README.md:113 tells the operator `~/factory/bin` is no longer read while tools/factory/seat/launch-today.sh:9,11,13 still calls into it — worth a one-line follow-up, and worth the orchestrator's attention before Assumption 6's "operator deletes ~/factory/bin" is acted on.
+
+## Checks
+
+- green — bats tests/unit/80-seat-driver.bats (green, at HEAD): 8/8 ok, including new case 8 "factory-task dispatches to the seat directory it was run from, not to FACTORY_ROOT/bin".
+- green — unit: nix build .#checks.x86_64-linux.unit -L --no-link → exit 0.
+- green — lint: nix build .#checks.x86_64-linux.lint -L --no-link → exit 0 (shellcheck/statix/deadnix/ruff/treefmt).
+- green — githooks/pre-commit (lint gate): nix develop -c githooks/pre-commit → exit 0; "All checks passed!", "formatted 78 files (0 changed)", "26 files already formatted", render.test.mjs assertions passed.
+- green — touches contract: diffstat is exactly the 5 files in the plan's touches line; no file outside it.
+- green — commit subject + trailer: Subject byte-identical to the plan's "commit subject"; body carries `Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>` exactly, plus the driver's own Generated-By line.
+- green — hard rules scan: No --no-verify, no `2>/dev/null` added on a gated command in the diff, no sudo/nixos-rebuild/systemctl in the transcript, no secret paths read (the only /home/dalhaka/.config/openrouter/key mention is the wrapper's own banner line).
+
+## Red before green
+
+Reverse-applied all four non-test files to HEAD~1 (`git checkout HEAD~1 -- tools/factory/seat/factory-lib.sh factory-task factory-review README.md`), keeping tests/unit/80-seat-driver.bats at HEAD, confirmed `tools/factory/seat/factory-lib.sh:23` back to `FACTORY_BIN=$FACTORY_ROOT/bin`, then `nix develop -c bats tests/unit/80-seat-driver.bats`. Decisive output: `not ok 8 factory-task dispatches to the seat directory it was run from, not to FACTORY_ROOT/bin` / `#   \`[ "$status" -eq 7 ]' failed`, with the bats warning naming the cause: `exited with code 127, indicating 'Command not found'`. That is exactly the failure the plan's Step 2 predicts ("fails looking for $root/bin/factory-ws (exit 127, no marker)"). Cases 1-7 stayed green, so the new case is the one that discriminates. The implementer's own transcript shows the same red at /home/dalhaka/factory/runs/ev3/R10.log:723. Files restored to HEAD; tree verified clean before the acceptance runs.
+
+## Mutation table
+
+| mutation | killed | by |
+|---|---|---|
+| tools/factory/seat/factory-lib.sh:23 → `FACTORY_BIN=$FACTORY_ROOT/bin` (the pre-change value; identical to the red proof) | yes | tests/unit/80-seat-driver.bats case 8 — status 127 != 7, marker absent |
+| tools/factory/seat/factory-lib.sh:23 → `FACTORY_BIN=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)` (drop the FACTORY_BIN_OVERRIDE indirection the plan's Interfaces names) | NO | none — 8/8 still ok; no test exercises FACTORY_BIN_OVERRIDE |
+| tools/factory/seat/factory-lib.sh:23 → `FACTORY_BIN=${FACTORY_BIN_OVERRIDE:-$PWD}` (the plausible misreading of "its own directory" as the working directory) | yes | tests/unit/80-seat-driver.bats case 8 — `[ "$status" -eq 7 ]' failed |
+| tools/factory/seat/factory-task:79 call site → `ws=$("$FACTORY_ROOT/bin/factory-ws" "${ws_args[@]}")` (lib left correct, so only a call-site-specific test can catch it) | yes | tests/unit/80-seat-driver.bats case 8 — `[ "$status" -eq 7 ]' failed |
+| tools/factory/seat/factory-review:72 call site → `"$FACTORY_ROOT/bin/factory-ws"` | NO | none — 8/8 still ok; factory-review's and factory-wave's sibling dispatch have no bats case (pre-existing gap; R10 did not change those call sites) |
+
+## Findings
+
+- **minor** `tools/factory/seat/launch-today.sh:9,11,13` — README.md:113 now asserts "`~/factory/bin` is no longer read — delete it after the switch", but launch-today.sh — a sibling in the very directory that README documents — still invokes `"$HOME/factory/bin/factory-wave"` three times. An operator who acts on the new sentence breaks that script. The environment review's process-4, which R10's title cites, explicitly asked to "Point launch-today.sh … at the repo path"; the plan's Files/touches for R10 omits the file, so the implementer honouring the touches contract was the right call — this is a plan gap, not an implementer deviation. **Fix:** Either add tools/factory/seat/launch-today.sh to a follow-up task's touches and swap the three `$HOME/factory/bin/factory-wave` calls for `"$(dirname -- "$0")/factory-wave"`, or qualify README.md:113 to "no longer read by the driver scripts (launch-today.sh is a dated 2026-09-04 artefact and still names it)".
+- **minor** `tools/factory/seat/factory-lib.sh:23` — `FACTORY_BIN_OVERRIDE` is a named item in the plan's Interfaces line but has no test: mutation 2 (deleting the `${FACTORY_BIN_OVERRIDE:-…}` indirection entirely) leaves all 8 bats cases green. The plan prescribed only one test, so this is not a missing spec item — it is an unpinned half of the declared interface. **Fix:** Add a one-line bats case beside the new one: `FACTORY_BIN_OVERRIDE="$seat_copy" FACTORY_ROOT="$root" run "$REAL_BASH" "$SEAT/factory-task" r1 "$repo" K1` asserting status 7, so the override is proven to replace the self-directory default rather than being ignored.
+- **minor** `tests/unit/80-seat-driver.bats:214` — Only factory-task's dispatch is pinned. Mutation 5 (factory-review:72 back to `$FACTORY_ROOT/bin/factory-ws`) survives with 8/8 green, and factory-wave:71,73 is likewise uncovered. Both inherit the fix through the shared lib (mutation 1 is killed), so the behaviour is not unpinned at the lib level — but a per-script regression would pass unnoticed. **Fix:** Optional follow-up: parameterise the new case over factory-task/factory-review/factory-wave, or accept the lib-level pin and record the per-script gap in the claims file.
+
+## Deviations
+
+FACTORY-NOTES declared two edits to the plan's verbatim bats block; both are necessary and both keep the test honest, and I verified each. (1) The marker goes to stderr (`echo DISPATCHED-TO-COPY >&2`): factory-task:79 does `ws=$("$FACTORY_BIN/factory-ws" …)`, so a stdout marker is swallowed into `$ws` and would never reach bats' `$output` — the plan's stdout version would have failed even with a correct implementation. (2) `chmod -R u+w "$seat_copy"`: under checks.unit the source tree is the read-only Nix store (0555), so `cp -r` yields an unwritable copy and the stub redirect would fail — the plan's Assumption 8 / sandbox note anticipates this class of fix. Neither weakens the assertion: the discriminating check is still `[ "$status" -eq 7 ]`, which mutations 1, 3 and 4 all kill. No other deviation: the diff touches exactly the 5 files in the touches line, the FACTORY_BIN expression is byte-for-byte the plan's Step 3 text with the SC2034 directive kept, and the two README items the plan asks for (layout without `bin/`, script list carrying factory-usage.py and launch-today.sh) were already satisfied by R5 — nothing was fabricated to look like work. I accept both deviations.

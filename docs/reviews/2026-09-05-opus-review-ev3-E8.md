@@ -1,0 +1,47 @@
+---
+reviewer: opus
+majors: null
+minors: null
+---
+# Opus gate — seat run ev3, task E8 — APPROVED
+
+Branch head `2667a144b905` (`~/factory/ws/ev3/E8`, `task/E8`). Reviewer: Opus, high effort, throwaway clone; checks re-run by ref.
+
+## Summary
+
+APPROVED. E8 does exactly what its plan section specifies and the change is genuinely load-bearing. The board went from 1041 lines with six '## START HERE' headings to 48 lines with one; the log, the three standing-policy sections and everything else (superseded START HEREs, lanes, files-in-flight) moved under docs/board/ — and I proved the move is verbatim rather than trusting the diff: re-running the plan's own Step-3 splitter against HEAD~1's OPERATIONS.md in a scratch dir produced all three board files byte-identical to what was committed, and the completeness sum is 1094 lines against the plan's 1029 floor. The shape guard is real on both copies. Red before green is shown twice (pre-commit and the flake `lint` acceptance check both fail with `lint: docs/OPERATIONS.md must have exactly one '## START HERE' heading` when only the board is reverted to HEAD~1), and six mutations — two on the artefact, three on the guard's own constants and comparison, one against the flake copy specifically — were all killed. The zero-match path was worth probing because `grep -c` exits 1 with no matches under `set -euo pipefail`; the error message still prints and the hook still exits 1, so that hazard is not present. touches is respected exactly (6 files, no strays), the commit subject is byte-identical to the plan's and carries the required trailer, no bypass flags or new 2>/dev/null, no secrets added, implementer workspace clean. Two minors only, neither blocking: docs/OPERATIONS.md lacks a final newline (which also makes the 160-line cap effectively 161), and the 'Operator owns' parenthetical claims every listed item is a claims-file gap row when 'switch #15' and the two owed brainstorms are not — wording inherited from the plan template. Both are one-line fixes best folded into E9, which edits the same file.
+
+## Checks
+
+- green — lint (nix build .#checks.x86_64-linux.lint -L --no-link): green at HEAD, out path /nix/store/h2wjycbsh1zzx606xfxlqga39kgn9xdj-lint; exit 0. This is the whole 'acceptance' line for E8.
+- green — githooks/pre-commit (nix develop -c githooks/pre-commit): exit 0 in 3.9 s at HEAD; treefmt --ci clean, shellcheck/statix/deadnix/ruff clean, claims validate clean, render.test.mjs 'all assertions passed'.
+- green — spec compliance — Files/Interfaces: All three Create files exist; docs/OPERATIONS.md rewritten (48 lines, exactly one '## START HERE'); the two guard lines added to githooks/pre-commit (after the ruff lines) and, shfmt-formatted, verbatim into flake.nix's lint runCommand at flake.nix:896-905 immediately before `touch $out`.
+- green — touches contract: git show --stat HEAD = exactly the 6 files in 'touches' (docs/OPERATIONS.md, docs/board/{log-2026-09,archive-2026-09-02-to-05,policies}.md, flake.nix, githooks/pre-commit). No file outside the list.
+- green — commit subject + trailer: Subject byte-identical to the plan's 'commit subject'. Trailer present exactly: 'Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>' (plus the machine-set 'Generated-By: dsh ...' line the seat adds).
+- green — splitter fidelity (verbatim move): I re-ran the plan's Step-3 Python splitter against HEAD~1:docs/OPERATIONS.md in a scratch dir and diffed: all three board files IDENTICAL, byte for byte. Completeness `cat docs/board/*.md docs/OPERATIONS.md | wc -l` = 1094 >= 1029 (old file 1041).
+- green — claim-id cross-check: Every id the new START HERE cites (o4-framing-test, d5-activity-export, s12-commit-metadata-decision, xhigh-restore-or-keep-medium, seat-key-exception-undecided, nixpkgs-host-pin-age, m3-comfy-angle-aimdo, effort-policy-n1, cowork-tier-a-parked, helm-workspace-buttons-parked) resolves to a row in docs/ledger/claims.toml.
+- green — hard-rule scan: No --no-verify, no --allow-empty, no `git commit -m`, no newly added 2>/dev/null on a gated command (the two pre-existing `find ... 2>/dev/null` lines are untouched). No sudo/nixos-rebuild/systemctl. No secret values added; the /var/lib/secrets and ~/.config/openrouter/key strings in the archive are pre-existing path references moved verbatim. Implementer workspace tree clean (no scratch leftovers).
+
+## Red before green
+
+Two-sided, on both copies of the guard. In the throwaway clone I kept the guard at HEAD and reverted only the artefact under test: `git checkout HEAD~1 -- docs/OPERATIONS.md` (board back to 6 '## START HERE' headings, 1041 lines). (a) hook: `nix develop -c githooks/pre-commit` → exit 1, decisive line `lint: docs/OPERATIONS.md must have exactly one '## START HERE' heading`. (b) acceptance check: `nix build .#checks.x86_64-linux.lint -L --no-link` → `error: builder for '/nix/store/iibrgmlckhf4czwnbrvk5cvikz9hb311-lint.drv' failed with exit code 1`, last log line `lint> lint: docs/OPERATIONS.md must have exactly one '## START HERE' heading`. Restored with `git checkout HEAD -- docs/OPERATIONS.md`; both then green (pre-commit exit 0, lint out path /nix/store/h2wjycbsh1zzx606xfxlqga39kgn9xdj-lint). This matches the reason the plan states in Step 2 (grep -c counts 6 today, and the 160-line rule would fire too). The implementer's own transcript shows the same red at line 406 of ~/factory/runs/ev3/E8.log.
+
+## Mutation table
+
+| mutation | killed | by |
+|---|---|---|
+| M1 — board mutated: appended a second `## START HERE (stale duplicate)` heading to docs/OPERATIONS.md (count 1 -> 2), guard untouched | yes | githooks/pre-commit — `lint: docs/OPERATIONS.md must have exactly one '## START HERE' heading`, EXIT=1 |
+| M2 — board grown to 161 lines with exactly one START HERE (only the size rule can catch it) | yes | githooks/pre-commit — `lint: docs/OPERATIONS.md must be at most 160 lines (log and archive live under docs/board/)`, EXIT=1 |
+| M3 — guard constant mutated: `-le 160` -> `-le 40` in githooks/pre-commit:33 (proves the size guard really measures the file rather than passing vacuously) | yes | githooks/pre-commit — the 48-line board now fails with the size message, EXIT=1 |
+| M4 — guard comparison mutated: `-eq 1` -> `-eq 2` at githooks/pre-commit:29 (proves the heading guard really counts) | yes | githooks/pre-commit — the correct 1-heading board now fails with the heading message, EXIT=1 |
+| M5 — zero-match path: renamed the only heading to `## Start here (2026-09-05)` (count 0). This also probes a real hazard — `grep -c` exits 1 on no match under `set -euo pipefail` | yes | githooks/pre-commit — `lint: docs/OPERATIONS.md must have exactly one '## START HERE' heading`, EXIT=1 (the \|\| branch fires; errexit does not swallow the message) |
+| M6 — same size mutation as M2 but against the flake copy, to prove the flake.nix guard is live and not just the hook's | yes | nix build .#checks.x86_64-linux.lint -L --no-link — `lint> lint: docs/OPERATIONS.md must be at most 160 lines ...`, builder failed with exit code 1 |
+
+## Findings
+
+- **minor** `docs/OPERATIONS.md:48` — The file has no terminating newline (`git show HEAD -- docs/OPERATIONS.md` ends with `\ No newline at end of file`). Two small consequences: every future turn's diff of this file carries the marker and re-touches the last line, and `wc -l` reports 48 for a 49-line file, so the guard's cap is effectively 161 real lines, not 160. **Fix:** Append a final newline to docs/OPERATIONS.md (`printf '\n' >> docs/OPERATIONS.md`). Not worth a fix round on its own; fold it into E9, which rewrites the runbook pointers in the same file's neighbourhood.
+- **minor** `docs/OPERATIONS.md:22` — The 'Operator owns' parenthetical asserts '(each a `gap` row in the claims file, owner operator)', but two of the items listed under it have no row in docs/ledger/claims.toml: 'switch #15' and 'two brainstorms owed'. Verified by grepping every id in the list against claims.toml — the six named ids all resolve; these two do not. The wording is inherited verbatim from the plan's own template, so this is the plan's imprecision carried forward, not an implementer deviation. **Fix:** Either soften to '(the named ids are `gap` rows in the claims file, owner operator)', or open gap rows for the pending switch and the two owed brainstorms so the sentence is literally true.
+
+## Deviations
+
+The FACTORY-RESULT declared no deviations, and I found none. Its notes claim 'red shown first (grep counted 6 START HERE, 1041 lines), split by heading, board rewritten to one START HERE (48 lines); lint green' — every part checks out independently: the transcript shows the red at E8.log:406, my own re-run reproduced the same decisive line on both the hook and the flake check, my re-run of the plan's splitter against HEAD~1 produced byte-identical board files, and the board is 48 lines by wc -l with exactly one heading. Two small mismatches between the result text and the plan's Step 2, both harmless: the plan predicted 1029 lines and the file was 1041 (the board grew between planning and execution — the implementer reported the real number), and the plan's completeness bar of 1029 is met at 1094. The commit also carries an extra machine-set `Generated-By: dsh 0.1.2-rc.1 / deepseek/...` trailer, which is the seat's own attribution mechanism (dsh-harness F11), not a plan violation — the required Co-Authored-By trailer is present and exact.
