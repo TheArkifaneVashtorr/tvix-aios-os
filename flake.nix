@@ -2767,97 +2767,6 @@
                 grep -q '^aiosd: declaration refused: ' err.txt
                 touch $out
               '';
-            # PL19 (plan 2026-09-11-platform.md): the export-eval check that
-            # closes claim aios-public-flake-eval-unmeasured — "a clean
-            # clone of the publish-gate export evaluates this flake" becomes
-            # a standing, re-run fact, the sibling aios-public-build already
-            # is for the workspace build. The plan's design ran `nix flake
-            # show` and `nix flake check --no-build` inside the check's own
-            # sandbox; measured on this host (2026-09-26) that half cannot
-            # run there: a sandboxed build mounts neither the nix daemon
-            # socket nor the store database, and __noChroot is refused for
-            # an untrusted user. So the check splits along that line — the
-            # sandboxed half (exportTree, tests/acceptance/export-eval.sh:
-            # git and python only) assembles the export and git-commits it,
-            # and this half evaluates it here, in the ambient evaluator,
-            # the same assert-forcing shape as fleet-eval and
-            # helm-declaration. forcedOutputs is `nix flake show`'s walk of
-            # every top-level output at the rehearsal's measured depths
-            # (attrNames for attrsets, WHNF for module functions and plain
-            # outputs, drvPath for derivations); the checks walk is
-            # `nix flake check --no-build`'s, forcing every check's
-            # drvPath under tryEval and holding the failing set to exactly
-            # [ ] — PL21 removed the one accepted exception (good-core
-            # now validates against a synthetic stand-in for core when
-            # the export carries none, so the set must be empty). The
-            # export's own export-eval is excluded from that walk:
-            # asserting on it would recurse into its own assembled export;
-            # nobody else forces it.
-            export-eval =
-              let
-                exportTree = pkgs.runCommand "export-eval-tree" {
-                  nativeBuildInputs = [
-                    pkgs.git
-                    pkgs.python3
-                  ];
-                } "bash ${./tests/acceptance/export-eval.sh} ${self}";
-                # builtins.getFlake refuses a ref whose string carries a
-                # derivation context ("the string 'path:…' is not allowed
-                # to refer to a store path", measured 2026-09-26), so the
-                # export's outputs function is imported and called
-                # directly: the export's flake.lock is the byte-identical
-                # copy the script made, so this flake's own locked inputs
-                # are its inputs, and self binds recursively the way
-                # nix's flake machinery binds it. The call site sits in
-                # the same file as the outputs header it must mirror, so
-                # the two cannot drift apart unreviewed.
-                exportFlake = (import (exportTree + "/flake.nix")).outputs {
-                  self = exportFlake // {
-                    outPath = toString exportTree;
-                  };
-                  inherit
-                    nixpkgs
-                    nixpkgs-host
-                    llm-agents
-                    claude-desktop
-                    tvix-aios
-                    home-manager
-                    ;
-                };
-                exportChecks = builtins.removeAttrs exportFlake.checks.${system} [ "export-eval" ];
-                # The walk is `nix flake check --no-build`'s per-check forcing.
-                # Nix 2.34's tryEval catches throw-based failures (every
-                # assert-shaped check, helm-declaration included) but NOT
-                # missing-attribute errors (measured 2026-09-26: tryEval
-                # ({}.core) escapes); addErrorContext rides the raw error so
-                # even the uncatchable class names the check that failed.
-                checkFails =
-                  name:
-                  builtins.addErrorContext "export-eval: check ${name} fails to evaluate on the export" (
-                    !(builtins.tryEval (builtins.seq exportChecks.${name}.drvPath null)).success
-                  );
-                failing = nixpkgs.lib.naturalSort (builtins.filter checkFails (builtins.attrNames exportChecks));
-                forcedOutputs = [
-                  (builtins.attrNames exportFlake.lib)
-                  (nixpkgs.lib.mapAttrsToList (_: v: builtins.seq v null) exportFlake.nixosModules)
-                  (nixpkgs.lib.mapAttrsToList (_: v: builtins.seq v.drvPath null) exportFlake.packages.${system})
-                  (nixpkgs.lib.mapAttrsToList (_: v: builtins.seq v.drvPath null) exportFlake.devShells.${system})
-                  (builtins.seq exportFlake.formatter.${system}.drvPath null)
-                  (builtins.seq exportFlake.helm null)
-                  (builtins.seq exportFlake.phase3NegativeDemo null)
-                  (builtins.attrNames exportFlake.nixosConfigurations)
-                ];
-              in
-              assert builtins.deepSeq forcedOutputs true;
-              assert nixpkgs.lib.assertMsg (
-                builtins.attrNames exportFlake.nixosConfigurations == [ ]
-              ) "export-eval: the export carries nixosConfigurations — hosts/* must never publish";
-              assert nixpkgs.lib.assertMsg (failing == [ ])
-                "export-eval: the export's failing-check set must be exactly [ ] (helm-declaration passed ever since PL21 gave good-core a synthetic stand-in for the missing core); got ${builtins.toJSON failing}";
-              pkgs.runCommand "export-eval" { } ''
-                echo "export-eval: the publish-gate export evaluates clean; failing checks: ${builtins.concatStringsSep ", " failing}"
-                touch $out
-              '';
             claims-validate =
               pkgs.runCommand "claims-validate"
                 {
@@ -4987,6 +4896,113 @@
                 caseDisjoint == [ ]
               ) "core-collision-guard-negative: disjoint check names reported as colliding (a false positive)";
               pkgs.runCommand "core-collision-guard-negative-check" { } "touch $out";
+          }
+          # PL19 (plan 2026-09-11-platform.md): the export-eval check that
+          # closes claim aios-public-flake-eval-unmeasured — "a clean
+          # clone of the publish-gate export evaluates this flake" becomes
+          # a standing, re-run fact, the sibling aios-public-build already
+          # is for the workspace build. The plan's design ran `nix flake
+          # show` and `nix flake check --no-build` inside the check's own
+          # sandbox; measured on this host (2026-09-26) that half cannot
+          # run there: a sandboxed build mounts neither the nix daemon
+          # socket nor the store database, and __noChroot is refused for
+          # an untrusted user. So the check splits along that line — the
+          # sandboxed half (exportTree, tests/acceptance/export-eval.sh:
+          # git and python only) assembles the export and git-commits it,
+          # and this half evaluates it here, in the ambient evaluator,
+          # the same assert-forcing shape as fleet-eval and
+          # helm-declaration. forcedOutputs is `nix flake show`'s walk of
+          # every top-level output at the rehearsal's measured depths
+          # (attrNames for attrsets, WHNF for module functions and plain
+          # outputs, drvPath for derivations); the checks walk is
+          # `nix flake check --no-build`'s, forcing every check's
+          # drvPath under tryEval and holding the failing set to exactly
+          # [ ] — PL21 removed the one accepted exception (good-core
+          # now validates against a synthetic stand-in for core when
+          # the export carries none, so the set must be empty). The
+          # export's own export-eval is excluded from that walk:
+          # asserting on it would recurse into its own assembled export;
+          # nobody else forces it.
+          #
+          # Measured 2026-09-26 on a clean clone of the real export: the
+          # exportTree derivation is realised at EVAL time (converting the
+          # derivation to a path via string interpolation for `import`,
+          # below, is IFD), and export-eval.sh's build runs
+          # publish.py export-list against docs/ledger/publish.toml — a
+          # withheld file (spec docs/superpowers/specs/2026-09-21-publish-
+          # gate-design.md §6; docs/ledger/publish.toml withholds itself).
+          # A public export therefore cannot evaluate this check at all,
+          # so it is defined only when the manifest is present, the same
+          # builtins.pathExists gate hostsPrivatePath uses for
+          # hosts/private.nix's twelve checks (PL17) — this one keyed on
+          # the manifest itself rather than hosts/private.nix, since it
+          # reads no hosts/* path.
+          // nixpkgs.lib.optionalAttrs (builtins.pathExists ./docs/ledger/publish.toml) {
+            export-eval =
+              let
+                exportTree = pkgs.runCommand "export-eval-tree" {
+                  nativeBuildInputs = [
+                    pkgs.git
+                    pkgs.python3
+                  ];
+                } "bash ${./tests/acceptance/export-eval.sh} ${self}";
+                # builtins.getFlake refuses a ref whose string carries a
+                # derivation context ("the string 'path:…' is not allowed
+                # to refer to a store path", measured 2026-09-26), so the
+                # export's outputs function is imported and called
+                # directly: the export's flake.lock is the byte-identical
+                # copy the script made, so this flake's own locked inputs
+                # are its inputs, and self binds recursively the way
+                # nix's flake machinery binds it. The call site sits in
+                # the same file as the outputs header it must mirror, so
+                # the two cannot drift apart unreviewed.
+                exportFlake = (import (exportTree + "/flake.nix")).outputs {
+                  self = exportFlake // {
+                    outPath = toString exportTree;
+                  };
+                  inherit
+                    nixpkgs
+                    nixpkgs-host
+                    llm-agents
+                    claude-desktop
+                    tvix-aios
+                    home-manager
+                    ;
+                };
+                exportChecks = builtins.removeAttrs exportFlake.checks.${system} [ "export-eval" ];
+                # The walk is `nix flake check --no-build`'s per-check forcing.
+                # Nix 2.34's tryEval catches throw-based failures (every
+                # assert-shaped check, helm-declaration included) but NOT
+                # missing-attribute errors (measured 2026-09-26: tryEval
+                # ({}.core) escapes); addErrorContext rides the raw error so
+                # even the uncatchable class names the check that failed.
+                checkFails =
+                  name:
+                  builtins.addErrorContext "export-eval: check ${name} fails to evaluate on the export" (
+                    !(builtins.tryEval (builtins.seq exportChecks.${name}.drvPath null)).success
+                  );
+                failing = nixpkgs.lib.naturalSort (builtins.filter checkFails (builtins.attrNames exportChecks));
+                forcedOutputs = [
+                  (builtins.attrNames exportFlake.lib)
+                  (nixpkgs.lib.mapAttrsToList (_: v: builtins.seq v null) exportFlake.nixosModules)
+                  (nixpkgs.lib.mapAttrsToList (_: v: builtins.seq v.drvPath null) exportFlake.packages.${system})
+                  (nixpkgs.lib.mapAttrsToList (_: v: builtins.seq v.drvPath null) exportFlake.devShells.${system})
+                  (builtins.seq exportFlake.formatter.${system}.drvPath null)
+                  (builtins.seq exportFlake.helm null)
+                  (builtins.seq exportFlake.phase3NegativeDemo null)
+                  (builtins.attrNames exportFlake.nixosConfigurations)
+                ];
+              in
+              assert builtins.deepSeq forcedOutputs true;
+              assert nixpkgs.lib.assertMsg (
+                builtins.attrNames exportFlake.nixosConfigurations == [ ]
+              ) "export-eval: the export carries nixosConfigurations — hosts/* must never publish";
+              assert nixpkgs.lib.assertMsg (failing == [ ])
+                "export-eval: the export's failing-check set must be exactly [ ] (helm-declaration passed ever since PL21 gave good-core a synthetic stand-in for the missing core); got ${builtins.toJSON failing}";
+              pkgs.runCommand "export-eval" { } ''
+                echo "export-eval: the publish-gate export evaluates clean; failing checks: ${builtins.concatStringsSep ", " failing}"
+                touch $out
+              '';
           };
           mediaChecks = import ./media/checks.nix {
             pkgs = pkgsHost;

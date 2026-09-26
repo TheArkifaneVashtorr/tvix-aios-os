@@ -59,7 +59,6 @@ Paths are repo-relative. Descriptions are each file's first comment line.
 - publish-gate
 - publish-gate-negative
 - aios-public-build
-- export-eval
 - claims-validate
 - rules-validate
 - rules-owed
@@ -124,6 +123,7 @@ Paths are repo-relative. Descriptions are each file's first comment line.
 - patch-series-negative
 - dsh-harness-eval
 - core-collision-guard-negative
+- export-eval
 - comfyui-package
 - comfyui-cliploader-krea2
 - comfyui-startup-clean
