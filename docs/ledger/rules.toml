@@ -1,0 +1,793 @@
+# Rules inventory — every rule from the six sources, one [[rule]] row each.
+#
+#   id           R-<kebab>, unique
+#   text         the rule, verbatim from its source (byte-for-byte, modulo wrap)
+#   source       path:line of the rule's live text
+#   origin       the date the source file first landed (git log --diff-filter=A)
+#   class        invariant | practice | guard | convention | ritual
+#   load_bearing whether a check must keep it true (decision 54a)
+#   measured     the command run today and its result, or UNMEASURED: <why>
+#   check        a check/test name that fails when the rule stops being true, or ""
+#   verdict      "" — kept empty for the operator (keep | amend | retire)
+#   note         provenance / cross-reference
+#
+# Verbatim is enforced by `python3 pkgs/evidence/rules.py validate --root . --verbatim`:
+# every row whose `source` resolves must have `text` byte-for-byte in the cited file
+# (modulo line wrapping). The three CLAUDE.md rules the meta-planning packet measured
+# false (jq on PATH; $HOME read-only; the heredoc lesson) carry their re-measurement
+# verbatim from docs/research-2026-09-09-meta-planning-packet.md §9.1-9.3.
+# [`created` by KN1; completed and made verbatim by KN1b; verdicts left empty]
+
+# ---- docs/brief.md §3 — the six invariants (class invariant) ----
+
+[[rule]]
+id = "R-invariant-basket-tmpfs"
+text = "Decrypted basket contents exist only for the lifetime of the agent that mounted them, and only in tmpfs."
+source = "docs/brief.md:68"
+origin = "2026-09-02"
+class = "invariant"
+load_bearing = true
+measured = """UNMEASURED: phase-1 operator acceptance (encrypt/decrypt + tmpfs teardown); tests/run-mount-tests.sh is operator-run, not a named flake check"""
+check = ""
+verdict = ""
+note = "brief §3 invariant 1"
+
+[[rule]]
+id = "R-invariant-credential-plaintext"
+text = "No agent process holds a provider credential on disk or in its environment in plaintext. Credentials are injected at an egress proxy."
+source = "docs/brief.md:70"
+origin = "2026-09-02"
+class = "invariant"
+load_bearing = true
+measured = """UNMEASURED: credential injection is configured via Nix (managed settings); no single named flake check asserts 'no plaintext' end to end"""
+check = ""
+verdict = ""
+note = "brief §3 invariant 2"
+
+[[rule]]
+id = "R-invariant-egress-chokepoint"
+text = "Every byte leaving the machine crosses one chokepoint that can log the request and refuse it."
+source = "docs/brief.md:72"
+origin = "2026-09-02"
+class = "invariant"
+load_bearing = true
+measured = """UNMEASURED: egress-broker policy is covered by tests/broker (pytest), not a single named flake check"""
+check = ""
+verdict = ""
+note = "brief §3 invariant 3"
+
+[[rule]]
+id = "R-invariant-reproducible"
+text = "An environment is reproducible from `flake.lock` + `baskets.lock` + one YubiKey. Nothing else. If a step requires imperative setup, it is a bug in the design."
+source = "docs/brief.md:74"
+origin = "2026-09-02"
+class = "invariant"
+load_bearing = true
+measured = """UNMEASURED: reproducibility is the phase-9 operator acceptance (rebuild node2), not a named flake check"""
+check = ""
+verdict = ""
+note = "brief §3 invariant 4"
+
+[[rule]]
+id = "R-invariant-policy-nix"
+text = "Policy — which data class may reach which model — is Nix configuration, reviewable in a diff. Not a runtime setting, not a dotfile an agent can edit."
+source = "docs/brief.md:76"
+origin = "2026-09-02"
+class = "invariant"
+load_bearing = true
+measured = """UNMEASURED: policy reviewability is the phase-3/5 operator acceptance; the eval checks (lane-eval, seat-eval, managed-settings) are the closest named checks"""
+check = ""
+verdict = ""
+note = "brief §3 invariant 5"
+
+[[rule]]
+id = "R-invariant-no-promotion"
+text = "Agent-authored code (Hermes skills, dsh plugins, OpenClaw automations) is never promoted from the basket it was written in to any other basket without my review."
+source = "docs/brief.md:78"
+origin = "2026-09-02"
+class = "invariant"
+load_bearing = true
+measured = """UNMEASURED: skill promotion is the phase-7 operator acceptance; no named flake check"""
+check = ""
+verdict = ""
+note = "brief §3 invariant 6"
+
+# ---- docs/brief.md §8 — how to work (class practice) ----
+
+[[rule]]
+id = "R-practice-brief8-terse"
+text = "Terse. No preamble, no summaries of what you are about to do, no encouragement."
+source = "docs/brief.md:314"
+origin = "2026-09-02"
+class = "practice"
+load_bearing = false
+measured = """UNMEASURED: working guidance, not a named check"""
+check = ""
+verdict = ""
+note = "brief §8"
+
+[[rule]]
+id = "R-practice-brief8-no-code-before-9"
+text = "Do not write code before Section 9 is resolved."
+source = "docs/brief.md:315"
+origin = "2026-09-02"
+class = "practice"
+load_bearing = false
+measured = """UNMEASURED: §9 was resolved; working guidance, not a named check"""
+check = ""
+verdict = ""
+note = "brief §8"
+
+[[rule]]
+id = "R-practice-brief8-pin-inputs"
+text = "Pin every flake input to an exact rev. No `follows` chains you have not checked."
+source = "docs/brief.md:316"
+origin = "2026-09-02"
+class = "practice"
+load_bearing = true
+measured = """UNMEASURED: reproducibility (brief §3 invariant 4) depends on it; no named flake check"""
+check = ""
+verdict = ""
+note = "brief §8"
+
+[[rule]]
+id = "R-practice-brief8-no-secrets"
+text = "No secret material in the repo, ever — not in comments, not in test fixtures, not in example configs. Use placeholders and tell me what to populate out of band."
+source = "docs/brief.md:317"
+origin = "2026-09-02"
+class = "practice"
+load_bearing = true
+measured = """UNMEASURED: G8's privacy bound; no named flake check"""
+check = ""
+verdict = ""
+note = "brief §8"
+
+[[rule]]
+id = "R-practice-brief8-enumerate-defaults"
+text = "When you take a package from `kissgyorgy/coding-agents` or any similar source, enumerate every permission-related default it sets and override them explicitly. Do not inherit yolo-mode defaults silently."
+source = "docs/brief.md:319"
+origin = "2026-09-02"
+class = "practice"
+load_bearing = false
+measured = """UNMEASURED: working guidance, not a named check"""
+check = ""
+verdict = ""
+note = "brief §8"
+
+[[rule]]
+id = "R-practice-brief8-upstream-moved"
+text = "If upstream has moved since Section 4, tell me before adapting. Do not silently work around a breaking change."
+source = "docs/brief.md:322"
+origin = "2026-09-02"
+class = "practice"
+load_bearing = false
+measured = """UNMEASURED: working guidance, not a named check"""
+check = ""
+verdict = ""
+note = "brief §8"
+
+[[rule]]
+id = "R-practice-brief8-fail-build"
+text = "Prefer failing the build over a runtime check. Assertions in the module system are worth more than documentation."
+source = "docs/brief.md:324"
+origin = "2026-09-02"
+class = "practice"
+load_bearing = false
+measured = """UNMEASURED: working guidance; the assertion-negative checks realise it"""
+check = ""
+verdict = ""
+note = "brief §8"
+
+[[rule]]
+id = "R-practice-brief8-one-phase"
+text = "One phase at a time. Commit at each phase boundary with a message that names the acceptance test."
+source = "docs/brief.md:326"
+origin = "2026-09-02"
+class = "practice"
+load_bearing = false
+measured = """UNMEASURED: working guidance, not a named check"""
+check = ""
+verdict = ""
+note = "brief §8"
+
+[[rule]]
+id = "R-practice-brief8-brief-wrong"
+text = "If something in this brief is wrong or internally inconsistent, say so. I would rather rewrite the spec than have you route around it."
+source = "docs/brief.md:328"
+origin = "2026-09-02"
+class = "practice"
+load_bearing = false
+measured = """UNMEASURED: working guidance, not a named check"""
+check = ""
+verdict = ""
+note = "brief §8"
+
+# ---- pkgs/dsh-openrouter/hook-guard.py — the deny table (class guard) ----
+
+[[rule]]
+id = "R-guard-no-sudo"
+text = "sudo is refused (an operator action)"
+source = "pkgs/dsh-openrouter/hook-guard.py:220"
+origin = "2026-09-04"
+class = "guard"
+load_bearing = true
+measured = """check unit: nix build .#checks.x86_64-linux.unit -L --no-link (tests/unit/70-dsh-openrouter.bats)"""
+check = "unit"
+verdict = ""
+note = "_SUDO command-word deny"
+
+[[rule]]
+id = "R-guard-no-nixos-rebuild"
+text = "nixos-rebuild is refused (an operator action)"
+source = "pkgs/dsh-openrouter/hook-guard.py:222"
+origin = "2026-09-04"
+class = "guard"
+load_bearing = true
+measured = """check unit: nix build .#checks.x86_64-linux.unit -L --no-link (tests/unit/70-dsh-openrouter.bats)"""
+check = "unit"
+verdict = ""
+note = "_NIXOS_REBUILD command-word deny"
+
+[[rule]]
+id = "R-guard-no-mutating-systemctl"
+text = "systemctl {match.group(1)} is refused (an operator action)"
+source = "pkgs/dsh-openrouter/hook-guard.py:225"
+origin = "2026-09-04"
+class = "guard"
+load_bearing = true
+measured = """check unit: nix build .#checks.x86_64-linux.unit -L --no-link (tests/unit/70-dsh-openrouter.bats)"""
+check = "unit"
+verdict = ""
+note = "_SYSTEMCTL mutating-verb deny; {match.group(1)} is the verb (start, stop, restart, reload, enable, disable)"
+
+[[rule]]
+id = "R-guard-protected-paths"
+text = "refusing to edit/write {file_path}: under protected path {prefix}"
+source = "pkgs/dsh-openrouter/hook-guard.py:468"
+origin = "2026-09-04"
+class = "guard"
+load_bearing = true
+measured = """check unit: nix build .#checks.x86_64-linux.unit -L --no-link (tests/unit/70-dsh-openrouter.bats)"""
+check = "unit"
+verdict = ""
+note = "PROTECTED_ABSOLUTE (/run/baskets, /var/lib/{baskets,helm,egress-broker,lanes,secrets}) and the HOME-relative prefixes"
+
+[[rule]]
+id = "R-guard-helm-control"
+text = "the Helm control port and its token are refused (an operator action)"
+source = "pkgs/dsh-openrouter/hook-guard.py:227"
+origin = "2026-09-04"
+class = "guard"
+load_bearing = true
+measured = """check unit: nix build .#checks.x86_64-linux.unit -L --no-link (tests/unit/70-dsh-openrouter.bats)"""
+check = "unit"
+verdict = ""
+note = "_HELM_CONTROL tripwire (plan 2026-09-05-evidence-store R8)"
+
+[[rule]]
+id = "R-guard-model-fail-closed"
+text = "The MODEL rule fails closed: any unexpected exception while evaluating it (walking ``tool_input``, reading or parsing the routing table -- including ``UnicodeDecodeError``, ``RecursionError``, ``MemoryError``) is a DENY with reason ``model rule could not be evaluated: <ExceptionName>``."
+source = "pkgs/dsh-openrouter/hook-guard.py:37"
+origin = "2026-09-04"
+class = "guard"
+load_bearing = true
+measured = """check unit: nix build .#checks.x86_64-linux.unit -L --no-link (tests/unit/70-dsh-openrouter.bats)"""
+check = "unit"
+verdict = ""
+note = "RT5r fail-closed contract"
+
+# ---- tools/orchestrator-guard.sh — the orchestrator's deny-only rules (class guard) ----
+
+[[rule]]
+id = "R-guard-plan-append-only"
+text = "typed task headings are append-only — withdraw a task with a status row in docs/ledger/task-status.toml, not by editing docs/superpowers/plans/…"
+source = "tools/orchestrator-guard.sh:188"
+origin = "2026-09-05"
+class = "guard"
+load_bearing = true
+measured = """check unit: nix build .#checks.x86_64-linux.unit -L --no-link (tests/unit/91-orchestrator-guard.bats)"""
+check = "unit"
+verdict = ""
+note = "HEADING_REASON"
+
+[[rule]]
+id = "R-guard-plan-write-tools"
+text = "plan files change only through the Edit and Write tools (append-only headings) — see docs/runbooks/session.md"
+source = "tools/orchestrator-guard.sh:775"
+origin = "2026-09-05"
+class = "guard"
+load_bearing = true
+measured = """check unit: nix build .#checks.x86_64-linux.unit -L --no-link (tests/unit/91-orchestrator-guard.bats)"""
+check = "unit"
+verdict = ""
+note = "plan_reason"
+
+[[rule]]
+id = "R-guard-ritual-override"
+text = "the ritual override is the operator's; ask for it"
+source = "tools/orchestrator-guard.sh:194"
+origin = "2026-09-05"
+class = "guard"
+load_bearing = true
+measured = """check unit: nix build .#checks.x86_64-linux.unit -L --no-link (tests/unit/91-orchestrator-guard.bats)"""
+check = "unit"
+verdict = ""
+note = "OVERRIDE_REASON — operator lifts with ORCHESTRATOR_GUARD=off"
+
+[[rule]]
+id = "R-guard-self-protect"
+text = "orchestrator-guard.sh is the operator's; ask for it"
+source = "tools/orchestrator-guard.sh:200"
+origin = "2026-09-05"
+class = "guard"
+load_bearing = true
+measured = """check unit: nix build .#checks.x86_64-linux.unit -L --no-link (tests/unit/91-orchestrator-guard.bats)"""
+check = "unit"
+verdict = ""
+note = "GUARD_REASON (SELF_CANON)"
+
+[[rule]]
+id = "R-guard-host-rules"
+text = "The host rules from pkgs/dsh-openrouter/hook-guard.py (same wording) — # sudo, nixos-rebuild, mutating systemctl, writes under the protected # prefixes — plus the house history rules (git commit --amend, push, # rebase, reset --hard)."
+source = "tools/orchestrator-guard.sh:51"
+origin = "2026-09-05"
+class = "guard"
+load_bearing = true
+measured = """check unit: nix build .#checks.x86_64-linux.unit -L --no-link (tests/unit/91-orchestrator-guard.bats)"""
+check = "unit"
+verdict = ""
+note = "rule-5 header (verbatim incl. the comment `#` continuations)"
+
+[[rule]]
+id = "R-guard-no-history-rewrite"
+text = "git commit --amend is refused (history rules of the house)"
+source = "tools/orchestrator-guard.sh:511"
+origin = "2026-09-05"
+class = "guard"
+load_bearing = true
+measured = """check unit: nix build .#checks.x86_64-linux.unit -L --no-link (tests/unit/91-orchestrator-guard.bats)"""
+check = "unit"
+verdict = ""
+note = "the house history rules (push, rebase, reset --hard at :517/:523)"
+
+# ---- CLAUDE.md — the operator's working rules (class practice/convention/guard) ----
+
+[[rule]]
+id = "R-practice-build-only"
+text = "Everything you do is build-only: never `sudo`, `nixos-rebuild`, `systemctl start/stop/restart`, or basket mount/teardown — the operator switches and runs the acceptance scripts."
+source = "CLAUDE.md:10"
+origin = "2026-09-02"
+class = "guard"
+load_bearing = true
+measured = """check unit: nix build .#checks.x86_64-linux.unit -L --no-link (the host rules deny these)"""
+check = "unit"
+verdict = ""
+note = "CLAUDE.md's 'one rule that matters most'"
+
+[[rule]]
+id = "R-practice-devshell-path"
+text = "All tooling lives in the devShell; nothing (not even `jq`, `python3`, `bats`) is on the host PATH."
+source = "CLAUDE.md:18"
+origin = "2026-09-02"
+class = "practice"
+load_bearing = false
+measured = """`command -v jq` → /run/current-system/sw/bin/jq; `command -v python3` fails. The rule holds for `python3` and `bats`, not for `jq` (packet §9.1 docs/research-2026-09-09-meta-planning-packet.md:398)"""
+check = ""
+verdict = ""
+note = "measured false by the packet §9.1 (jq)"
+
+[[rule]]
+id = "R-practice-grep-ugrep"
+text = "`grep` on this host is ugrep."
+source = "CLAUDE.md:19"
+origin = "2026-09-02"
+class = "practice"
+load_bearing = false
+measured = """UNMEASURED: a host fact, not an enforced rule"""
+check = ""
+verdict = ""
+note = "CLAUDE.md gotcha"
+
+[[rule]]
+id = "R-practice-git-add-first"
+text = "`git add` new files before any `nix build` (flakes only see tracked files)"
+source = "CLAUDE.md:39"
+origin = "2026-09-02"
+class = "practice"
+load_bearing = false
+measured = """UNMEASURED: a gotcha, not an enforced rule; no check"""
+check = ""
+verdict = ""
+note = ""
+
+[[rule]]
+id = "R-practice-statix-header"
+text = "statix rejects `{ ... }:` module headers — write `_:`"
+source = "CLAUDE.md:40"
+origin = "2026-09-02"
+class = "convention"
+load_bearing = true
+measured = """check lint: nix build .#checks.x86_64-linux.lint -L --no-link (statix)"""
+check = "lint"
+verdict = ""
+note = ""
+
+[[rule]]
+id = "R-practice-no-devnull"
+text = "never `2>/dev/null` a gated command (it once swallowed a lint refusal)"
+source = "CLAUDE.md:41"
+origin = "2026-09-02"
+class = "practice"
+load_bearing = false
+measured = """UNMEASURED: a gotcha, not an enforced rule"""
+check = ""
+verdict = ""
+note = ""
+
+[[rule]]
+id = "R-practice-hardware-config-verbatim"
+text = "`hosts/core/hardware-configuration.nix` is verbatim generator output and exempt from formatting"
+source = "CLAUDE.md:42"
+origin = "2026-09-02"
+class = "convention"
+load_bearing = true
+measured = """UNMEASURED: rooted in G10/G12; lint exempts the file (statix/deadnix -i) so no check fails if it is touched"""
+check = ""
+verdict = ""
+note = ""
+
+[[rule]]
+id = "R-practice-user-timer"
+text = "a NixOS switch does not start newly enabled *user* timers in an already-logged-in session"
+source = "CLAUDE.md:43"
+origin = "2026-09-02"
+class = "practice"
+load_bearing = false
+measured = """UNMEASURED: a gotcha, not an enforced rule"""
+check = ""
+verdict = ""
+note = "CLAUDE.md gotcha"
+
+[[rule]]
+id = "R-practice-home-readonly"
+text = "`$HOME` is read-only, so set a stable `XDG_CACHE_HOME` under `/tmp`"
+source = "CLAUDE.md:45"
+origin = "2026-09-02"
+class = "practice"
+load_bearing = false
+measured = """a Claude Code subagent on this host measured `test -w "$HOME"` true and `systemctl --failed` exit 0, with no namespace markers — the gotcha did not hold for that process (packet §9.2 docs/research-2026-09-09-meta-planning-packet.md:399)"""
+check = ""
+verdict = ""
+note = "measured false by the packet §9.2 ($HOME read-only)"
+
+[[rule]]
+id = "R-practice-scratch-tmp"
+text = "an agent's shell tool and its file tools may see *different* `/tmp`, so name one per-session scratch directory and use it for both"
+source = "CLAUDE.md:46"
+origin = "2026-09-02"
+class = "practice"
+load_bearing = false
+measured = """UNMEASURED: a gotcha, not an enforced rule"""
+check = ""
+verdict = ""
+note = ""
+
+[[rule]]
+id = "R-practice-tdd-red-first"
+text = "TDD: the failing check first, and a load-bearing test counts only once it has been shown to fail (red before the change)."
+source = "CLAUDE.md:63"
+origin = "2026-09-02"
+class = "practice"
+load_bearing = true
+measured = """UNMEASURED: a review-gated practice (G2), no automated check"""
+check = ""
+verdict = ""
+note = ""
+
+[[rule]]
+id = "R-conv-new-language-formatter"
+text = "New language ⇒ its formatter and linter land in the same task."
+source = "CLAUDE.md:65"
+origin = "2026-09-02"
+class = "convention"
+load_bearing = true
+measured = """check lint: nix build .#checks.x86_64-linux.lint -L --no-link (treefmt + ruff + shellcheck)"""
+check = "lint"
+verdict = ""
+note = ""
+
+[[rule]]
+id = "R-conv-commit-subject"
+text = "Commit subjects: `<area>: summary (test: <check names>)`, with the `Co-Authored-By` trailer."
+source = "CLAUDE.md:66"
+origin = "2026-09-02"
+class = "convention"
+load_bearing = true
+measured = """UNMEASURED: enforced by the workspace commit-msg hook and the gate, not a named flake check"""
+check = ""
+verdict = ""
+note = "G4 subject shape"
+
+[[rule]]
+id = "R-conv-queue-derived"
+text = "The queue is derived by `evidence tasks`, never typed into the board."
+source = "CLAUDE.md:67"
+origin = "2026-09-02"
+class = "convention"
+load_bearing = true
+measured = """UNMEASURED: the pre-commit hook re-derives the board block; no single named flake check"""
+check = ""
+verdict = ""
+note = ""
+
+# ---- ~/flakes/dsh-harness/AGENTS.md — the seat bootstrap (class convention/guard) ----
+
+[[rule]]
+id = "R-conv-skill-catalog"
+text = "Before any response or action — including clarifying questions — check the session skill catalog and invoke every skill that matches via the `skill` tool."
+source = "~/flakes/dsh-harness/AGENTS.md:13"
+origin = "2026-09-03"
+class = "convention"
+load_bearing = false
+measured = """UNMEASURED: seat-bootstrap guidance, not enforced by this repo's checks"""
+check = ""
+verdict = ""
+note = ""
+
+[[rule]]
+id = "R-conv-never-copy-memory"
+text = "Never copy `~/.claude/projects/*/memory` into a repo: it is `local-only`."
+source = "~/flakes/dsh-harness/AGENTS.md:23"
+origin = "2026-09-03"
+class = "guard"
+load_bearing = false
+measured = """UNMEASURED: a 'never' instruction, not enforced by a named check"""
+check = ""
+verdict = ""
+note = ""
+
+[[rule]]
+id = "R-conv-subagent-routing"
+text = "Choose a sub-agent's model from the routing table, never from memory"
+source = "~/flakes/dsh-harness/AGENTS.md:29"
+origin = "2026-09-03"
+class = "convention"
+load_bearing = false
+measured = """UNMEASURED: guidance, not enforced by a named check"""
+check = ""
+verdict = ""
+note = ""
+
+[[rule]]
+id = "R-conv-seat-one-trailer"
+text = "Every commit this seat authors carries exactly ONE machine-set trailer and no `Co-Authored-By` line"
+source = "~/flakes/dsh-harness/AGENTS.md:45"
+origin = "2026-09-03"
+class = "convention"
+load_bearing = false
+measured = """UNMEASURED: contradicts CLAUDE.md and policies.md's two-trailer rule (packet §9.14 docs/research-2026-09-09-meta-planning-packet.md:411)"""
+check = ""
+verdict = ""
+note = "packet §9.14: direct contradiction inside the seat's own bootstrap"
+
+# ---- docs/board/policies.md — standing policies (class convention) ----
+
+[[rule]]
+id = "R-policy-documentation"
+text = "docs/superpowers/specs (architecture; one per structural change) · plans (one per phase, written by orchestrator, executed by factory) · decisions (append-only, incl. retractions) · concepts (one per turn, dated) · runbooks (operator-facing, plain language, one command each) · upstream-verification (dated; re-verify any upstream a phase is about to depend on) · OPERATIONS.md (this board, every turn) · README (status only). Memory (orchestrator-side) mirrors gate status."
+source = "docs/board/policies.md:4"
+origin = "2026-09-05"
+class = "convention"
+load_bearing = false
+measured = """UNMEASURED: a standing policy, not a named flake check"""
+check = ""
+verdict = ""
+note = "standing policy — documentation"
+
+[[rule]]
+id = "R-conv-lint-two-points"
+text = "Two enforcement points, always both: githooks/pre-commit (refuses commits outside the devShell) and `nix flake check` (sandboxed)."
+source = "docs/board/policies.md:12"
+origin = "2026-09-05"
+class = "convention"
+load_bearing = true
+measured = """check lint: nix build .#checks.x86_64-linux.lint -L --no-link"""
+check = "lint"
+verdict = ""
+note = "standing policy — linting"
+
+[[rule]]
+id = "R-policy-factory-economics"
+text = "Fable is the orchestrator only (plans, specs, gate decisions, summaries). In factories: implement/fix = Sonnet, code review gate = Opus (≤ 2 fix rounds), docs/runbook review = one Sonnet pass, verify = Sonnet running the mechanical checks. Every factory agent names its model explicitly — an omitted `model` inherits Fable. Reusable script: tools/factory/dark-factory.js (Workflow `scriptPath` + `args`). Every run logs agents / fix rounds / output tokens / wall clock here. Reference run before the policy: 21 agents, 1.96 M tokens, 2 h 09 m (Cowork fix)."
+source = "docs/board/policies.md:21"
+origin = "2026-09-05"
+class = "convention"
+load_bearing = false
+measured = """UNMEASURED: a standing policy, not a named flake check"""
+check = ""
+verdict = ""
+note = "standing policy — factory economics (2026-09-02)"
+
+[[rule]]
+id = "R-conv-commit-trailers"
+text = "A seat-made commit carries two trailers, in this order: the machine-set `Generated-By: dsh … / <model> (seat headless, factory run <run>)` (dsh-harness F11 — attribution of the tool and model) and the plan's `Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>` (attribution of the plan that specified the change)."
+source = "docs/board/policies.md:31"
+origin = "2026-09-05"
+class = "convention"
+load_bearing = true
+measured = """UNMEASURED: enforced by the commit-msg hook and the gate, not a named flake check"""
+check = ""
+verdict = ""
+note = "G3 trailer order"
+
+# ---- docs/board/operator-model.md — the operator's preferences (class practice) ----
+
+[[rule]]
+id = "R-practice-terse"
+text = "terse, no preamble"
+source = "docs/board/operator-model.md:5"
+origin = "2026-09-06"
+class = "practice"
+load_bearing = false
+measured = """UNMEASURED: a working preference, not a check"""
+check = ""
+verdict = ""
+note = "preference 1 (§8)"
+
+[[rule]]
+id = "R-practice-privacy-first"
+text = "privacy outranks everything, nothing leaves the machine"
+source = "docs/board/operator-model.md:6"
+origin = "2026-09-06"
+class = "practice"
+load_bearing = true
+measured = """UNMEASURED: G8/G12 (nothing leaves the machine) is architectural, not a named check"""
+check = ""
+verdict = ""
+note = "preference 2"
+
+[[rule]]
+id = "R-practice-tool-names-literally"
+text = "tool names read literally, plain words for a softkey"
+source = "docs/board/operator-model.md:7"
+origin = "2026-09-06"
+class = "practice"
+load_bearing = false
+measured = """UNMEASURED: a working preference, not a check"""
+check = ""
+verdict = ""
+note = "preference 3"
+
+[[rule]]
+id = "R-practice-tell-when-wrong"
+text = "tell me when the brief is wrong rather than route around it"
+source = "docs/board/operator-model.md:8"
+origin = "2026-09-06"
+class = "practice"
+load_bearing = false
+measured = """UNMEASURED: a working preference, not a check"""
+check = ""
+verdict = ""
+note = "preference 4 (§8)"
+
+[[rule]]
+id = "R-practice-fail-build"
+text = "prefer failing the build over a runtime check"
+source = "docs/board/operator-model.md:9"
+origin = "2026-09-06"
+class = "practice"
+load_bearing = false
+measured = """UNMEASURED: a working preference; the assertion-negative checks realise it"""
+check = ""
+verdict = ""
+note = "preference 5 (§8)"
+
+[[rule]]
+id = "R-practice-one-phase"
+text = "one phase at a time, the operator says \"test passed\""
+source = "docs/board/operator-model.md:10"
+origin = "2026-09-06"
+class = "practice"
+load_bearing = false
+measured = """UNMEASURED: a working preference; phase gates are the operator's acceptance"""
+check = ""
+verdict = ""
+note = "preference 6 (§7)"
+
+[[rule]]
+id = "R-practice-deterministic-first"
+text = "deterministic first, isolated workspaces second, judgement last; never design parallelism out"
+source = "docs/board/operator-model.md:11"
+origin = "2026-09-06"
+class = "practice"
+load_bearing = false
+measured = """UNMEASURED: a working preference, not a check"""
+check = ""
+verdict = ""
+note = "preference 7"
+
+[[rule]]
+id = "R-practice-falsifiable"
+text = "falsifiable, not merely tested; unmeasured is debt; proxies declared"
+source = "docs/board/operator-model.md:12"
+origin = "2026-09-06"
+class = "practice"
+load_bearing = false
+measured = """UNMEASURED: a working preference, not a check"""
+check = ""
+verdict = ""
+note = "preference 8"
+
+[[rule]]
+id = "R-practice-no-secrets"
+text = "no secrets in the repo, placeholders out of band"
+source = "docs/board/operator-model.md:13"
+origin = "2026-09-06"
+class = "practice"
+load_bearing = false
+measured = """UNMEASURED: a working preference (G8); no named flake check"""
+check = ""
+verdict = ""
+note = "preference 9 (§8)"
+
+[[rule]]
+id = "R-practice-recommendations"
+text = "recommendations welcome, each with a measurable acceptance and an effort class"
+source = "docs/board/operator-model.md:14"
+origin = "2026-09-06"
+class = "practice"
+load_bearing = false
+measured = """UNMEASURED: a working preference, not a check"""
+check = ""
+verdict = ""
+note = "preference 10"
+
+# ---- docs/runbooks/session.md — the reset ritual's steps (class ritual) ----
+
+[[rule]]
+id = "R-ritual-ten-steps"
+text = "The reset ritual is what you run before any reset — compaction, `/new`, or a pause"
+source = "docs/runbooks/session.md:114"
+origin = "2026-09-05"
+class = "ritual"
+load_bearing = true
+measured = """UNMEASURED: the judgement steps are operator-run; the Stop hook enforces the derived half (tools/ritual.sh)"""
+check = ""
+verdict = ""
+note = "the ritual's ten ordered steps are listed at :121"
+
+[[rule]]
+id = "R-ritual-file-commit-reviews"
+text = "**File and commit every review** (`docs/reviews/`): untracked or modified review files are a Stop-hook block, and reviews are committed *before* any integrate → ff (a commit between the two diverges `main`)."
+source = "docs/runbooks/session.md:127"
+origin = "2026-09-05"
+class = "ritual"
+load_bearing = true
+measured = """UNMEASURED: step 1 of the ten; the Stop hook blocks on uncommitted reviews"""
+check = ""
+verdict = ""
+note = "step 1"
+
+[[rule]]
+id = "R-ritual-stop-derived"
+text = "The **Stop hook enforces the derived half** of the ritual: the mechanical steps (commits, board currency) are checkable and checked"
+source = "docs/runbooks/session.md:184"
+origin = "2026-09-05"
+class = "ritual"
+load_bearing = true
+measured = """check unit: nix build .#checks.x86_64-linux.unit -L --no-link (tools/ritual.sh Stop hook)"""
+check = "unit"
+verdict = ""
+note = "the ritual's derived half"
+
+[[rule]]
+id = "R-ritual-heredoc-lesson"
+text = "Scripts go through the Write tool, then `chmod +x`."
+source = "docs/runbooks/session.md:442"
+origin = "2026-09-05"
+class = "practice"
+load_bearing = false
+measured = """tracing every occurrence of the ritual-override reason string in the drive corpus finds exactly one denial with reasoning attached, and it is on `git reset --soft HEAD~1`, not a heredoc — whatever episode the lesson records is not in the transcript (packet §9.3 docs/research-2026-09-09-meta-planning-packet.md:400)"""
+check = ""
+verdict = ""
+note = "measured false by the packet §9.3 (heredoc lesson; the packet attributes the lesson to CLAUDE.md)"

@@ -1,0 +1,11 @@
+# Concept 2026-09-05c — the task graph is derived, never kept
+
+**Class:** process / data. **Status:** designed (docs/superpowers/specs/2026-09-05-session-context-and-task-graph-design.md; plan next). **Origin:** the operator's 2026-09-05 objective (curate what a fresh session receives; one dependency-aware task list across the plans; consider neo4j or memgraph) and the observation that task state already lives in five places, none of them the plan's checkboxes.
+
+**Idea.** A graph is two lists, nodes and edges, and this project's graph is already written down: every `### KEY (kind, size)` plan heading is a node, every `dependsOn` line an edge, every `touches` line a file claim. Status is not a seventh place to type it but a derivation with a fixed precedence — a landed commit subject, a gate verdict, a seat result file, a run record, else ready or blocked from the edges. One command rebuilds the graph in memory in milliseconds, exactly as `nix build` rebuilds its derivation graph on every call, and prints the queue, the next waves, the cross-plan file conflicts, the seat driver's wave groups and the dark factory's task list. A database daemon (neo4j) would add a unit, a port and a sync job to the live host to answer questions a 200-line stdlib script answers from files; an embedded file (kuzu) stays available later by loading the same JSON.
+
+**Payoff.** The Queued block of START HERE, the factory's `tasks[]` argument and the seat's wave groups stop being typed by hand; the hook refuses a board whose queue drifts from the files. A fresh session gets facts (bundle), the queue (tasks) and one pointer to where everything is, injected at start and after every compaction. Two plans can be launched together when `--conflicts` shows disjoint `touches` — the parallel cycle the operator asked to plan for, measured instead of guessed.
+
+**Dependencies.** Evidence plan E8 (board shape) and E9b (`evidence bundle`) integrated; Python stdlib; the typed-heading convention already in use since 2026-09-04; a one-line `status:` front matter on the 31 legacy plans.
+
+**Earliest landing.** Wave 1 (parser, graph, repo map) has no dependency on the evidence plan's wave 3 and can run beside it today; the hook and the board block follow the integration.

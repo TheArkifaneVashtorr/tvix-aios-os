@@ -1,0 +1,15 @@
+#!/usr/bin/env bash
+# tools/cloud/evidence -- runs THIS CHECKOUT'S OWN pkgs/evidence/evidence.py
+# with a plain python3, honouring EVIDENCE_STORE (evidence.py's own --store
+# already defaults from that env var).
+#
+# The real `evidence` command (flake.nix's pkgs.evidence, `pkgs.writeShellApplication`)
+# is `exec python3 <a Nix-store path fixed at flake-eval time>/evidence.py "$@"`:
+# a copy of evidence.py frozen into the Nix store from whatever generation
+# built it. Off the host it does not exist at all (no /nix/store); ON the
+# host it still ignores whatever checkout you run it from, since the path is
+# baked in -- it is never this repo's own tree. This shim runs the checkout's
+# actual file instead.
+set -euo pipefail
+here=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd -P)
+exec python3 "$here/pkgs/evidence/evidence.py" "$@"

@@ -1,0 +1,38 @@
+# Fixture plan-defect ledger: one plan-caused rejection among five.
+[meta]
+front_matter_from = 2026-09-07
+
+[[rejection]]
+review = "docs/reviews/2026-09-05-opus-review-a1.md"
+run = "fx"
+key = "A1"
+date = 2026-09-05
+plan_defect = "vacuous"
+
+[[rejection]]
+review = "docs/reviews/2026-09-05-opus-review-c1.md"
+run = "fx"
+key = "C1"
+date = 2026-09-05
+plan_defect = "implementer"
+
+[[rejection]]
+review = "docs/reviews/2026-09-05-opus-review-d1.md"
+run = "fx"
+key = "D1"
+date = 2026-09-05
+plan_defect = "implementer"
+
+[[rejection]]
+review = "docs/reviews/2026-09-05-opus-review-e1.md"
+run = "fx"
+key = "E1"
+date = 2026-09-05
+plan_defect = "implementer"
+
+[[rejection]]
+review = "docs/reviews/2026-09-05-opus-review-e1r.md"
+run = "fx"
+key = "E1r"
+date = 2026-09-05
+plan_defect = "implementer"

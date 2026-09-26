@@ -1,0 +1,5 @@
+generation_id,created_at,cost_total,cost_web_search,cost_cache,cost_file_processing,byok_usage_inference,tokens_prompt,tokens_completion,tokens_reasoning,tokens_cached,model_permaslug,provider_name,variant,cancelled,streamed,user,finish_reason_raw,finish_reason_normalized,generation_time_ms,time_to_first_token_ms,api_key_disabled,api_key_name,app_name
+gen-fixture-1,2026-09-04 10:00:00.000,0.000500,,, ,0,1000,100,0,900,deepseek/deepseek-v4-pro-0813,CoreWeave,standard,false,true,fixture-user,stop,stop,100,10,false,fixture-key,fixture-app
+gen-fixture-2,2026-09-04 11:00:00.000,0.000500,,, ,0,1100,110,0,1000,deepseek/deepseek-v4-pro-0813,CoreWeave,standard,false,true,fixture-user,stop,stop,110,11,false,fixture-key,fixture-app
+gen-fixture-3,2026-09-05 10:00:00.000,0.000250,,, ,0,2000,200,50,1900,deepseek/deepseek-v4-flash,DeepInfra,standard,false,true,fixture-user,stop,stop,200,20,false,fixture-key,fixture-app
+gen-fixture-4,2026-09-05 11:00:00.000,0.000250,,, ,0,2100,210,0,2000,deepseek/deepseek-v4-flash,DeepInfra,standard,true,true,fixture-user,stop,stop,210,21,false,fixture-key,fixture-app

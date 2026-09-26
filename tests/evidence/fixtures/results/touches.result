@@ -1,0 +1,28 @@
+FACTORY-RESULT status=partial
+FACTORY-CHECKS unit=pass
+FACTORY-COMMITS 1
+FACTORY-NOTES finished; 1 file(s) outside touches undisclosed: extra.txt
+
+run: tel2
+key: T2
+model: deepseek/deepseek-v4-pro-0813
+effort: medium
+route: implement/code/S
+workspace: /gone/base/ws/tel2/T2
+branch: task/T2
+head: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+base: bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
+wall_s: 123
+exit_code: 1
+error_class: touches-violation
+touches_extra: 1
+touches_disclosed: 0
+touches_files: extra.txt
+
+commits (base..task/T2):
+abc1234 subject
+
+diffstat:
+ 2 files changed, 10 insertions(+), 3 deletions(-)
+
+usage: {"input":10,"output":5,"cacheRead":1,"reasoning":2,"events":40,"duration_s":12.5}

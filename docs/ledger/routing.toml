@@ -1,0 +1,279 @@
+# Model routing for the whole factory: the HEADLESS seat driver
+# (tools/factory/seat) reads the openrouter rows; tools/factory/route.py
+# derives the dark factory's models map from the claude rows. The interactive
+# seat the operator opens on core is not governed by this file.
+# Lookup: factory_route [--route R] <role> <kind> <size>. Each row carries a
+# route (openrouter = DeepSeek via OpenRouter, claude = the dark factory's
+# Anthropic models); a row without a route key defaults to openrouter. The
+# most specific matching row wins (fewest "any" fields); ties go to the first
+# row; a row with all three "any" is the default for its route and must exist.
+# Explicit --model, OPENROUTER_MODEL and OPENROUTER_REASONING_EFFORT always
+# override. `area` is a specificity field only (no --area flag): an area-keyed
+# row matches any request and beats an area-"any" row. Evidence for the rows:
+# docs/reviews/2026-09-05-m2b-effort-measurement.md,
+# docs/reviews/2026-09-05-model-comparison.md. Change rows here, nowhere else.
+# A `rung` climbs within one (route, role, kind, size, class, area) key: the
+# fix round is rung 2 and the re-plan rung 3 (rule A1), a `fallback` is a
+# sideways relaunch (the three relaunch classes); a row above rung 1 exists
+# only with a claims row until the report justifies it. `class` and `area`
+# default to "any"; `rung` defaults to 1; `fallback` names a model that is
+# another row's model. A claude row that carries a class is the operator
+# terminus (see the docs-spec/docs-plan-run rows below): the rung-1 winner
+# search also considers those claude rows, and a claude win escalates.
+
+[[route]]
+route = "openrouter"
+role = "implement"
+kind = "docs"
+size = "any"
+area = "any"
+model = "deepseek/deepseek-v4-flash"
+effort = "off"
+
+# unmeasured: ladder-implement-docs-rung2-unmeasured
+[[route]]
+route = "openrouter"
+role = "implement"
+kind = "docs"
+size = "any"
+area = "any"
+rung = 2
+model = "deepseek/deepseek-v4-pro-0813"
+effort = "off"
+
+# unmeasured: ladder-implement-docs-rung3-unmeasured
+[[route]]
+route = "openrouter"
+role = "implement"
+kind = "docs"
+size = "any"
+area = "any"
+rung = 3
+model = "deepseek/deepseek-v4-pro-0813"
+effort = "medium"
+
+[[route]]
+route = "openrouter"
+role = "implement"
+kind = "any"
+size = "XS"
+area = "any"
+model = "deepseek/deepseek-v4-flash"
+effort = "off"
+
+# unmeasured: ladder-implement-xs-rung2-unmeasured
+[[route]]
+route = "openrouter"
+role = "implement"
+kind = "any"
+size = "XS"
+area = "any"
+rung = 2
+model = "deepseek/deepseek-v4-pro-0813"
+effort = "off"
+
+# unmeasured: ladder-implement-xs-rung3-unmeasured
+[[route]]
+route = "openrouter"
+role = "implement"
+kind = "any"
+size = "XS"
+area = "any"
+rung = 3
+model = "deepseek/deepseek-v4-pro-0813"
+effort = "medium"
+
+[[route]]
+route = "openrouter"
+role = "implement"
+kind = "code"
+size = "any"
+area = "any"
+model = "deepseek/deepseek-v4-pro-0813"
+effort = "medium"
+
+# unmeasured: ladder-implement-code-rung2-unmeasured
+[[route]]
+route = "openrouter"
+role = "implement"
+kind = "code"
+size = "any"
+area = "any"
+rung = 2
+model = "deepseek/deepseek-v4-pro-0813"
+effort = "high"
+
+[[route]]
+route = "openrouter"
+role = "review"
+kind = "any"
+size = "any"
+area = "any"
+model = "deepseek/deepseek-v4-pro-0813"
+effort = "medium"
+
+# unmeasured: driver-row-unmeasured
+[[route]]
+route = "openrouter"
+role = "orchestrate"
+kind = "any"
+size = "any"
+area = "any"
+model = "deepseek/deepseek-v4-pro-0813"
+effort = "medium"
+
+[[route]]
+route = "openrouter"
+role = "any"
+kind = "any"
+size = "any"
+area = "any"
+model = "deepseek/deepseek-v4-pro-0813"
+effort = "medium"
+
+[[route]]
+route = "claude"
+role = "orchestrate"
+kind = "any"
+size = "any"
+area = "any"
+model = "fable"
+effort = "high"
+
+[[route]]
+route = "claude"
+role = "baseline"
+kind = "any"
+size = "any"
+area = "any"
+model = "sonnet"
+effort = "low"
+
+[[route]]
+route = "claude"
+role = "implement"
+kind = "any"
+size = "any"
+area = "any"
+model = "sonnet"
+effort = "high"
+
+[[route]]
+route = "claude"
+role = "review"
+kind = "code"
+size = "any"
+area = "any"
+model = "opus"
+effort = "high"
+
+[[route]]
+route = "claude"
+role = "review"
+kind = "docs"
+size = "any"
+area = "any"
+model = "sonnet"
+effort = "medium"
+
+[[route]]
+route = "claude"
+role = "verify"
+kind = "any"
+size = "any"
+area = "any"
+model = "sonnet"
+effort = "medium"
+
+[[route]]
+route = "claude"
+role = "research"
+kind = "any"
+size = "any"
+area = "any"
+model = "sonnet"
+effort = "medium"
+
+[[route]]
+route = "claude"
+role = "audit"
+kind = "any"
+size = "any"
+area = "any"
+model = "fable"
+effort = "high"
+
+[[route]]
+route = "claude"
+role = "any"
+kind = "any"
+size = "any"
+area = "any"
+model = "sonnet"
+effort = "medium"
+
+# FA1 (amendment 2026-09-10, decision 28 — OpenRouter only): the docs-spec and
+# docs-plan-run classes are the operator terminus. Their claude row sits alone
+# at rung 3 (no rung 1/2 — the ladder check exempts class-scoped claude keys),
+# so a rung-3 lookup for either class beats the openrouter docs/any row and
+# escalates (exit 4, the fable launch line printed); the operator pastes that
+# line. Source: docs/decisions/2026-09-09-redesign-answers.md:114-157.
+[[route]]
+route = "claude"
+role = "implement"
+kind = "docs"
+size = "any"
+class = "docs-spec"
+area = "any"
+rung = 3
+model = "fable"
+effort = "high"
+
+[[route]]
+route = "claude"
+role = "implement"
+kind = "docs"
+size = "any"
+class = "docs-plan-run"
+area = "any"
+rung = 3
+model = "fable"
+effort = "high"
+
+# FA2 (decision 30b, 2026-09-10 correction — OpenRouter only): the batched
+# path for the same two drafting classes, beside FA1's interactive terminus.
+# The batch runs on the OpenRouter lane's async endpoint (POST
+# /api/beta/batches) at 50 % of standard pricing, measured live in
+# docs/research-2026-09-11-batch-lane.md. It wins only when the caller asks
+# for it (--route openrouter-batch): the default openrouter caller keeps the
+# Flash ladder, and the FA1 rung-3 claude rows above keep the operator-watched
+# interactive path, so a batch row never captures an interactive call. The
+# route carries its own any/any/any default row (both parsers require one).
+[[route]]
+route = "openrouter-batch"
+role = "implement"
+kind = "docs"
+size = "any"
+class = "docs-spec"
+area = "any"
+model = "anthropic/claude-fable-5.1:batch"
+effort = "high"
+
+[[route]]
+route = "openrouter-batch"
+role = "implement"
+kind = "docs"
+size = "any"
+class = "docs-plan-run"
+area = "any"
+model = "anthropic/claude-fable-5.1:batch"
+effort = "high"
+
+[[route]]
+route = "openrouter-batch"
+role = "any"
+kind = "any"
+size = "any"
+area = "any"
+model = "anthropic/claude-fable-5.1:batch"
+effort = "high"
