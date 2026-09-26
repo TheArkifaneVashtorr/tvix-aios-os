@@ -1,0 +1,8 @@
+# Basket encryption recipients — the PUBLIC halves of the enrolled unlock keys.
+# Any single corresponding key/identity decrypts. Roles map to serials in
+# keys.toml. Escrow slot pending (operator holds the paper key; public line
+# to be added post-Cowork).
+# basket-a (YubiKey 5 NFC, serial 00000000)
+age1yubikey1REDACTED
+# basket-b (YubiKey 5C, serial 00000000)
+age1yubikey1REDACTED

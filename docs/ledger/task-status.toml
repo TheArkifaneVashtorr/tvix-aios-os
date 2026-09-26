@@ -1,0 +1,18 @@
+# Withdrawn or parked typed tasks (plan 2026-09-05-seat-routing.md, OG1).
+# Empty today: this file is the *intended* place to withdraw a typed task —
+# the orchestrator guard makes `### KEY (kind, size)` plan headings
+# append-only, so a task that is no longer wanted is withdrawn with a status
+# row here instead of deleting or editing its heading. The derived task graph
+# learns to read it in a follow-up (OG2): a task with a `withdrawn` row is
+# never scheduled, and `parked` rows are shown in the brief once. Until OG2
+# lands, this file is documentation of intent.
+
+# [[task]]
+# repo = "<repos.toml name>"
+# plan = "<plan file name under docs/superpowers/plans>"
+# key = "<task key from the heading, e.g. OG1>"
+# status = "withdrawn" | "parked"
+# note = "<why>"
+# decided = "<YYYY-MM-DD>"
+
+# For a task whose section names `repo:`, the row's `repo` is that attributed repo.

@@ -1,0 +1,191 @@
+# Status of plans that predate typed `### KEY (kind, size)` headings
+# (plan 2026-09-05-session-context, G3). One row per legacy plan file, any
+# repo; status ∈ done | superseded | parked | open. Typed plans need no row:
+# their status is derived per task. Edit this file when a legacy plan is
+# closed or a decision parks it.
+
+[[plan]]
+repo = "nixos-agent-env"
+file = "2026-09-02-phase1-basket-crypto.md"
+status = "done"
+note = "Phase 1 accepted 2026-09-02"
+
+[[plan]]
+repo = "nixos-agent-env"
+file = "2026-09-02-phase2-egress-broker.md"
+status = "done"
+note = "Phase 2 accepted 2026-09-02"
+
+[[plan]]
+repo = "nixos-agent-env"
+file = "2026-09-02-phase3-classification-assertions.md"
+status = "done"
+note = "Phase 3 accepted 2026-09-02 (Lane A-prior)"
+
+[[plan]]
+repo = "nixos-agent-env"
+file = "2026-09-02-phase4a-host-absorption.md"
+status = "done"
+note = "Phase 4a accepted 2026-09-02 (Lane A-prior)"
+
+[[plan]]
+repo = "nixos-agent-env"
+file = "2026-09-02-phase4b-cowork.md"
+status = "parked"
+note = "built + verified, parked by decision 2026-09-02-cowork-tier-parked"
+
+[[plan]]
+repo = "nixos-agent-env"
+file = "2026-09-02-phase4b-cowork-sending-hang.md"
+status = "parked"
+note = "with Lane A / Cowork tier A"
+
+[[plan]]
+repo = "nixos-agent-env"
+file = "2026-09-02-proton-backup-rewire.md"
+status = "done"
+note = "Lane F accepted 2026-09-02, operator drill 7/7"
+
+[[plan]]
+repo = "nixos-agent-env"
+file = "2026-09-02-helm.md"
+status = "done"
+note = "Helm v1 live; superseded in detail by 2026-09-03-helm-v1-switch-consolidated.md"
+
+[[plan]]
+repo = "nixos-agent-env"
+file = "2026-09-03-helm-v1-switch.md"
+status = "superseded"
+note = "by 2026-09-03-helm-v1-switch-consolidated.md"
+
+[[plan]]
+repo = "nixos-agent-env"
+file = "2026-09-03-helm-v1-switch-consolidated.md"
+status = "done"
+note = "Helm v1 switch landed (decision 2026-09-02-helm-is-the-switch)"
+
+[[plan]]
+repo = "nixos-agent-env"
+file = "2026-09-02-host-wiring.md"
+status = "done"
+note = "gaming/media host wiring landed (Phase 4a lane)"
+
+[[plan]]
+repo = "nixos-agent-env"
+file = "2026-09-03-host-wiring-round2-media.md"
+status = "parked"
+note = "wiring round 2's media service parked (board START HERE 2026-09-05)"
+
+[[plan]]
+repo = "nixos-agent-env"
+file = "2026-09-02-gaming-flake.md"
+status = "superseded"
+note = "executed as ~/flakes/gaming's own plan copy"
+
+[[plan]]
+repo = "nixos-agent-env"
+file = "2026-09-02-media-flake.md"
+status = "superseded"
+note = "executed as ~/flakes/media's own plan copy; media rework closed 2026-09-03"
+
+[[plan]]
+repo = "nixos-agent-env"
+file = "2026-09-03-broker-secret-ownership.md"
+status = "open"
+note = "field bug L1 plan filed 2026-09-03; closure not recorded on the board"
+
+[[plan]]
+repo = "nixos-agent-env"
+file = "2026-09-03-factory-falsifiability.md"
+status = "done"
+note = "D9 red-before-green measured (N8, 2026-09-04)"
+
+[[plan]]
+repo = "nixos-agent-env"
+file = "2026-09-03-factory-skills-and-review-gate.md"
+status = "done"
+note = "skill injection by role + unskippable review gate landed (a-waves 2026-09-04)"
+
+[[plan]]
+repo = "nixos-agent-env"
+file = "2026-09-03-lane-fix-round.md"
+status = "done"
+note = "lane fix round landed 2026-09-03"
+
+[[plan]]
+repo = "nixos-agent-env"
+file = "2026-09-03-lane-l-round1.md"
+status = "done"
+note = "Lane L round 1 landed on the board 2026-09-03"
+
+[[plan]]
+repo = "nixos-agent-env"
+file = "2026-09-03-preswitch-fixes.md"
+status = "done"
+note = "pre-switch audit CLOSED 2026-09-03"
+
+[[plan]]
+repo = "nixos-agent-env"
+file = "2026-09-03-preswitch-fixes-round2.md"
+status = "done"
+note = "pre-switch audit CLOSED 2026-09-03"
+
+[[plan]]
+repo = "nixos-agent-env"
+file = "2026-09-04-dsh-review-fix-round.md"
+status = "done"
+note = "dsh + dark factory 24 h review fix round landed 2026-09-04 (a1–a9)"
+
+[[plan]]
+repo = "nixos-agent-env"
+file = "2026-09-04-opus-regate-fix-wave-a3.md"
+status = "done"
+note = "a3 re-gate wave landed 2026-09-04"
+
+[[plan]]
+repo = "nixos-agent-env"
+file = "2026-09-05-night-plan.md"
+status = "done"
+note = "M1, M2/M2b, S15–S19, a10 all reviewed 2026-09-05 (docs/reviews)"
+
+[[plan]]
+repo = "media"
+file = "2026-09-02-media-flake.md"
+status = "superseded"
+note = "by 2026-09-02-media-nix-native.md (media board)"
+
+[[plan]]
+repo = "media"
+file = "2026-09-02-media-nix-native.md"
+status = "done"
+note = "four tasks ticked on the media board"
+
+[[plan]]
+repo = "gaming"
+file = "2026-09-02-gaming-flake.md"
+status = "done"
+note = "four tasks landed (gaming board)"
+
+[[plan]]
+repo = "gaming"
+file = "2026-09-03-preswitch-fixes.md"
+status = "done"
+note = "pre-switch audit CLOSED 2026-09-03"
+
+[[plan]]
+repo = "gaming"
+file = "2026-09-03-preswitch-fixes-round2.md"
+status = "done"
+note = "pre-switch audit CLOSED 2026-09-03"
+
+[[plan]]
+repo = "nixos-skill"
+file = "2026-09-03-nixos-skill.md"
+status = "done"
+note = "build phase closed (nixos-skill board 2026-09-04)"
+
+[[plan]]
+repo = "nixos-skill"
+file = "2026-09-03-nixos-skill-fix-round-1.md"
+status = "done"
+note = "fix round 1 closed (docs/reviews/2026-09-04-fix-round-1-outcome.md there)"

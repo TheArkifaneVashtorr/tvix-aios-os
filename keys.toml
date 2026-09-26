@@ -1,0 +1,19 @@
+# Hardware identity ledger — role -> YubiKey serial (concept 2026-09-02g).
+# The authoritative record of which physical key is which. Enrollment tooling
+# refuses a serial already holding another role. Serials are identifiers, not
+# secrets. Update only via a reviewed commit at enrollment time.
+
+[keys.basket-a]
+serial = 00000000
+model = "YubiKey 5 NFC (USB-A)"
+enrolled = "2026-09-02"
+
+[keys.basket-b]
+serial = 00000000
+model = "YubiKey 5C (USB-C)"
+enrolled = "2026-09-02"
+
+# 2026-09-02: operator confirms only TWO physical keys exist — the brief's
+# "three YubiKeys" was wrong (flagged per brief §8). Full recipient set = A + B.
+# A third recipient (hardware or sealed offline escrow) can join any time via
+# rekey (concept 2026-09-02c) with zero rework.

@@ -1,0 +1,443 @@
+# rows: 442
+rm -rf .claude/*
+rm -rf docs/superpowers/plans/*
+mv .claude/* /tmp/
+shred .claude/*
+rm -rf .claude/ritual*
+rm .claude/[r]itual-override
+rm -rf .claude
+rm -r .claude/
+rm -rf .
+git clean -fd
+git clean -fdx .claude
+git checkout -- .claude
+git restore .claude
+mv .claude .claude-old
+mv .claude/ritual-override /tmp/x
+find .claude -name 'ritual-*' -delete
+find . -name ritual-override -exec rm {} +
+dd if=/dev/null of=.claude/ritual-override
+python3 -c 'import os;os.remove(".claude/ritual-override")'
+python3 -c 'import pathlib;pathlib.Path(".claude/ritual-override").unlink()'
+python3 -c 'import shutil;shutil.rmtree(".claude")'
+cd .claude && rm ritual-override
+rm ritual-override
+rm link-to-override
+ls -la .claude
+cat .claude/ritual-override
+stat .claude/ritual-override
+git status
+test -f .claude/ritual-override
+rm -rf .claude/worktrees/x
+rm /tmp/scratch/fix/other/.claude/ritual-override
+rmdir .claude
+cd .claude && rm *
+mv .claude /tmp/gone
+git clean -fdx
+git checkout HEAD -- .claude
+rsync -a /tmp/empty/ .claude/
+shred .claude/ritual-override
+chmod 000 .claude/ritual-override
+chmod 755 k
+truncate -s0 .claude/ritual-override
+tee .claude/ritual-override
+cp k .claude/ritual-override
+install -m644 k .claude/ritual-override
+ln -sf k .claude/ritual-override
+perl -e 'unlink ".claude/ritual-override"'
+python3 -c 'import os;os.rename(".claude/ritual-override","x")'
+python3 -c 'import shutil;shutil.move(".claude","y")'
+rm -rf ./.claude
+rm -rf .claude/.
+rm -rf .claude/./
+rm -rf ./.claude/
+find .claude -delete
+bash -c 'rm -rf .claude'
+cp /dev/null .claude/ritual-override
+env -C .claude rm ritual-override
+nix develop -c rm -rf .claude
+timeout 5 rm -rf .claude
+rm -rf .claude ; echo done
+echo a
+r''m -rf .claude
+rm -rf ~/nixos-fixture/.claude
+echo x > link-to-override
+rm /tmp/link-to-override
+git worktree remove .claude/worktrees/x
+rm elsewhere/ritual-override
+python3 -c 'import builtins;open(".claude/ritual-override","w")'
+tar -C .claude -xf /tmp/a.tar
+xargs rm < .claude/list
+git stash -u
+git stash --include-untracked
+git stash -a
+git stash -u -- .
+rm plans-link
+git add docs/superpowers/plans/x.md
+git add docs/OPERATIONS.md
+nix develop -c git commit -q -F /tmp/msg
+bash /tmp/scratch/launch.sh cr9 CR3b 2026-09-05-context-reset-ritual.md
+git pull --ff-only /home/dalhaka/factory/ws/cr12/CR2b task/CR2b
+tools/factory/seat/factory-integrate cr12 CR2b
+nix build .#checks.x86_64-linux.unit -L --no-link
+nix develop -c bats tests/unit/91-orchestrator-guard.bats
+curl --noproxy '*' -s http://127.0.0.1:8080/health
+pgrep -af factory-wave
+cat docs/OPERATIONS.md
+cat .claude/settings.json
+sed -n '1,30p' docs/runbooks/session.md
+nix develop -c githooks/pre-commit
+git log --oneline -5
+git status --porcelain
+rm -f result
+mv result result.old
+nix develop -c treefmt
+git add -A
+ls .claude
+git diff --stat
+git commit -q -m 'guard removes .claude when done'
+git commit -q -m 'docs removes .claude/ritual-override when done'
+sed -n '1,30p' docs/superpowers/plans/x.md | grep -i ritual
+sed -n '1,30p' .claude/ritual-override | grep -i x
+git clean -n
+git clean -nd
+git clean
+git checkout
+git checkout -
+git restore
+echo 'git checkout'
+rm -rf .claude/*/
+rm -rf ./.claude/*
+rm -rf .claude/?itual-override
+rm docs/superpowers/plans/*.md
+git checkout main
+git checkout -b task/X
+git restore --staged docs/OPERATIONS.md
+git commit -q -m 'guard rm -rf .claude no longer allowed'
+git stash -u .claude
+cp .claude/ritual-override /tmp/y
+git commit -m 'x'
+rm -rf .claude/ritual-override
+git clean -df
+git clean -xdf
+git clean -dxf
+git stash push -u
+git stash save -u
+git stash -au
+git stash -ua
+tar -xf a.tar
+unzip a.zip
+cpio -idm
+git commit -m x
+rm -rf docs/superpowers/plans/x.md
+git commit -m 'subject line'
+sed -i s/a/b/ docs/superpowers/plans/x.md
+git commit -m 'subject'
+tee docs/superpowers/plans/x.md
+mv docs/superpowers/plans/x.md /tmp/
+rm -rf .claude/{a,b}
+rm -rf ".claude/"*
+rm -rf '.claude'/*
+rm -rf ../.claude/*
+rm -rf .claude/rit*ual-override
+tar -C .claude -xf x.tar
+tar -xf x.tar -C ./.claude
+unzip -d .claude x.zip
+cd .claude && cpio -idm
+cd .claude && tar -xf /tmp/a.tar
+tar -xf /tmp/a.tar
+unzip /tmp/a.zip
+tar --extract --file /tmp/a.tar
+tar -tf x.tar
+tar -xf x.tar -C /tmp
+unzip -d /tmp x.zip
+chmod 000 .claude
+chmod -R 000 .claude
+chown root .claude
+chattr +i .claude
+chown root .claude/ritual-override
+chattr +i .claude/ritual-override
+git stash
+git clean -f
+git clean --force
+git clean -ffd
+git clean -d -f
+git checkout -- .
+git checkout .
+git checkout --
+git restore .
+git restore -- .
+git restore --staged k
+git checkout -- k
+git checkout HEAD~1
+git commit -m 'plans docs/superpowers/plans/x.md rewritten'
+git commit -m 'x' -F k
+git commit -m rm .claude/ritual-override
+git commit --message='rm x'
+git commit -am 'fix rm -rf .claude'
+git commit -m'guard rm -rf .claude'
+rm docs/superpowers/plans/x.md
+git push
+sudo rm -rf .claude
+cp k /var/lib/secrets/x
+ls .claude/*
+rm -rf .claude/worktrees/*
+rm -f result && git clean
+ls -a && git stash
+tar -x -f a.tar && ls .claude
+rm -f result && ls docs/superpowers/plans/x.md
+echo 'a;b' && rm /tmp/x
+echo 'a|b' | cat
+git commit -q -m 'guard rm x; touch y | z'
+sed 's|a|b|' -i docs/superpowers/plans/x.md
+sed -e 's|/old/path|/new/path|' -i docs/superpowers/plans/x.md
+sed -e 's/a/b/' -e 's|c|d|' -i docs/superpowers/plans/x.md
+perl -pe 's|a|b|' -i docs/superpowers/plans/x.md
+sed 's/a;b/c/' -i docs/superpowers/plans/x.md
+sed 's/a&b/c/' -i docs/superpowers/plans/x.md
+find docs/superpowers/plans -name 'a|b' -delete
+sed 's|a|b|' -i .claude/ritual-override
+sed -e 's/a|b/c/' -i .claude/ritual-override
+find .claude -name 'a|b' -delete
+tar 'a|b' -x -C .claude
+cpio 'a|b' -idm
+git clean 'a|b' -f
+git stash 'a|b' -u
+sed -i 's|a|b|' docs/superpowers/plans/x.md
+echo a; rm /tmp/x
+ls; git stash -u
+sed -n '1,30p' docs/superpowers/plans/x.md | grep -i CR2
+echo a\;b
+rm -rf a\;b .claude/ritual-override
+sed 's|a|b -i .claude/ritual-override
+rm -rf '.claude/ritual-override
+rm -rf "docs/superpowers/plans/x.md
+rm -rf .claude/ritual-override &
+rm -rf .claude/ritual-override&
+rm -rf .claude &
+rm docs/superpowers/plans/x.md &
+sed -i s/a/b/ docs/superpowers/plans/x.md &
+rm -rf docs/superpowers/plans &
+git clean -fd &
+{ rm -rf .claude/ritual-override; } &
+rm -rf .claude/ritual-override; ls &
+touch .claude/ritual-override &
+echo x > .claude/ritual-override &
+cp k .claude/ritual-override &
+tee .claude/ritual-override &
+git stash -u &
+rm -rf .claude/ritual-override 1>
+rm -rf .claude/ritual-override >
+rm -rf .claude/ritual-override |
+nix build .#checks.x86_64-linux.unit -L --no-link &
+rm -rf .claude/ritual-override ;
+sudo nixos-rebuild switch
+systemctl start foo
+systemctl stop bar
+tee -a /var/lib/secrets/x
+echo x > /var/lib/helm/x
+mv k /var/lib/lanes/x
+cd /x
+git commit --amend -m y
+set -e
+git push origin main
+nix develop -c git commit --amend
+nix develop -c git push
+timeout 5 git push
+nohup git push
+time git push
+! git push
+bash -c "git push"
+`git push`
+git status; git push
+x | git push
+{ git push; }
+git --work-tree=. commit --amend
+git -c a=b -C . reset --hard
+git --git-dir .git commit --amend
+/run/current-system/sw/bin/git commit --amend
+command git commit --amend
+\git commit --amend
+GIT_EDITOR=true git commit --amend
+git   commit   --amend
+git commit \
+--amend
+git checkout -- docs/superpowers/plans/x.md
+git restore docs/superpowers/plans/x.md
+git status; git log
+git --work-tree=. status
+git -c a=b log -1
+git -P diff
+git commit -F msg
+git diff -- docs/superpowers/plans/x.md
+git commit --amend
+git "push"
+git p''ush
+git pu"sh"
+g=git; $g push
+git $(echo push)
+eval git\ push
+sed -i 's/x/y/' docs/superpowers/plans/x.md
+mv a docs/superpowers/plans/x.md
+cp k docs/superpowers/plans/x.md && echo done
+cat > docs/superpowers/plans/../plans/x.md
+install -m644 k docs/superpowers/plans/x.md
+dd of=docs/superpowers/plans/x.md
+ln -sf k docs/superpowers/plans/x.md
+truncate -s0 docs/superpowers/plans/x.md
+perl -i -pe s/a/b/ docs/superpowers/plans/x.md
+nix develop -c rm docs/superpowers/plans/x.md
+xargs rm docs/superpowers/plans/x.md
+cat docs/superpowers/plans/x.md
+grep -n '^### ' docs/superpowers/plans/x.md
+sed -n 1,5p docs/superpowers/plans/x.md
+cat docs/superpowers/plans/x.md | wc -l
+echo "git commit --amend"
+rm /tmp/x && cat docs/superpowers/plans/x.md
+rm docs/superpowers/../superpowers/plans/x.md
+rm docs/superpowers/plans//x.md
+rm /tmp/proj/docs/superpowers/plans/x.md
+rm link-into-plans.md
+rm docs/notes/plans/x.md
+cp docs/superpowers/plans/x.md /tmp/y
+diff docs/superpowers/plans/x.md other.md
+echo x > docs/superpowers/plans/x.md
+echo x >> docs/superpowers/plans/x.md
+echo x 2> docs/superpowers/plans/x.md
+cat k | tee -a docs/superpowers/plans/x.md
+rm -r docs/superpowers/plans/
+sed -i -e s/x/y/ docs/superpowers/plans/x.md
+sed --in-place s/x/y/ docs/superpowers/plans/x.md
+sed -n -i s/x/y/ docs/superpowers/plans/x.md
+git mv docs/superpowers/plans/x.md y
+mv docs/superpowers/plans/x.md /tmp/x
+mv docs/superpowers/plans/x.md ./y
+mv -f docs/superpowers/plans/x.md ../x.md
+mv docs/superpowers/plans/x.md docs/superpowers/plans/x.md.bak
+rm -r docs/superpowers/plans
+rm -rf docs/superpowers
+mv docs/superpowers/plans /tmp/
+find docs/superpowers/plans -name "*.md" -delete
+git clean -fdx docs/superpowers/plans
+cd docs/superpowers/plans && rm x.md
+cd docs/superpowers/plans; rm x.md
+cd docs/superpowers && rm plans/x.md
+sed -e s/a/b/ -i docs/superpowers/plans/x.md
+sed s/a/b/ -i docs/superpowers/plans/x.md
+perl -pe s/a/b/ -i docs/superpowers/plans/x.md
+printf x >| docs/superpowers/plans/x.md
+patch docs/superpowers/plans/x.md < d
+awk -i inplace 1 docs/superpowers/plans/x.md
+ex -sc wq docs/superpowers/plans/x.md
+sponge docs/superpowers/plans/x.md < k
+r''m docs/superpowers/plans/x.md
+grep -rn sudo docs/brief.md
+echo 'never sudo here'
+x; sudo y
+x
+sudo y
+cp /var/lib/secrets/x /tmp/y
+rm -rf /
+rm -rf ~
+rm -rf ./result
+rm -rf /tmp/x
+rmdir docs/superpowers/plans
+rsync --delete src/ docs/superpowers/plans/
+git mv docs/superpowers/plans/x.md y.md
+git rm docs/superpowers/plans/x.md
+shred docs/superpowers/plans/x.md
+rm -rf /tmp
+rm -rf docs/reviews
+cd docs && cd superpowers && rm plans/x.md
+pushd docs/superpowers/plans && rm x.md
+cd /tmp && rm x.md
+cd docs/superpowers/plans && cat x.md
+rm /tmp/scratch/plans-not-ours/x.md
+echo "a'b"
+cd docs/superpowers/plans && sed -i s/a/b/ x.md
+cd docs/superpowers/plans && tee x.md
+cd docs/superpowers/plans && cat k > x.md
+sed --in-place=.bak s/a/b/ docs/superpowers/plans/x.md
+sed -i.bak s/a/b/ docs/superpowers/plans/x.md
+sed -n p docs/superpowers/plans/x.md
+sed -i s/a/b/ /tmp/other.md
+echo "rm docs/superpowers/plans/x.md"
+cat docs/superpowers/plans/x.md > /tmp/out
+rm docs/superpowers/plans/out.md
+cd docs && rm -rf superpowers
+find . -delete
+git -C docs/superpowers/plans rm x.md
+mv ./docs/./superpowers/plans /tmp
+rm -rf plans-link
+cd plans-link && rm x.md
+nix develop -c mv docs/superpowers/plans/x.md /tmp/z
+timeout 5 rm docs/superpowers/plans/x.md
+bash -c "rm docs/superpowers/plans/x.md"
+rm docs/superpowers/plans/x.md; echo done
+rsync -a --delete /tmp/empty/ docs/superpowers/plans/
+cd docs; cd superpowers; rm -r plans
+env -C docs/superpowers/plans rm x.md
+> docs/superpowers/plans/x.md
+cp /dev/null docs/superpowers/plans/x.md
+git clean -fdx docs
+git rm -r docs/superpowers/plans
+git checkout -- docs/superpowers/plans
+git checkout HEAD -- docs/superpowers
+git restore docs/superpowers/plans
+git restore --source=HEAD~1 docs
+git stash -- docs/superpowers/plans
+git checkout -- docs/superpowers/plans/
+ORCHESTRATOR_GUARD=off rm -rf .claude/ritual-override
+env ORCHESTRATOR_GUARD=off rm -rf .claude
+nix develop -c git commit -q -m 'guard prose naming rm .claude and a plan path'
+git merge --abort
+git checkout --theirs -- docs/OPERATIONS.md
+git branch -f task/CR2rb deadbeefdeadbeef
+git checkout -q --detach deadbeefdeadbeef
+evidence bundle --markdown
+nix develop -c python3 pkgs/evidence/tasks.py --root . brief
+python3 pkgs/evidence/repomap.py --root . write
+nix develop -c python3 pkgs/evidence/claims.py validate docs/ledger/claims.toml --today 2026-09-06
+nix build .#nixosConfigurations.core.config.system.build.toplevel
+nix store diff-closures /run/current-system ./result
+git checkout -b task/CR2rb
+git stash list
+dsh-openrouter --denials 5
+nix develop -c shellcheck tools/orchestrator-guard.sh
+nix flake check -L
+git show HEAD
+sed -n '1,30p' docs/superpowers/plans/x.md
+git worktree list
+git fetch
+nix develop -c pytest tests/broker -q
+nix develop -c tests/run-mount-tests.sh
+git rev-parse HEAD
+git cherry-pick -n FETCH_HEAD
+git merge --ff-only
+tar -czf /tmp/backup.tgz docs
+git clean -f; ls
+git commit -am 'x' -m 'body rm -rf .claude'
+git commit -m "x" -F k
+git commit -m 'plans: docs/superpowers/plans/x.md rewritten'
+git commit -m 'x' ; rm -rf .claude
+git commit -m'a' -m'b rm -rf .claude'
+git commit -q -m 'guard: rm -rf .claude no longer allowed'
+git commit -q -m 'guard: rm x; touch y | z'
+ls -a
+sed -i 's|a|b|' .claude/ritual-override
+sed -n '1,30p' docs/superpowers/plans/x.md | grep -i CR2rb
+tar -x -f /tmp/a.tar && ls .claude
+tar -xf x.tar -C .claude
+rm .claude/ritual-override
+rm -- .claude/ritual-override
+unlink .claude/ritual-override
+: > .claude/ritual-override
+echo x >| .claude/ritual-override
+sh -c "rm .claude/ritual-override"
+git rm -f .claude/ritual-override
+sed --in-place s/x/y/ .claude/ritual-override
+git stash push
+git stash pop
+git stash apply
+git stash drop
+git stash show

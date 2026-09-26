@@ -1,0 +1,125 @@
+# Model routing for the whole factory: the HEADLESS seat driver
+# (tools/factory/seat) reads the openrouter rows; tools/factory/route.py
+# derives the dark factory's models map from the claude rows. The interactive
+# seat the operator opens on core is not governed by this file.
+# Lookup: factory_route [--route R] <role> <kind> <size>. Each row carries a
+# route (openrouter = DeepSeek via OpenRouter, claude = the dark factory's
+# Anthropic models); a row without a route key defaults to openrouter. The
+# most specific matching row wins (fewest "any" fields); ties go to the first
+# row; a row with all three "any" is the default for its route and must exist.
+# Explicit --model, OPENROUTER_MODEL and OPENROUTER_REASONING_EFFORT always
+# override. Evidence for the rows:
+# docs/reviews/2026-09-05-m2b-effort-measurement.md,
+# docs/reviews/2026-09-05-model-comparison.md. Change rows here, nowhere else.
+
+[[route]]
+route = "openrouter"
+role = "implement"
+kind = "docs"
+size = "any"
+model = "deepseek/deepseek-v4-flash"
+effort = "off"
+
+[[route]]
+route = "openrouter"
+role = "implement"
+kind = "any"
+size = "XS"
+model = "deepseek/deepseek-v4-flash"
+effort = "off"
+
+[[route]]
+route = "openrouter"
+role = "implement"
+kind = "code"
+size = "any"
+model = "deepseek/deepseek-v4-pro-0813"
+effort = "medium"
+
+[[route]]
+route = "openrouter"
+role = "review"
+kind = "any"
+size = "any"
+model = "deepseek/deepseek-v4-pro-0813"
+effort = "medium"
+
+[[route]]
+route = "openrouter"
+role = "any"
+kind = "any"
+size = "any"
+model = "deepseek/deepseek-v4-pro-0813"
+effort = "medium"
+
+[[route]]
+route = "claude"
+role = "orchestrate"
+kind = "any"
+size = "any"
+model = "fable"
+effort = "high"
+
+[[route]]
+route = "claude"
+role = "baseline"
+kind = "any"
+size = "any"
+model = "sonnet"
+effort = "low"
+
+[[route]]
+route = "claude"
+role = "implement"
+kind = "any"
+size = "any"
+model = "sonnet"
+effort = "high"
+
+[[route]]
+route = "claude"
+role = "review"
+kind = "code"
+size = "any"
+model = "opus"
+effort = "high"
+
+[[route]]
+route = "claude"
+role = "review"
+kind = "docs"
+size = "any"
+model = "sonnet"
+effort = "medium"
+
+[[route]]
+route = "claude"
+role = "verify"
+kind = "any"
+size = "any"
+model = "sonnet"
+effort = "medium"
+
+[[route]]
+route = "claude"
+role = "research"
+kind = "any"
+size = "any"
+model = "sonnet"
+effort = "medium"
+
+[[route]]
+route = "claude"
+role = "audit"
+kind = "any"
+size = "any"
+model = "fable"
+effort = "high"
+
+[[route]]
+route = "claude"
+role = "any"
+kind = "any"
+size = "any"
+model = "sonnet"
+effort = "medium"

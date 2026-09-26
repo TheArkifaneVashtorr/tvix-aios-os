@@ -1,0 +1,201 @@
+#!/usr/bin/env bash
+# factory-integrate <run> <repo-path> KEY...
+#
+# In ~/factory/base/<repo-name> only -- never touches <repo-path> itself:
+# creates/resets integ/<run> from <repo-path>'s current default branch, then
+# `git merge --no-ff` each task/<KEY> in the given order, fetching the
+# branch from that key's own workspace clone first. A merge conflict aborts
+# just that merge, logs "CONFLICT <KEY>" and continues with the next key.
+# Every merged (non-merge) commit's subject `(test: ...)` list is collected,
+# "lint" is added, and each named check is run once against the integration
+# tree with `nix build .#checks.x86_64-linux.<name> -L --no-link`.
+#
+# Everything is logged to ~/factory/runs/<run>/integrate.log; a short
+# "CHECK <name> pass|fail" and "CONFLICT <KEY>" summary also goes to stdout.
+# Ends by printing the exact command the operator/orchestrator runs to
+# fast-forward the real branch from this integration -- this script never
+# runs it. Exits non-zero if any conflict occurred or any check failed.
+set -euo pipefail
+
+here=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)
+# shellcheck source=./factory-lib.sh
+# shellcheck disable=SC1091
+. "$here/factory-lib.sh"
+
+usage() {
+  cat <<'USAGE' >&2
+usage: factory-integrate <run> <repo-path> KEY...
+USAGE
+}
+
+[ $# -ge 3 ] || {
+  usage
+  exit 2
+}
+run=$1
+repo_path_arg=$2
+shift 2
+keys=("$@")
+
+repo_path=$(cd -- "$repo_path_arg" && pwd -P) || factory_die 2 "no such repo: $repo_path_arg"
+repo_name=$(basename -- "$repo_path")
+base=$FACTORY_BASE/$repo_name
+factory_need_dir "$base"
+
+runs_dir=$FACTORY_RUNS/$run
+mkdir -p -- "$runs_dir"
+log=$runs_dir/integrate.log
+: >"$log"
+
+logboth() { printf '%s\n' "$*" | tee -a -- "$log"; }
+logonly() { printf '%s\n' "$*" >>"$log"; }
+
+default_branch=$(factory_current_branch "$repo_path")
+logboth "=== integ/$run from $repo_path's default branch ($default_branch) ==="
+factory_set_identity "$base" "$repo_path"
+{
+  git -C "$base" remote set-url origin "$repo_path"
+  git -C "$base" fetch --quiet origin "$default_branch"
+  # Hold the base lock while creating integ/<run> and merging: factory-ws/factory-review
+  # refresh the base clone concurrently and would flip its checked-out branch.
+  exec 9>"$base.lock"
+  flock 9
+  git -C "$base" checkout --quiet -B "integ/$run" "origin/$default_branch"
+} >>"$log" 2>&1
+
+merged=()
+refused=0
+conflicts=0
+skipped=0
+for key in "${keys[@]}"; do
+  ws=$FACTORY_WS/$run/$key
+  if [ ! -d "$ws" ]; then
+    logboth "SKIP $key: no workspace $ws"
+    skipped=$((skipped + 1))
+    continue
+  fi
+  logboth "=== merging task/$key ==="
+  git -C "$base" fetch --quiet --force -- "$ws" "refs/heads/task/$key:refs/heads/task/$key" >>"$log" 2>&1
+  # A5 (P11): the board (docs/OPERATIONS.md) is the orchestrator's to write,
+  # never a task branch's. A change confined to the `<!-- tasks:begin -->` …
+  # `<!-- tasks:end -->` queue block is the hook's own regeneration and is let
+  # through; a change anywhere else in that file is refused. Compared against
+  # the merge base, never origin's tip (main may have moved the board since the
+  # fork, legitimately).
+  mb=$(git -C "$base" merge-base "origin/$default_branch" "task/$key" 2>/dev/null || true)
+  if [ -z "$mb" ]; then
+    # An unrelated-history branch shares no merge base with the default branch;
+    # the board guard cannot be run, so refuse rather than merge blind.
+    logboth "REFUSED $key: no merge base with origin/$default_branch"
+    refused=$((refused + 1))
+    continue
+  fi
+  if ! git -C "$base" diff --quiet "$mb" "task/$key" -- docs/OPERATIONS.md; then
+    mb_ops=$(git -C "$base" show "$mb:docs/OPERATIONS.md" 2>/dev/null | awk '/<!-- tasks:begin -->/{s=1} !s{print} /<!-- tasks:end -->/{s=0}')
+    key_ops=$(git -C "$base" show "task/$key:docs/OPERATIONS.md" 2>/dev/null | awk '/<!-- tasks:begin -->/{s=1} !s{print} /<!-- tasks:end -->/{s=0}')
+    if ! cmp -s <(printf '%s\n' "$mb_ops") <(printf '%s\n' "$key_ops"); then
+      logboth "REFUSED $key: docs/OPERATIONS.md changed outside the queue block"
+      refused=$((refused + 1))
+      continue
+    fi
+  fi
+  if git -C "$base" merge --no-ff --quiet -m "integrate $key into integ/$run" "task/$key" >>"$log" 2>&1; then
+    merged+=("$key")
+    logboth "MERGE $key ok"
+  else
+    logboth "CONFLICT $key"
+    conflicts=$((conflicts + 1))
+    git -C "$base" merge --abort >>"$log" 2>&1 || true
+  fi
+done
+
+flock -u 9
+if [ "${#merged[@]}" -eq 0 ]; then
+  logboth "no branch merged cleanly; nothing to check"
+  logboth "=== summary ==="
+  logboth "merged: (none)"
+  logboth "conflicts: $conflicts"
+  logboth "refused: $refused"
+  logboth "skipped: $skipped"
+  exit 1
+fi
+
+# The integration head every check below runs against and is recorded under
+# (plan 2026-09-05-evidence-store, E7): each observation names this rev so the
+# evidence store shows what was actually checked, not the task branch tip.
+head=$(git -C "$base" rev-parse "integ/$run")
+
+# Collect every merged commit's "(test: a, b)" list (excluding merge
+# commits, which carry no such subject), plus "lint" unconditionally.
+checks_raw=$(
+  git -C "$base" log --no-merges --pretty=%s "origin/$default_branch..integ/$run" \
+    | grep -oE '\(test: [^)]*\)' \
+    | sed -E 's/^\(test: //; s/\)$//' \
+    | tr ',' '\n' \
+    | sed -E 's/^[[:space:]]+//; s/[[:space:]]+$//'
+) || true
+checks=$(
+  {
+    printf '%s\n' "$checks_raw"
+    echo lint
+  } | grep -vE '^(none|)$' | sort -u
+)
+
+logboth "=== checks: $(printf '%s' "$checks" | tr '\n' ' ')==="
+overall_rc=0
+if [ -n "${FACTORY_CHECK_CMD:-}" ]; then
+  # Repo without a flake: run one repo-specific check command in a fresh clone of integ/<run>.
+  ic=$FACTORY_WS/$run/integ-check
+  rm -rf -- "$ic"
+  git clone --quiet --branch "integ/$run" -- "$base" "$ic" >>"$log" 2>&1
+  logonly "--- FACTORY_CHECK_CMD in $ic: $FACTORY_CHECK_CMD ---"
+  t0=$(date +%s)
+  if (cd -- "$ic" && bash -c "$FACTORY_CHECK_CMD") >>"$log" 2>&1; then
+    logboth "CHECK custom pass"
+    factory_record_check custom "$head" ok "$(( $(date +%s) - t0 ))"
+  else
+    logboth "CHECK custom fail"
+    factory_record_check custom "$head" fail "$(( $(date +%s) - t0 ))"
+    overall_rc=1
+  fi
+else
+while IFS= read -r chk; do
+  [ -n "$chk" ] || continue
+  logonly "--- nix build git+file://$base?ref=integ/$run#checks.x86_64-linux.$chk -L --no-link ---"
+  t0=$(date +%s)
+  if nix build "git+file://$base?ref=integ/$run#checks.x86_64-linux.$chk" -L --no-link >>"$log" 2>&1; then
+    logboth "CHECK $chk pass"
+    factory_record_check "$chk" "$head" ok "$(( $(date +%s) - t0 ))"
+  else
+    logboth "CHECK $chk fail"
+    factory_record_check "$chk" "$head" fail "$(( $(date +%s) - t0 ))"
+    overall_rc=1
+  fi
+done <<<"$checks"
+fi
+
+# A refused key is counted under refused: only, and a skipped key under
+# skipped: only; conflicts counts just the merge failures, never a refusal or a
+# skip. A refusal, a skip, a conflict, or a failed check above each makes the
+# integration exit non-zero.
+[ "$conflicts" -eq 0 ] || overall_rc=1
+[ "$refused" -eq 0 ] || overall_rc=1
+[ "$skipped" -eq 0 ] || overall_rc=1
+
+logboth "=== summary ==="
+logboth "merged: ${merged[*]}"
+logboth "conflicts: $conflicts"
+logboth "refused: $refused"
+logboth "skipped: $skipped"
+logboth "head: $head"
+# The fast-forward recipe prints only when every key merged: a skipped,
+# refused or conflicted key means the tree is incomplete and must not be
+# fast-forwarded blindly.
+if [ "${#merged[@]}" -eq "${#keys[@]}" ]; then
+  echo
+  echo "This never touched $repo_path. To fast-forward its current branch"
+  echo "($default_branch) from this integration, the operator/orchestrator runs:"
+  echo "  git -C $repo_path pull --ff-only $base integ/$run"
+fi
+
+exit "$overall_rc"

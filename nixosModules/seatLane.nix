@@ -1,0 +1,246 @@
+{
+  config,
+  lib,
+  pkgs,
+  ...
+}:
+let
+  cfg = config.services.seat-lane;
+  seatRun = (pkgs.callPackage ../pkgs/seat { }).seat-run;
+  # The seat's public CA bundle: the same sibling-path (not a subpath of
+  # /var/lib/egress-broker) that modelLane.nix reads, published by
+  # egressBroker.nix's ExecStartPost so InaccessiblePaths can hide the whole
+  # instance tree (its private CA key + audit log) without cutting off the one
+  # file the seat's network-capable process still needs to verify TLS through
+  # its own broker (brief §3 invariant 2). See modelLane.nix's caBundle
+  # comment for the full reasoning -- copied verbatim here.
+  caBundle = "/var/lib/egress-broker-ca-bundle/seat/ca-bundle.crt";
+  netnsPath = "/run/netns/egress-seat";
+in
+{
+  options.services.seat-lane = {
+    enable = lib.mkEnableOption "the operator's DeepSeek seat behind its own egress broker (instance 'seat', netns egress-seat, seat@<job> units)";
+    host = lib.mkOption {
+      type = lib.types.str;
+      default = "openrouter.ai";
+      description = "The single upstream hostname the seat's broker instance allows.";
+    };
+    keyFile = lib.mkOption {
+      type = lib.types.str;
+      description = ''
+        Path to the API key file the broker injects for `host`. Must be
+        outside /nix/store -- a store path would copy the secret into the
+        world-readable store (asserted below). Never read by this module;
+        consumed only by services.egress-broker.instances.seat.inject.
+      '';
+    };
+    hostAddress = lib.mkOption {
+      type = lib.types.str;
+      description = "Host-side veth address for the seat's broker instance (10.100.4.1).";
+    };
+    namespaceAddress = lib.mkOption {
+      type = lib.types.str;
+      description = "Netns-side veth address for the seat's broker instance (10.100.4.2) -- where the web UI binds.";
+    };
+    listenPort = lib.mkOption {
+      type = lib.types.port;
+      description = "Port the broker listens on inside the seat's netns.";
+    };
+    operatorUser = lib.mkOption {
+      type = lib.types.str;
+      description = "The human operator the seat units run as (and who may start/stop seat@* via polkit).";
+    };
+    webPortRange = lib.mkOption {
+      type = lib.types.str;
+      default = "43200-43299";
+      description = "The `tcp dport` range (a-b) the web UI may bind, allowed host -> namespace.";
+    };
+    harnessPackage = lib.mkOption {
+      type = lib.types.package;
+      default = pkgs.callPackage ../pkgs/dsh-openrouter { dsh = pkgs.callPackage ../pkgs/dsh { }; };
+      description = "The harness on the seat unit's PATH (dsh-openrouter, bound to OpenRouter through the seat's broker).";
+    };
+  };
+
+  config = lib.mkIf cfg.enable {
+    assertions = [
+      # keyFile must never be a store path -- a types.path value, or a literal
+      # starting with /nix/store, would copy the secret into the world-readable
+      # Nix store (copied from modelLane.nix, applied to the single seat).
+      {
+        assertion = !(lib.hasPrefix "/nix/store" cfg.keyFile);
+        message = "services.seat-lane.keyFile must be a path outside /nix/store, got '${cfg.keyFile}'";
+      }
+      # Another consumer declaring its own services.egress-broker.instances.seat
+      # would merge `allow` lists; the seat's contract is one host, one
+      # instance, so pin it exactly.
+      {
+        assertion = config.services.egress-broker.instances.seat.allow == [ cfg.host ];
+        message = "services.seat-lane: egress-broker instance 'seat' allow list must be exactly [ \"${cfg.host}\" ] -- check for another consumer declaring an egress-broker instance named 'seat'";
+      }
+      # No seat or agent process may ever hold a key in its environment: the
+      # placeholder OPENROUTER_API_KEY=injected-by-broker is the only
+      # credential-shaped value allowed (the broker replaces the header). This
+      # catches a config (or a merge) that sneaks a real key into any of the
+      # unit's environment entries.
+      {
+        assertion =
+          !(lib.any (v: lib.hasInfix "sk-or-" v) (
+            lib.attrValues config.systemd.services."seat@".environment
+          ));
+        message = "services.seat-lane: the seat@ unit environment must never contain an API key (regex sk-or-) -- the broker injects the credential at egress";
+      }
+    ];
+
+    services.egress-broker.instances.seat = {
+      inherit (cfg) hostAddress namespaceAddress listenPort;
+      allow = [ cfg.host ];
+      inject.${cfg.host}.valueFile = cfg.keyFile;
+      # Data policy at the chokepoint (decision
+      # docs/decisions/2026-09-03-openrouter-lane-permitted-transcripts.md,
+      # copied verbatim from modelLane.nix): every chat request to this host
+      # gets zero-data-retention routing and the training opt-out, whatever the
+      # client put in its body.
+      bodyPatch.${cfg.host} = {
+        pathPrefixes = [ "/api/v1/chat/completions" ];
+        merge.provider = {
+          zdr = true;
+          data_collection = "deny";
+        };
+      };
+      # Fail closed (O3 resolved): deny OpenRouter's Anthropic-style
+      # /api/v1/messages before the key is injected -- same as the lane.
+      denyPaths.${cfg.host} = {
+        pathPrefixes = [ "/api/v1/messages" ];
+      };
+    };
+
+    systemd.tmpfiles.rules = [
+      # The spool: seat-submit (the operator) writes jobs, seat-run (the unit,
+      # also the operator) writes results back under the job dir. 0750 for the
+      # root so the operator can reach it; 0700 jobs/ keeps payloads
+      # operator-only.
+      "d /var/lib/seat 0750 ${cfg.operatorUser} users -"
+      "d /var/lib/seat/jobs 0700 ${cfg.operatorUser} -"
+      # SB4b (module bug 2): the broker (egress-broker) reads the injected
+      # key at cfg.keyFile on every startup. The file itself is 0440
+      # root:egress-broker (the lane module's own tmpfiles rule, shared key
+      # file); but the directory that holds it must also be traversable by
+      # the broker or mitmproxy crash-loops on PermissionError. Root owns it,
+      # group egress-broker may traverse (reach a known file, never list its
+      # siblings) -- never 0700 root-only. The seat module declares this so a
+      # fresh machine has a traversable secrets dir without the operator's
+      # one-time hand step.
+      "d /var/lib/secrets 0710 root egress-broker -"
+    ];
+
+    systemd.services."seat@" = {
+      description = "Operator seat job %i behind its own egress broker";
+      requires = [
+        "egress-netns-seat.service"
+        "egress-broker-seat.service"
+      ];
+      after = [
+        "egress-netns-seat.service"
+        "egress-broker-seat.service"
+      ];
+      environment = {
+        HTTPS_PROXY = "http://${cfg.hostAddress}:${toString cfg.listenPort}";
+        HTTP_PROXY = "http://${cfg.hostAddress}:${toString cfg.listenPort}";
+        NO_PROXY = "127.0.0.1,${cfg.namespaceAddress}";
+        NODE_EXTRA_CA_CERTS = caBundle;
+        SSL_CERT_FILE = caBundle;
+        # The broker replaces the Authorization header at egress; this
+        # placeholder is what reaches the wrapper (never a real key).
+        OPENROUTER_API_KEY = "injected-by-broker";
+        FACTORY_ROUTING_TABLE = "/home/${cfg.operatorUser}/nixos-agent-env/docs/ledger/routing.toml";
+        # Node >= 24 honours HTTPS_PROXY only with this (undici
+        # EnvHttpProxyAgent), so the harness's model calls tunnel through the
+        # broker like every other client in this namespace (plan amendment 3).
+        NODE_USE_ENV_PROXY = "1";
+        # seat-run reads this to bind the web UI and print/file its URL.
+        SEAT_NAMESPACE_ADDRESS = cfg.namespaceAddress;
+      };
+      # The harness (dsh-openrouter) is invoked by name from seat-run; `ip`
+      # is the wrapper's --broker default-route check (af_netlink, route
+      # inspection). /run/current-system/sw is not needed here (the seat does
+      # not shell out to the operator's profile binaries like the lane's
+      # claude kind does).
+      path = [
+        cfg.harnessPackage
+        pkgs.iproute2
+      ];
+      serviceConfig = {
+        Type = "simple";
+        User = cfg.operatorUser;
+        NetworkNamespacePath = netnsPath;
+        ExecStart = "${seatRun}/bin/seat-run %i";
+        ProtectSystem = "strict";
+        # SB4b (module bug 1): every path below may be ABSENT on a fresh
+        # machine (the operator's ~/factory, ~/nixos-agent-env, ~/flakes and
+        # ~/.local/share/dsh-openrouter are created by other tooling, not
+        # this module). ReadWritePaths= fails the unit at NAMESPACE setup
+        # (status 226) when a listed path is missing; the "-" prefix makes
+        # systemd tolerate an absent path, so seat@ starts on a machine
+        # without any of them.
+        ReadWritePaths = [
+          "/var/lib/seat"
+          "-/home/${cfg.operatorUser}/factory"
+          "-/home/${cfg.operatorUser}/nixos-agent-env"
+          "-/home/${cfg.operatorUser}/flakes"
+          "-/home/${cfg.operatorUser}/.local/share/dsh-openrouter"
+        ];
+        # brief §3 invariant 2: the broker's injected credentials are never
+        # visible to the network-capable seat process. (Unlike the lane, the
+        # seat deliberately runs in the operator's own home -- it edits the
+        # operator's clones -- so /home is NOT hidden here.)
+        InaccessiblePaths = [ "/var/lib/secrets" ];
+        NoNewPrivileges = true;
+        # AF_NETLINK: the wrapper's `--broker` route check (`ip route`) must
+        # be able to inspect the namespace's default route on every launch
+        # (plan amendment 2). AF_INET/AF_INET6/AF_UNIX mirror the lane.
+        RestrictAddressFamilies = "AF_INET AF_INET6 AF_UNIX AF_NETLINK";
+      };
+    };
+
+    # The seat's UI reachability rule (plan amendment 1 -- an OUTPUT-hook
+    # rule, not input/forward): host-originated traffic out the veb-seat
+    # interface may reach the namespace only on the web UI's port range
+    # (the operator's browser to 10.100.4.2:<port>), plus the established/
+    # related return traffic of the namespace's own connections to the
+    # broker. Everything else host -> namespace is dropped here (the
+    # namespace -> host direction is already gated by egressBroker's
+    # input-<name>/forward-<name> chains). types.lines concatenates this with
+    # the chains egressBroker.nix renders for the same table.
+    networking.nftables.tables.egress-broker.content = ''
+      chain output-seat {
+        type filter hook output priority filter - 1;
+        oifname "veb-seat" ct state established,related accept
+        oifname "veb-seat" ip daddr ${cfg.namespaceAddress} tcp dport ${cfg.webPortRange} accept
+        oifname "veb-seat" drop
+      }
+    '';
+
+    security.polkit.enable = lib.mkDefault true;
+    # ES5 (duktape, no template literals / arrow functions): the operator may
+    # start, stop and restart seat@<job> units -- unlike the lane (start-only),
+    # a web seat must be stoppable and an interrupted job restarted. Every
+    # other subject and unit is left to polkit's normal fallthrough.
+    security.polkit.extraConfig = ''
+      polkit.addRule(function(action, subject) {
+        if (action.id == "org.freedesktop.systemd1.manage-units") {
+          var verb = action.lookup("verb");
+          var unit = action.lookup("unit");
+          var prefix = "seat@";
+          var suffix = ".service";
+          if ((verb == "start" || verb == "stop" || verb == "restart") &&
+              unit.indexOf(prefix) === 0 &&
+              unit.indexOf(suffix, unit.length - suffix.length) !== -1 &&
+              subject.user == "${cfg.operatorUser}") {
+            return polkit.Result.YES;
+          }
+        }
+      });
+    '';
+  };
+}
