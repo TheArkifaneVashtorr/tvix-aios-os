@@ -1,0 +1,14 @@
+{"type":"session","version":0,"id":"session-aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa","createdAt":1788546865000,"cwd":"/home/dalhaka/factory/ws/a1/N6","delegationDepth":0}
+{"type":"turn/start","seq":1,"time":1788546870000,"data":{"turn":1}}
+{"type":"step/start","seq":2,"time":1788546871000,"data":{"turn":1,"step":1}}
+{"type":"assistant/message","seq":3,"time":1788546872000,"data":{"turn":1,"step":1,"message":{"role":"assistant","content":[{"type":"text","text":"step one"},{"type":"tool-call","id":"call_a1","name":"bash","arguments":"{}"}],"source":{"kind":"model","provider":"openrouter","model":"deepseek/deepseek-v4-pro-0813"}},"usage":{"inputTokens":100,"outputTokens":20,"totalTokens":170,"cacheReadTokens":50,"reasoningTokens":10}}}
+{"type":"tool/call","seq":4,"time":1788546872500,"data":{"turn":1,"step":1,"callId":"call_a1","name":"bash","arguments":"{}"}}
+{"type":"step/end","seq":5,"time":1788546873000,"data":{"turn":1,"step":1}}
+{"type":"step/start","seq":6,"time":1788546874000,"data":{"turn":1,"step":2}}
+{"type":"assistant/message","seq":7,"time":1788546875000,"data":{"turn":1,"step":2,"message":{"role":"assistant","content":[{"type":"text","text":"step two"},{"type":"tool-call","id":"call_a2","name":"read","arguments":"{}"}],"source":{"kind":"model","provider":"openrouter","model":"deepseek/deepseek-v4-pro-0813"}},"usage":{"inputTokens":200,"outputTokens":30,"totalTokens":290,"cacheReadTokens":60,"reasoningTokens":20}}}
+{"type":"tool/call","seq":8,"time":1788546875500,"data":{"turn":1,"step":2,"callId":"call_a2","name":"read","arguments":"{}"}}
+{"type":"step/end","seq":9,"time":1788546876000,"data":{"turn":1,"step":2}}
+{"type":"step/start","seq":10,"time":1788546877000,"data":{"turn":1,"step":3}}
+{"type":"assistant/message","seq":11,"time":1788546878000,"data":{"turn":1,"step":3,"message":{"role":"assistant","content":[{"type":"text","text":"step three"},{"type":"tool-call","id":"call_a3","name":"write","arguments":"{}"}],"source":{"kind":"model","provider":"openrouter","model":"deepseek/deepseek-v4-pro-0813"}},"usage":{"inputTokens":300,"outputTokens":40,"totalTokens":410,"cacheReadTokens":70,"reasoningTokens":30}}}
+{"type":"tool/call","seq":12,"time":1788546878500,"data":{"turn":1,"step":3,"callId":"call_a3","name":"write","arguments":"{}"}}
+{"type":"step/end","seq":13,"time":1788546879000,"data":{"turn":1,"step":3}}

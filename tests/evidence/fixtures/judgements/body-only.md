@@ -1,0 +1,1 @@
+This file has prose but no front-matter block at all, so the ingest refuses it as having no block rather than guessing field values.

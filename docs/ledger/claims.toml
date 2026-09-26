@@ -1,0 +1,291 @@
+# The claims file (plan 2026-09-05-evidence-store, E2): every claim is
+# verified (a named check at a revision or an operator drill), a gap (its
+# owner, review date and what closes it) or parked (a decision file).
+# Structure is checked in the flake; staleness (--today) in the pre-commit
+# hook. `evidence bundle` (E9) reads the file through pkgs/evidence/claims.py.
+# `opened` is the day the item was first recorded on the board or in a review.
+
+[[claim]]
+id = "seat-denials-audited"
+text = "every refused seat tool call is recorded in the transcript"
+status = "verified"
+class = "unit"
+evidence = "check:unit@dd01dfb tests/unit/70-dsh-openrouter.bats (record slicing turns test 79 red)"
+owner = "orchestrator"
+opened = 2026-09-04
+
+[[claim]]
+id = "broker-denies-messages-path"
+text = "the broker refuses POST /api/v1/messages before any injection"
+status = "verified"
+class = "vm"
+evidence = "check:lane-vm@abef7fe tests/integration/lane-vm.nix (POST /api/v1/messages denied before injection)"
+owner = "orchestrator"
+opened = 2026-09-04
+
+[[claim]]
+id = "effort-override-is-real"
+text = "the seat driver's effort override reaches the OpenRouter request"
+status = "verified"
+class = "unit"
+evidence = "check:unit@79f4c0a tests/unit/70-dsh-openrouter.bats (preserve test discriminates)"
+owner = "orchestrator"
+opened = 2026-09-04
+
+[[claim]]
+id = "effort-policy-n1"
+text = "effort off costs less than medium for equal Opus verdicts"
+status = "gap"
+class = "unmeasured"
+owner = "orchestrator"
+opened = 2026-09-05
+review_by = 2026-09-12
+closes_by = "n ≥ 5 per arm off vs medium through the seat driver, Opus verdicts equal, tokens in the ledger"
+
+[[claim]]
+id = "reasoning-tokens-not-itemised"
+text = "the openrouter route's usage record shows reasoning tokens or documents they never will"
+status = "gap"
+class = "unmeasured"
+owner = "orchestrator"
+opened = 2026-09-05
+review_by = 2026-09-19
+closes_by = "a usage record for the openrouter route carries reasoning tokens, or the ledger documents that the route never will"
+
+[[claim]]
+id = "fake-upstream-proves-what-seat-sends"
+text = "a live probe per effort level records the response reasoning field actually sent"
+status = "gap"
+class = "unmeasured"
+owner = "orchestrator"
+opened = 2026-09-05
+review_by = 2026-09-19
+closes_by = "one live probe per effort level against OpenRouter with the response's reasoning field recorded"
+
+[[claim]]
+id = "ledger-attribution"
+text = "factory-findings.jsonl rows carry task, round and label for a real run"
+status = "gap"
+class = "unmeasured"
+owner = "orchestrator"
+opened = 2026-09-05
+review_by = 2026-09-12
+closes_by = "factory-findings.jsonl rows carry task, round and label for a real run (E3+E4)"
+
+[[claim]]
+id = "factory-run-report-persisted"
+text = "runs.jsonl holds one factory-run row per dark-factory run"
+status = "gap"
+class = "unmeasured"
+owner = "orchestrator"
+opened = 2026-09-05
+review_by = 2026-09-12
+closes_by = "runs.jsonl holds one factory-run row per dark-factory run (E3)"
+
+[[claim]]
+id = "flake-check-tile-covers-head"
+text = "the Helm tile is green only when an observation covers a rev docs-equivalent to HEAD"
+status = "verified"
+class = "unit"
+evidence = "check:helm-unit@480cb58 tests/helm/test_collect.py (test_flake_check_green_when_observation_is_docs_equivalent_to_head; red variants: newest covering observation failed, only live covered, covering observation old); seen live after switch #15: helm-status 'flake check ok @2da430b44635 covers HEAD' with HEAD docs-only ahead"
+owner = "orchestrator"
+opened = 2026-09-05
+
+[[claim]]
+id = "drift-exact-measure"
+text = "the live system and the HEAD toplevel differ only by the nixos-version file"
+status = "gap"
+class = "unmeasured"
+owner = "orchestrator"
+opened = 2026-09-05
+review_by = 2026-09-19
+closes_by = "nix store diff-closures between the live system and the toplevel built at HEAD lists only the nixos-version file; the docs-only rule is the proxy (store paths cannot match: the toplevel bakes the commit id)"
+
+[[claim]]
+id = "evidence-flock-effect-unmeasured"
+text = "a test fails without the flock, or its belt-and-braces status is documented"
+status = "gap"
+class = "unmeasured"
+owner = "orchestrator"
+opened = 2026-09-05
+review_by = 2026-10-03
+closes_by = "a test that fails without the flock, or a note that Linux O_APPEND makes it belt-and-braces"
+
+[[claim]]
+id = "o4-framing-test"
+text = "localhost:7700 refuses to load inside a frame"
+status = "verified"
+class = "operator"
+evidence = "operator:2026-09-05 the operator loaded localhost:7700 inside a frame; it did not load (reported 2026-09-05 ~16:20)"
+owner = "operator"
+opened = 2026-09-05
+[[claim]]
+id = "d5-activity-export"
+text = "the openrouter activity CSV exists and rollup --activity parses it"
+status = "verified"
+class = "unit"
+evidence = "check:ledger-unit@bb95e67 tests/ledger/test_factory.py (real export header fixture, DA1/DA1b); rollup --activity ran on ~/strategy/ledger/openrouter-activity.csv 2026-09-05 without error"
+owner = "orchestrator"
+opened = 2026-09-04
+[[claim]]
+id = "s12-commit-metadata-decision"
+text = "a decision file records the mixed-trailer and non-check-subject policy"
+status = "verified"
+class = "operator"
+evidence = "operator:2026-09-05 docs/decisions/2026-09-05-commit-metadata-mixed-trailers.md (mixed trailers fine; subjects keep the (test: …) convention)"
+owner = "operator"
+opened = 2026-09-04
+[[claim]]
+id = "xhigh-restore-or-keep-medium"
+text = "medium is the seat's reasoning level: xhigh showed no gate-visible gain on two XS tasks for +10% cost, +67% wall clock and 1.8x output tokens"
+status = "verified"
+class = "operator"
+evidence = "operator:2026-09-05 docs/reviews/2026-09-05-effort-comparison.md (orchestrator-run measurement, Opus-gated: X1med X1xhigh X2med X2xhigh); saved level medium; settings.yaml.bak-2026-09-04-xhigh deleted"
+owner = "orchestrator"
+opened = 2026-09-04
+[[claim]]
+id = "m3-comfy-angle-aimdo"
+text = "comfy_angle imports in the packaged ComfyUI and the native aimdo.so ships in its closure"
+status = "verified"
+class = "nix-check"
+evidence = "check:comfyui-startup-clean@5edf092 in ~/flakes/media (v0.34.5: no IMPORT FAILED, no Traceback; comfy-angle 0.1.1 packaged) and the W1 gate's inspection of the built env — comfy_aimdo/aimdo.so present with rpath /run/opengl-driver/lib (~/flakes/media/docs/reviews/2026-09-05-opus-review-cw1-W1.md); the load of aimdo.so on the GPU is the separate claim aimdo-native-load-unmeasured"
+owner = "orchestrator"
+opened = 2026-09-04
+
+[[claim]]
+id = "aimdo-native-load-unmeasured"
+text = "the packaged ComfyUI loads comfy_aimdo's native aimdo.so on core's GPU (not only ships it)"
+status = "gap"
+class = "unmeasured"
+owner = "orchestrator"
+opened = 2026-09-05
+review_by = 2026-09-19
+closes_by = "the media acceptance drill on core imports comfy_aimdo's native module and reports OK (ComfyUI worlds plan, W6), or the startup log at a GPU start names aimdo as loaded"
+
+[[claim]]
+id = "seat-key-exception-undecided"
+text = "the seat runs behind its own broker instance: the OpenRouter key is injected at egress from the root-only file and never held by any seat or agent process"
+status = "gap"
+class = "unmeasured"
+owner = "orchestrator"
+opened = 2026-09-05
+review_by = 2026-09-19
+closes_by = "spec docs/superpowers/specs/2026-09-05-seat-behind-broker-design.md (operator chose the broker-fronted seat 2026-09-05) → plan → seat-vm green → switch → the operator runs one headless and one web job through seat@ and deletes ~/.config/openrouter/key"
+[[claim]]
+id = "declared-agents-zero"
+text = "services.baskets.agents on core names the harnesses that run, or records A1-A4 have no live instance"
+status = "gap"
+class = "eval"
+owner = "orchestrator"
+opened = 2026-09-05
+source = "review invariants-6"
+review_by = 2026-09-19
+closes_by = "services.baskets.agents on core names the harnesses that actually run, or a decision records that A1–A4 have no live instance"
+
+[[claim]]
+id = "uid1000-can-switch-profile"
+text = "the switch needs a desktop password, or the seat guard refuses the control port"
+status = "gap"
+class = "unmeasured"
+owner = "orchestrator"
+opened = 2026-09-05
+source = "review invariants-3"
+review_by = 2026-09-19
+closes_by = "the switch needs a desktop password (polkit auth_admin_keep, Helm Home HH2); until then the seat guard refuses the control port (R8)"
+
+[[claim]]
+id = "nixpkgs-host-pin-age"
+text = "the host runs the current NixOS release (nixos-26.05) with the full flake check and VM tests green"
+status = "gap"
+class = "unmeasured"
+owner = "orchestrator"
+opened = 2026-09-05
+review_by = 2026-09-19
+closes_by = "plan 2026-09-05-operator-items PB0 (gaming → nixos-26.05 a5cc6f2c37) then PB1 (nixpkgs-host → same rev; nix flake check -L incl. VM tests; toplevel; closure diff in docs/reviews/2026-09-05-release-upgrade-26.05.md); the operator switches; a release-age item on the board"
+[[claim]]
+id = "js-formatter-linter-missing"
+text = "dark-factory.js and factory tests pass a JS formatter and linter"
+status = "verified"
+class = "unit"
+evidence = "check:lint@be43169 tests/lint/js-lint.sh (prettier + oxlint over every tracked .js/.mjs; Workflow scripts in the shape the harness runs them; self-test with bad.mjs, unformatted.mjs, workflow-bad.js); treefmt js formatter; gate docs/reviews/2026-09-06-opus-review-pa2-P12.md (planning-agent plan P12, landed be43169)"
+owner = "orchestrator"
+opened = 2026-09-05
+source = "review hygiene-1"
+
+[[claim]]
+id = "basket-verify-cannot-bind-payload"
+text = "encrypt packs once, or verify documents that binding needs the identity"
+status = "gap"
+class = "unmeasured"
+owner = "orchestrator"
+opened = 2026-09-05
+source = "review r2-2-5"
+review_by = 2026-09-19
+closes_by = "encrypt packs once (hash and ciphertext from the same bytes), or verify states that payload↔content binding needs the identity"
+
+[[claim]]
+id = "forbidden-list-single-source"
+text = "the local-only path list is generated from Nix and the three copies are identical"
+status = "gap"
+class = "unmeasured"
+owner = "orchestrator"
+opened = 2026-09-05
+source = "review invariants-5"
+review_by = 2026-09-19
+closes_by = "the local-only path list is generated from Nix and the three copies are proven identical (R9 first proves they agree)"
+
+[[claim]]
+id = "backup-user-lane-group-unasserted"
+text = "restic runs as the operator, who reads the lane directories through the `lane` group (no assertion ties the backup user to group `lane`)"
+status = "gap"
+class = "unmeasured"
+owner = "orchestrator"
+opened = 2026-09-05
+review_by = 2026-09-19
+closes_by = "one host-core assertion that services.proton-backup.user is a member of the `lane` group (the group that owns the 2770 lane dirs the ledger lives in)"
+
+[[claim]]
+id = "lane-ledger-and-broker-audit-unbacked"
+text = "ledger backed up; audit logs disposable by decision 2026-09-05 (addendum)"
+status = "verified"
+class = "operator"
+evidence = "operator:2026-09-05 docs/decisions/2026-09-05-audit-logs-backed-up.md (addendum: the broker audit logs never leave the machine; the lane half stands, narrowed to the ledger)"
+owner = "orchestrator"
+opened = 2026-09-05
+source = "review r2-4-1, r2-4-2"
+review_by = 2026-09-19
+
+[[claim]]
+id = "cowork-tier-a-parked"
+text = "the Cowork tier-A bubble is built and verified"
+status = "parked"
+class = "vm"
+owner = "operator"
+opened = 2026-09-02
+decision = "docs/decisions/2026-09-02-cowork-tier-parked.md"
+
+[[claim]]
+id = "helm-workspace-buttons-parked"
+text = "the Helm workspace buttons are removed from the live page"
+status = "parked"
+class = "eval"
+owner = "operator"
+opened = 2026-09-04
+decision = "docs/decisions/2026-09-04-helm-workspace-buttons-removed.md"
+[[claim]]
+id = "pro-vs-flash-unmeasured"
+text = "DeepSeek V4 Flash delivers gate-equal branches at ~6x lower model cost but needed one fix round in two tasks, 2.6x wall clock and 1.6x Opus gate tokens (n=2 per arm)"
+status = "verified"
+class = "operator"
+evidence = "operator:2026-09-05 docs/reviews/2026-09-05-model-comparison.md (orchestrator-run measurement, Opus-gated: P1pro P2pro P1flash P1flashb P2flash)"
+owner = "orchestrator"
+opened = 2026-09-05
+
+[[claim]]
+id = "dsh-harness-factory-parked"
+text = "the dsh harness three-model planning factory and its role map are not a dispatch or routing source for this pipeline"
+status = "parked"
+class = "operator"
+owner = "operator"
+opened = 2026-09-05
+decision = "docs/decisions/2026-09-05-dsh-harness-factory-parked.md"

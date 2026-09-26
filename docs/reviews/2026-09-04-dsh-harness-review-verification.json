@@ -1,0 +1,968 @@
+{
+ "review": "dsh + dark factory, 2026-09-03 17:13 → 2026-09-04 10:03 CDT",
+ "report": "/tmp/claude-1000/-home-dalhaka-nixos-agent-env/453898b9-318d-4d66-9b7b-06d425a7d345/scratchpad/report/dsh-review-2026-09-04.md",
+ "method": "Each claim was independently checked on three lenses (evidence, value, feasibility). A claim survives when at least two of three verifiers did not refute it. Surviving claims are carried into the report with the verifiers' corrections applied; refuted claims appear only as one-line appendix entries.",
+ "note_on_fidelity": "Each vote's refuted/confidence flags are verbatim. The verifiers' prose reasons and corrections are condensed here to their operative findings and directives; nothing was added, and no finding was dropped.",
+ "totals": {
+  "claims": 18,
+  "survived": 5,
+  "refuted": 13,
+  "survived_ids": [
+   "H9",
+   "H4",
+   "U7",
+   "U2",
+   "U6"
+  ],
+  "refuted_ids": [
+   "H1",
+   "H2",
+   "H3",
+   "H5",
+   "H6",
+   "H7",
+   "H8",
+   "H10",
+   "U1",
+   "U3",
+   "U4",
+   "U5",
+   "U8"
+  ]
+ },
+ "surviving_claims": [
+  {
+   "id": "H4",
+   "kind": "harness",
+   "title": "Pre-set a writable XDG_CACHE_HOME in the sandbox environment",
+   "survives": true,
+   "tally": {
+    "refuted": 1,
+    "upheld": 2
+   },
+   "in_report": "§5 H4",
+   "votes": [
+    {
+     "refuted": true,
+     "confidence": "high",
+     "key_findings": [
+      "3a312871 +43:03/+43:15/+43:26 are harmless `error (ignored)` eval-cache messages on tool results that returned ok; the session's one fatal fetcher-cache failure is at +42:58 and was not cited.",
+      "Workaround paths are 20+ distinct values, not four; 66bcfad1 alone cycles ~18 one-off /tmp/nc-* dirs.",
+      "Three of the twelve cited sessions never set XDG_CACHE_HOME at all; 81ddd34e instead hardcoded /nix/store python3 and bats paths.",
+      "Session count is 14 of 29 in raw transcripts, not 12 (adds 2ea13d37 +07:18, fc45cd50 +129:02).",
+      "'Deterministic, every session that shells out to nix' overreaches: 14 of the 18 nix-invoking sessions; 9e716eb1 pre-empted it.",
+      "'First-command failure' is wrong: it usually fires deep into a session on a cache miss.",
+      "'Folklore' is imprecise: flake.nix:914-922 and commit 7f5c329's body already document it."
+     ],
+     "correction": "Separate the two symptoms (fatal fetcher-cache vs non-fatal eval-cache); use 14/29; drop 3a312871's cited offsets; say 20+ ad-hoc paths; note the docs gap is CLAUDE.md/gotchas.md specifically."
+    },
+    {
+     "refuted": false,
+     "confidence": "medium",
+     "key_findings": [
+      "Root cause verified first-hand twice in-session: 1515b0e8 +03:20 `touch ~/.cache/nix/.wtest` -> Read-only file system as the file's own owner (mode 0644, uid dalhaka); ee2739fc probed 'tmp writable / cache NOT writable'.",
+      "Genuinely fatal on the fetcher cache: 893bf6de +01:50/+03:28/+03:32/+03:39 all abort; b7e57c4e lost its baseline pytest the same way.",
+      "Not documented anywhere an agent reads: CLAUDE.md Gotchas and the nixos skill's 157-line gotchas.md have zero hits for cache/readonly/XDG.",
+      "Understated: 2714bacb +76:17 relapses inside one session; 6a1c4d0e uses mktemp -d per command (cold cache per call).",
+      "9 of 12 affected sessions are subagents of one parent (66bcfad1) -> ~3 distinct launches, which favours a launch-time export.",
+      "The how-to's write target is wrong: a state dir under $HOME is blocked by the same Landlock rule; must be a platform temp root.",
+      "The modelLane.nix half is unmeasured and would need StateDirectory/ReadWritePaths given ProtectHome/PrivateTmp."
+     ],
+     "correction": "Point XDG_CACHE_HOME at a stable 0700 dir under a temp root (not $HOME, not mktemp -d); drop or defer the lane half; note the global side effect on other tool caches."
+    },
+    {
+     "refuted": false,
+     "confidence": "high",
+     "key_findings": [
+      "The 12 cited ids are exactly the 12 digests containing the string; four more carry the workaround without the error (16 touched).",
+      "b7e57c4e printed `XDG_CACHE_HOME=` empty at +03:55.77 — precisely the variable the fix would pre-set.",
+      "Mechanism verified in the pinned tree: scrubbedParentEnv copies all of process.env except /KEY|PASSWORD|SECRET|TOKEN/i and DSH_*, so a launcher export reaches every bash call including in-process factory subagents.",
+      "The launcher is the ONLY lever: dsh-app-boot's BOOTSTRAP_PREFIXES refuses XDG_* from $DSH_HOME/.env, and dsh-bash-local's config schema has no env field.",
+      "dsh loads AGENTS.md and CLAUDE.md as instruction candidates, so a Gotchas line is actually read.",
+      "writableRoots under workspace-write is exactly {workspaceRoot, /tmp, os.tmpdir()} — a state dir under $DSH_HOME or /var/lib would reproduce the identical error.",
+      "Under the bwrap backend /tmp is a fresh tmpfs per confined command, so the gain is the removed failure and rediscovery, not cache warmth."
+     ],
+     "correction": "Target a writable temp root explicitly; state that the launcher is the only supported lever; note the per-command cache under bwrap; re-scope or drop the modelLane.nix item."
+    }
+   ]
+  },
+  {
+   "id": "H9",
+   "kind": "harness",
+   "title": "Structured, bounded planning outputs; return spec; validate the task list",
+   "survives": true,
+   "tally": {
+    "refuted": 1,
+    "upheld": 2
+   },
+   "in_report": "§5 H9",
+   "votes": [
+    {
+     "refuted": true,
+     "confidence": "high",
+     "key_findings": [
+      "Spine verified: :148 projects without spec, :131 makes spec the whole payload, :96 coerces to '', :8-9 documents the round trip; dependsOn never read; execution is `for (const t of tasks)` at :126.",
+      "209,935 chars across 49 operator-kind prompts reproduces exactly.",
+      "Interpolation counts are 2/2/2, not 3/3/2 (the headline 'six' is right only as the total).",
+      "No evidence of a 50,000-char render ceiling: read results of 54,279-57,132 chars rendered whole.",
+      ":93 is title; role is :94, and it defaults only a MISSING role — an unknown role is swapped at :127.",
+      "'Dominated by re-pasted specs' inverts the data: consolidator prompts are 125,476 chars (59.8%), spec-carrying implementer prompts 35,894 (17.1%).",
+      "fc45cd50 +05:56 is a reasoning block about systemd.units null-collapse, not a stale-label confusion; T4's spec correctly cross-references plan Task 3.",
+      "Provenance: norm() and args.tasks landed in f2018e7 AFTER the only build run, so no observed cost is attributable."
+     ],
+     "correction": "Reframe as a latent regression; use 2/2/2; drop the render-ceiling and stale-label claims; attribute the re-send cost to planning prose, not specs."
+    },
+    {
+     "refuted": false,
+     "confidence": "high",
+     "key_findings": [
+      "Confirmed at HEAD f2018e7 with a clean tree; dc2580a:140 had `spec: t.spec`, so the same commit that added args.tasks removed it — a fresh regression.",
+      "Blast radius is a whole build: the observed run's 7 implementers burned ~6.5h wall-clock.",
+      "The ceiling IS measured: 49,481 chars against maxInlineBytes 50000 (web-default.yml:296-298); it spilled to /tmp/dsh-spill-0Lm3Sz/.../2c3ab2fa65b7-workflow.txt, clipped specs at 2000 chars, '[truncated: 7866 more characters]', and cost three recovery reads plus a dead-end detour.",
+      "Measured across all opening prompts (181,665 chars): consolidation 125,476 (69%), task specs 13,858 (7.6%).",
+      "Interpolation is 2/2/2; role coercion is at :94/:127; TASK_SCHEMA:52 already enums role so only hand-written args.tasks bite.",
+      "The observed run lost `title`, not spec — every implementer prompt read `task T4 \"undefined\"`.",
+      "Drop the dependsOn scheduler item: :117 instructs dependency-first ordering and the observed list was ordered; no failure observed.",
+      "Do not replace the essays with bullet objects — they produced the plan the build ran on."
+     ],
+     "correction": "Lead with the dated regression and the measured spill; cap essay length rather than restructuring; keep the args.tasks validation; drop dependsOn and the stale-label evidence."
+    },
+    {
+     "refuted": false,
+     "confidence": "high",
+     "key_findings": [
+      "git diff dc2580a f2018e7 shows the deleted `spec: t.spec`.",
+      "The observed run was discarded by `WorkflowError: result.tasks[0].title: undefined is not JSON data` at materializeResult after ~7h.",
+      "Every how-to item is an edit to the operator's own script string passed to dsh's built-in workflow tool — no fork, no unavailable hook.",
+      "pipeline() is a per-item multi-stage fan-out with NO barrier, so it cannot topologically order by dependsOn.",
+      "The permitted schema subset is type/properties/required/additionalProperties/items/enum/const/oneOf only — no length bounds; length must be prompt-side.",
+      "Interpolation is 2/2/2. Could not reproduce 209,935/49; measured 212,190 over 50 real prompts.",
+      "Consolidation prompts cost 125,476 chars vs 9,644 for the three planning prompts."
+     ],
+     "correction": "Note pipeline() cannot schedule dependencies and the schema subset cannot bound length; validate args.tasks on entry since it bypasses TASK_SCHEMA."
+    }
+   ]
+  },
+  {
+   "id": "U7",
+   "kind": "product",
+   "title": "Fail the broker's ZDR body patch closed on streamed bodies; scope credential injection to the same paths",
+   "survives": true,
+   "tally": {
+    "refuted": 1,
+    "upheld": 2
+   },
+   "in_report": "§6 U7",
+   "votes": [
+    {
+     "refuted": true,
+     "confidence": "high",
+     "key_findings": [
+      "Every code citation verified: _patch_body :197-221 called only from request() :238; requestheaders() :223-226 calls only _check and _inject; _request_body_might_stream :77-105 wired only into _deny_request :149; egressBroker.nix:257 passes --set stream_large_bodies=1m.",
+      "The decision doc overclaim is real (…permitted-transcripts.md:12,:42; commit c64f9bc).",
+      "Severity sentence refuted by measurement: 295 audit records (290 POSTs to chat/completions), max bytes_out 563,603 (53.7% of 1 MiB), 13 over 512 KiB, median 190,279 — zero over 1 MiB. The streaming hole has never fired.",
+      "The claim UNDERSTATES its second half: three POSTs to /api/v1/messages?beta=true from 10.100.3.2 at 15:03:16-15:03:20 (79,180 / 79,308 / 4,215 bytes out) were credential-injected and unpatched — confirmed in production."
+     ],
+     "correction": "Split into (a) confirmed and observed — the inject/bodyPatch path mismatch; and (b) confirmed in code, latent in practice — the streaming hole. Drop 'exactly the requests the lane exists to run'."
+    },
+    {
+     "refuted": false,
+     "confidence": "high",
+     "key_findings": [
+      "Mechanism verified in the pinned mitmproxy: check_body_size sets flow.request.stream=True before HttpRequestHeadersHook is yielded; start_request_stream puts headers on the wire; HttpRequestHook fires only at end-of-body.",
+      "Under streaming, raw_content is None, so _patch_body would also corrupt the recorded audit body.",
+      "The path hole is the lane's DESIGNED agent job kind: lane-run.py:239 sets ANTHROPIC_BASE_URL and runs `claude -p`, i.e. Anthropic protocol to /api/v1/messages.",
+      "Only the chat kind gets ZDR and it sets it client-side at lane-run.py:98 — the broker patch is redundant where it works and absent where it is the sole control.",
+      "lane-vm.nix:249-250 asserts zdr only on the chat path; test_policy.py:467-528 uses small bodies on the chat path only.",
+      "Audit max bytes_out 563,603 across 295 records; 1.86x headroom, no payload cap anywhere in the lane."
+     ],
+     "correction": "Lead with the observed /api/v1/messages failure. Do NOT scope inject to bodyPatch's prefix — it would break the agent lane; give inject its own allowed-path list and make bodyPatch take a list. Verify whether OpenRouter honours a provider block on /api/v1/messages first."
+    },
+    {
+     "refuted": false,
+     "confidence": "high",
+     "key_findings": [
+      "mitmproxy 12.1.1 line-level confirmation: check_body_size at :275 before HttpRequestHeadersHook at :278; stream set at :635; RequestHeaders sent at :306, chunks at :325; HttpRequestHook only at :348.",
+      "audit.jsonl holds three /api/v1/messages?beta=true records from 10.100.3.2, two verdict allow at 79,180 and 79,308 bytes out.",
+      "Feasibility: mitmproxy addon + NixOS option + pytest, all repo-owned; the kill mechanism is already implemented and tested in _deny_request (:143-154, test_policy.py:301-420).",
+      "flow.request.stream = False is NOT durable: state_consume_request_body re-runs check_body_size per chunk (:368) and the late branch flips it back at :635.",
+      "Scale: over 293 POSTs the largest request body is 563,603 bytes, 13 over 512 KiB, zero over 1 MiB."
+     ],
+     "correction": "Use flow.kill() with an audited reason, not stream=False; alternatively raise stream_large_bodies plus a body_size_limit. Note the streaming hole is latent and the inject-scope hole has already fired three times."
+    }
+   ]
+  },
+  {
+   "id": "U2",
+   "kind": "product",
+   "title": "Ship anti-framing/caching headers on the Helm control surface and use POST/redirect/GET",
+   "survives": true,
+   "tally": {
+    "refuted": 1,
+    "upheld": 2
+   },
+   "in_report": "§6 U2",
+   "votes": [
+    {
+     "refuted": false,
+     "confidence": "high",
+     "key_findings": [
+      "_send emits only Content-Type, Content-Length, X-Content-Type-Options; grep for X-Frame/frame-ancestors/Cache-Control/Referrer-Policy returns nothing.",
+      "validate_post (:176-196) has no Sec-Fetch-Dest check — the header that would separate a nested-document submit from a top-level one.",
+      "Empirically reproduced: render.render_control over the collect.py page gives refresh-in-action-body True and token-in-denial-body True.",
+      "do_GET :467 404s any path but / and /status.json.",
+      "The VM negative matrix is five curl cases; nothing frames the page, and curl structurally cannot.",
+      "Acceptance quote verified verbatim at 66bcfad1 +870:23.",
+      "Limits: the attack needs an operator click plus helm-serve running; no real browser was driven."
+     ],
+     "correction": "State the interaction requirement explicitly (clickjacking). Replace 'the runbook mis-diagnoses it' with 'the runbook is silent': helm-v1.md:124 scopes 'the page is gone' to ':7700 refuses'."
+    },
+    {
+     "refuted": true,
+     "confidence": "medium",
+     "key_findings": [
+      "Header and refresh facts confirmed by running collect.render_html + render.render_control in the devShell; test_serve.py:792 already pins GET /action/switch -> 404; the fixture PAGE has no refresh meta, which is why the suite cannot see it.",
+      "Same-origin policy stops the attacker page reading or submitting the framed form — it can only overlay a decoy and wait for a click.",
+      "Blast radius is the fixed allowlist ['base','gaming'] (hosts/core/helm.nix:17-20); gaming keeps every privileged and inbound toggle off; helm-v1.md:136-144 already states the token is not a boundary.",
+      "The empty-token-on-denial fix is a regression: cross-origin POST responses are opaque, and a token-less denial page breaks the K5 full-page contract at test_serve.py:844-849.",
+      "PRG is more machinery than the problem needs; the refresh bug is one line."
+     ],
+     "correction": "Rescope to 'fix the self-404 plus four cheap headers'; use content=\"60; url=/\"; rate it low severity; drop the empty-token item and the PRG state machine."
+    },
+    {
+     "refuted": false,
+     "confidence": "high",
+     "key_findings": [
+      "All citations verified at cf21507; the file moved +8 lines at HEAD 0e727ba.",
+      "A framed 127.0.0.1:7700 form sends Origin and Sec-Fetch-Site: same-origin with the real token from render.py:127 — all four layers pass.",
+      "Reproduced: render_control keeps the meta refresh, the action URL is /action/switch, and do_GET 404s it.",
+      "The deny page does embed the live token (serve.py:452-457), but that is hardening, not a leak — a cross-origin POST response is unreadable.",
+      "Feasible: a four-header edit plus assertions in the operator's own package; test_serve.py:138-152 already runs a live in-process server.",
+      "Unmeasured mitigation: recent Chrome gates public-page access to loopback behind a Local Network Access prompt."
+     ],
+     "correction": "Say 'clickjacking' and 'the remaining browser-side path'; prefer stripping/retargeting the refresh (and 303 on GET /action/*) over PRG, which contradicts the K5 contract."
+    }
+   ]
+  },
+  {
+   "id": "U6",
+   "kind": "product",
+   "title": "Declare the dsh-harness deploy as a flake, with its first two checks",
+   "survives": true,
+   "tally": {
+    "refuted": 1,
+    "upheld": 2
+   },
+   "in_report": "§6 U6",
+   "votes": [
+    {
+     "refuted": false,
+     "confidence": "high",
+     "key_findings": [
+      "dsh-harness tracks 74 files and matches nothing for flake/treefmt/githook/test/.nix/decision; its README prescribes the two ln -s; both symlinks exist dated Sep 3 19:14 and are owned by no generation.",
+      "grep over nixos-agent-env returns exit 1 for dsh-harness, agents/skills, dsh-openrouter/skills and flakes/dsh.",
+      "Exactly three commits with empty bodies, no (test: …) marker, no trailers — against sibling ~/flakes/gaming which carries both.",
+      "'The one component' holds: gaming, media and nixos-skill each have flake.nix + githooks/ + tests/.",
+      "nixos-skill's 15 checks contain no reference to the vendored copy, so diff -rq being clean today is unenforced.",
+      "The 26 superpowers: names are 26 occurrences of 10 names that all exist as directories — the check must flag the namespace prefix itself."
+     ],
+     "correction": "Tighten the catalog-check parenthetical to the `superpowers:` prefix; scope 'no references' to the host config, since the seat itself is in the flake."
+    },
+    {
+     "refuted": true,
+     "confidence": "high",
+     "key_findings": [
+      "Premise overstated: pkgs/dsh-openrouter is in the live flake, installed at hosts/core/agent-prereqs.nix:19, with 21 bats cases; tools/factory/dark-factory.js is gated by node --check and a 383-line test.",
+      "Both proposed checks find zero defects today: 15/15 valid frontmatter, 10/10 names resolve, 27/27 skill calls succeeded with bare names.",
+      "The vendored nixos skill is byte-identical to a source repo that already has its own flake and checks.",
+      "The rollback gain needs home-manager or activationScripts, neither of which exists in hosts/core; and the separation rule forbids Claude editing dsh's repos.",
+      "The genuine finding: symlinks dated 2026-09-03 19:14:27, and the five sessions that started earlier (2259818f, 3a312871, 893bf6de, 194ad2cb, 2e38f412; ~215k input tokens) contain zero skill names — the silent-empty-catalog failure already happened.",
+      "Observation: ~/flakes/dsh-harness/factory/dark-factory.js (151 lines) has diverged from the gated tools/ copy (265 lines)."
+     ],
+     "correction": "Replace with the narrow in-repo version: refuse-or-warn in dsh-openrouter.sh when $DSH_HOME/skills is missing/dangling/empty, plus one bats case (~10 lines). Drop both proposed catalog checks as written."
+    },
+    {
+     "refuted": false,
+     "confidence": "high",
+     "key_findings": [
+      "Confirmed absences probed individually; three commits with empty %b and empty %(trailers); zero references in nixos-agent-env; the wrapper never touches skills or AGENTS.md and the 295-line bats file never mentions either.",
+      "dsh-skill-filesystem resolves $DSH_HOME/skills (rank 400) with watchFollowSymlinks defaulting true, plus customSkillDirs (300) and bundledSkillDir — a --patch overlay pointing at a store path makes drift structurally impossible.",
+      "$DSH_HOME/AGENTS.md is a literal in dsh-agent-instructions (this settles the digest's UNVERIFIED line).",
+      "Precedent: ~/flakes/nixos-skill is already a flake with checks; flake.nix:26 consumes a sibling as git+file://…?ref=main with a lock-node assertion to copy.",
+      "home-manager is not an input (0 hits in flake.lock) and system.activationScripts appears nowhere in the repo.",
+      "The 26 superpowers: references resolve; what dangles is the colon-bearing prefix (dsh's SKILL_NAME regex forbids it) plus four Claude-plugin-relative paths."
+     ],
+     "correction": "Name the ownership mechanism as the wrapper or overlay, not home-manager; scope the catalog check to the prefix and the four plugin-relative paths."
+    }
+   ]
+  }
+ ],
+ "refuted_claims": [
+  {
+   "id": "H1",
+   "kind": "harness",
+   "title": "Fail loud on null/undefined in the factory return path",
+   "survives": false,
+   "tally": {
+    "refuted": 3,
+    "upheld": 0
+   },
+   "one_line": "The title default is already committed (f2018e7 :93) and the cited crash was the engine failing CLOSED at materializeResult, not open; the $1.62 figure appears nowhere in the transcripts (cost is unrecorded).",
+   "surviving_kernel": "The implementer loop at :132 does swallow a dead child into an empty string (b7e57c4e, PI_AI_ERROR from Morph) — that narrower guard is worth adding.",
+   "votes": [
+    {
+     "refuted": true,
+     "confidence": "high",
+     "key_findings": [
+      "norm():93 already sets title: String(t.title || t.key || '') as of f2018e7",
+      "The undefined title is what ABORTED the run; a default converts a loud abort into a quiet completion",
+      "The incident used hand-modified PRETASKS, so it evidences unvalidated operator input, not null propagation",
+      "All three review digests record 'cost: not recorded in transcripts'",
+      "Implementer commits survived; only the return payload was lost",
+      "The empty-tasks scenario was never observed",
+      "Real and observed: smoke run 9f0da97f returned {kimi:null, glm:null, flash:'FLASH_OK'} with stopReason=completed"
+     ],
+     "correction": "Rewrite around the observed null-as-success in the smoke run and the impl loop; drop the title item and the dollar figure."
+    },
+    {
+     "refuted": true,
+     "confidence": "high",
+     "key_findings": [
+      "Half the how-to is already in the repo at :93 (f2018e7, clean tree)",
+      "The crash was a missing title in hand-written PRETASKS (operator's own words at +620:35), not a dead agent",
+      "The planner never died: plan run 92bec14d ended completed",
+      "Cost figures are unmeasured; the draft's own D6 concedes cost is null in 26/26",
+      "The dsh script has no approval gate at all, so a null review shows as a visible null",
+      "Residual kernel: impl:T1 outcome=failed at +167:34.59 and :132's String(out||'') hid it for 7.5 more hours"
+     ],
+     "correction": "Narrow to 'abort the build when an implementer dies'; drop the recovered-dollars gain and the Claude-side unreviewed import."
+    },
+    {
+     "refuted": true,
+     "confidence": "medium",
+     "key_findings": [
+      "Engine semantics confirmed: agent() returns null on missing structured output and on non-completed stops; parallel() catches to null; a plain throw propagates to stopReason error",
+      "Stale: the title default landed in f2018e7 at exactly the lines the how-to targets",
+      "Inverted: materializeResult threw RESULT_UNSERIALIZABLE — the return boundary is where the engine already fails closed",
+      "WorkflowError is not in the script realm's six globals; use a plain Error",
+      "A plain Error thrown inside a parallel() thunk is swallowed to null, so must() must sit after the combinator"
+     ],
+     "correction": "Keep must() on the dispatch path, use plain Error, place it outside thunks, and record status on the impl loop."
+    }
+   ]
+  },
+  {
+   "id": "H2",
+   "kind": "harness",
+   "title": "Give reviewers the artifact, and make verdicts do something",
+   "survives": false,
+   "tally": {
+    "refuted": 3,
+    "upheld": 0
+   },
+   "one_line": "The reviewer already had the artifact and found the defect unaided, then graded it minor — a blocker+major gate skips it by construction, while firing on two other findings and re-running implementers costing $1.67-$6.02 each.",
+   "surviving_kernel": "Verdicts genuinely have no consumer (:142/:149) and models grade their own work — reported as a problem in §4, not as a costed recommendation.",
+   "votes": [
+    {
+     "refuted": true,
+     "confidence": "high",
+     "key_findings": [
+      "Structure confirmed: no interpolation at :136-141, no consumer at :142/:149, rule 6 self-violated",
+      "Cleanest proof unused: e04ce603 returned verdict rework at +30:10 and the string never recurs",
+      "6a1c4d0e had everything it needed and found the bug at +18:40/+20:19",
+      "The finding was severity minor, verdict pass — the failure was calibration, not access",
+      "test_spawn_open_argv_exact is a wrong-expectation change-detector, not a vacuous test",
+      "$1.62 is a price-table estimate, not a measurement"
+     ],
+     "correction": "Keep the structural finding; drop the counterfactual; re-anchor on the discarded rework verdict."
+    },
+    {
+     "refuted": true,
+     "confidence": "high",
+     "key_findings": [
+      "All structural facts verbatim true; the Claude-side sibling proves the pattern is portable",
+      "Detection did not fail: 6a1c4d0e ran the grep itself and had the D-numbered corrections via CTX",
+      "A blocker+major gate counts a minor as zero",
+      "The reviewer's rationale was a live-host runtime property it was forbidden to test",
+      "e04ce603 (rework, major) and 81ddd34e (major) would have tripped the gate at implementer cost",
+      "The $1.62 bought nothing because of the serialization crash, not the missing branch"
+     ],
+     "correction": "Rank below H1; keep fix/REVIEWER_OF/commit-range as cheap hygiene, not as a defect-catcher."
+    },
+    {
+     "refuted": true,
+     "confidence": "high",
+     "key_findings": [
+      "Verified: no interpolation, verdicts unread, impl reports truncated to 2500 chars and never re-read",
+      "Feasible in-script, but requires an IMPL_SCHEMA and a commit convention first",
+      "6a1c4d0e surfaced the dead key at +05:45 from a plain read and filed it minor at +20:19",
+      "0e727ba records a second layer (bare bash/nix/claude in helm-open-workspace.sh) no reviewer flagged",
+      "The vacuous-test class mis-sorts the case: the test faithfully pinned the wrong contract"
+     ],
+     "correction": "Restate as a plumbing finding with an unmeasured payoff; the corresponding rubric change is about untestable runtime assumptions, not vacuity."
+    }
+   ]
+  },
+  {
+   "id": "H3",
+   "kind": "harness",
+   "title": "Bound the reasoning loop deterministically (step budget + repetition guard)",
+   "survives": false,
+   "tally": {
+    "refuted": 3,
+    "upheld": 0
+   },
+   "one_line": "Reasoning is under 10% of spend (all reasoning tokens in the corpus are worth ~$2.34 of $23.73), a trip tight enough to fire would have cut fc45cd50 before its first edit at step 78 of 157 and forfeited the commit, and the seat runs reasoningEffort xhigh, not off.",
+   "surviving_kernel": "The measured chunk ratios and the +111:38 first-edit offset are real and are reported in §4 as a context-cost finding.",
+   "votes": [
+    {
+     "refuted": true,
+     "confidence": "high",
+     "key_findings": [
+      "The decisive nix eval was RUN at +35:03 and died on the readonly fetcher cache — the loop is downstream of H4",
+      "settings.yaml:6 reads xhigh, and every expensive session carries reasoningEffort xhigh; off appears only in the aborted 42af760b",
+      "Under the report's own prices the day splits input 43% / cache-read 41% / output 16%",
+      "A budget cut at step 50 saves $0.94 of $6.02 and forfeits the deliverable",
+      "Steps 17-50 is wrong at both ends"
+     ],
+     "correction": "Sequence after H4; bound the gain to steps (input+cache-read), not reasoning tokens; note the deliverable risk."
+    },
+    {
+     "refuted": true,
+     "confidence": "high",
+     "key_findings": [
+      "Measured 1,075,390 reasoning tokens corpus-wide = $2.34 at output prices",
+      "488:1 is an EVENT ratio: reasoning is 97.3% of output in fc45cd50 but 21-30% in the GLM sessions cited as the same pattern",
+      "Half of fc45cd50's reasoning = $0.61, not $2-3",
+      "First edit at +111:38 / step 78; the session authored the whole services.helm.control block (21 edits, b678875)",
+      "No per-step hook exists: the workflow realm exposes only agent/parallel/pipeline/phase/log/args",
+      "The seat runs xhigh, and it is a DeepSeek-route-only knob"
+     ],
+     "correction": "Reduce to 'lower the DeepSeek route's reasoning effort'; explicitly do not recommend a step budget or an in-script counter."
+    },
+    {
+     "refuted": true,
+     "confidence": "high",
+     "key_findings": [
+      "The workflow realm has six globals and agent() is one-shot — no step counter can live there",
+      "dsh's workflow tool takes an inline script, not scriptPath, so tools/factory/dark-factory.js is not what ran",
+      "A repetition guard already ships enabled (repeat-tool-reminder, thresholds [3,5,8]) and fired zero times",
+      "reasoningEffort is deliberately not a config field and is inert for hand-declared OpenRouter models",
+      "The hooks bridge cannot halt a run: {\"continue\": false} is recorded but not applied",
+      "First edit measured at +111:38, step 78 of 157, call 91 of 170"
+     ],
+     "correction": "Move any counter to a hooks/post-execute seam; do not claim the saving is free."
+    }
+   ]
+  },
+  {
+   "id": "H5",
+   "kind": "harness",
+   "title": "Unify /tmp between the bash tool and the file tools",
+   "survives": false,
+   "tally": {
+    "refuted": 2,
+    "upheld": 1
+   },
+   "one_line": "The split is real and mechanically confirmed, but unifying it removes the containment for model-authored shell commands; measured cost is ~30-80 s per instance and no scratch file was ever committed.",
+   "surviving_kernel": "Two lines in CLAUDE.md naming a per-session scratch dir capture the whole measured gain.",
+   "votes": [
+    {
+     "refuted": true,
+     "confidence": "high",
+     "key_findings": [
+      "The lead citation is mislabelled: /tmp/helm-t2-msg.txt at +27:00 is ee2739fc, not 661e7f48 (whose own instance is +30:02.86)",
+      "fc45cd50 +860:36 cannot exist — that session is 2.54h long",
+      "Most citations are bash-to-bash loss, which a namespace split does not explain; 2714bacb +76:35 explicitly rules it out",
+      "Only 66bcfad1 (+145:52 bash ENOENT vs +146:27 read OK) shows a true tool-vs-tool split",
+      "81ddd34e's detour was ~7 minutes and created .review-tmp inside the live repo"
+     ],
+     "correction": "Reframe as 'per-call ephemeral /tmp' with the split as a secondary finding; fix the three mislabelled citations."
+    },
+    {
+     "refuted": true,
+     "confidence": "high",
+     "key_findings": [
+      "Mechanism found in source: dsh-sandbox-local pushes --tmpfs /tmp for workspace-write while the fs layer grants the real host /tmp",
+      "Host evidence: two write-tool files still on the host /tmp at 0600; the bash-created cache dirs never existed there",
+      "Unifying is a security regression — /tmp is a 4682-entry world-writable directory shared with Firefox and Claude Code's own scratch",
+      "661e7f48's whole detour is 47 s and 3 tool calls",
+      "No scratch file was ever committed; the tree is clean",
+      "dsh already loads CLAUDE.md, so two lines plus .gitignore capture the gain"
+     ],
+     "correction": "Keep as a documentation-only fix; flag the mirror-image security item (the file tools can write outside the workspace)."
+    },
+    {
+     "refuted": false,
+     "confidence": "high",
+     "key_findings": [
+      "Confirmed in the pinned bundle and reproduced on this host with dsh's exact bwrap argv",
+      "Upstream documents the divergence itself in dsh-sandbox",
+      "The harness walks into it: spill files are reported at /tmp paths bash cannot open",
+      "Three citations are attached to the wrong session",
+      "Tool descriptions are generated and NOT configurable; use system-prompt.persona or AGENTS.md",
+      "A runnerCommand wrapper binding a named per-session dir works, but claims enforcement 'full' with no probe"
+     ],
+     "correction": "Fix the three citation mislabels; route the naming through persona/AGENTS.md; note the runnerCommand caveat."
+    }
+   ]
+  },
+  {
+   "id": "H6",
+   "kind": "harness",
+   "title": "Compute shared facts once; hand agents an index, not a repo",
+   "survives": false,
+   "tally": {
+    "refuted": 3,
+    "upheld": 0
+   },
+   "one_line": "The largest read slice is the run's own plan/spec prose (1,356,729 chars, 39.9%), which no derivation computes; within-session repeats are only 10.7%, and the flagship repeated file was read-before-edit on the file being authored.",
+   "surviving_kernel": "read = 71.6% of tool-result text is real and is reported in §3; the fix for the prose slice is H9 (pass the spec), not an index.",
+   "votes": [
+    {
+     "refuted": true,
+     "confidence": "high",
+     "key_findings": [
+      "All cited numbers reproduce exactly from the raw transcripts",
+      "docs/superpowers plans+specs are 39.9% of read chars — not index-shaped",
+      "18 of fc45cd50's 19 helm.nix reads are small offset/limit windows interleaved with 14 edits, two forced by 'file changed since it was read'",
+      "Only 84 of 330 reads are within-session repeats (10.7% of read chars); 129 of 330 already use offset/limit",
+      "The four named files sum to 991,004 chars, not ~860KB, and only 286,905 of that is a within-session re-read",
+      "6cecf79f's 49,908-char dump is real and was labelled 'Grep perl script (text mode)' against a Rust binary"
+     ],
+     "correction": "State the honest ceiling (~15% of read text); separate read-before-edit from orientation reads."
+    },
+    {
+     "refuted": true,
+     "confidence": "high",
+     "key_findings": [
+      "Modelled amortised cost of ALL 330 read results is $3.38 of $23.73; the index-addressable slice is $0.20 (0.9%)",
+      "Much of the index already exists: CLAUDE.md lists all 23 check names and OPERATIONS.md carries live generation, toplevel path and last verdicts",
+      "201 unbounded full-file reads carry 2,849,055 chars; a 20,000-char cap would trim 17% of read text",
+      "The binary dump came from a bash pipeline, so a read/grep guard would not have fired"
+     ],
+     "correction": "Replace with a per-result size cap plus a bash stdout cap; keep only a ~2KB verified-facts block."
+    },
+    {
+     "refuted": true,
+     "confidence": "high",
+     "key_findings": [
+      "79.6% of read bytes are re-reads of a path some session already read, but the largest bucket is docs at 39.9%",
+      "The bridge's SessionStart handler is fire-and-forget, so an index can race the first request; UserPromptSubmit is the awaited seam",
+      "updatedInput is logged but not honored, so a guard can only deny with a reason",
+      "Two of the six index fields are host runtime state a pure derivation cannot produce"
+     ],
+     "correction": "Inject on UserPromptSubmit, not SessionStart; supply runtime fields from the injecting script; make the guard a PreToolUse denial covering bash."
+    }
+   ]
+  },
+  {
+   "id": "H7",
+   "kind": "harness",
+   "title": "Preflight model routes before dispatch; tie tool credentials to the active route",
+   "survives": false,
+   "tally": {
+    "refuted": 3,
+    "upheld": 0
+   },
+   "one_line": "OPENROUTER_MODELS is consumed at launch, so an in-session probe can only report; the script's first parallel() already surfaces misregistration in seconds; and the web_search half needs a separate DeepSeek key for a tool the seat already disables.",
+   "surviving_kernel": "A failed child resolves to a bare null with no reason — worth raising rather than coercing, which is folded into H9's validation item.",
+   "votes": [
+    {
+     "refuted": true,
+     "confidence": "high",
+     "key_findings": [
+      "42af760b had only two models registered at that moment, not four",
+      "Nothing fell back in 3a312871 — the operator hand-picked models in the picker at +40:43/+41:43/+41:46/+41:59",
+      "498d515d errored at +00:00.08, not +00:00.06",
+      "The parent DID get outcome=failed; what was missing is the reason",
+      "Neither child logged a request header or usage, so nothing was billed for the 12.4KB",
+      "The evidence comes from a hand-written smoke workflow, not from dark-factory.js"
+     ],
+     "correction": "Reframe around the unreasoned null and the ~11.5 min diagnosis; drop 'after the money is spent'."
+    },
+    {
+     "refuted": true,
+     "confidence": "high",
+     "key_findings": [
+      "The seat already disables tool-web (5089eb1) and llm-deepseek (b0216e2), asserted in bats; the cited session was the stock dsh seat",
+      "web-search-deepseek is a DeepSeek-platform service; OpenRouter exposes no search endpoint under that key",
+      "42af760b was upstream output moderation on the registered default model — a preflight would have passed it",
+      "OPENROUTER_MODELS is consumed at launch (dsh-openrouter.sh:146), so the relaunch and the 76.86 s recheck are paid either way",
+      "dark-factory.js:108-112 already dispatches the three planning models in parallel"
+     ],
+     "correction": "Replace with 'fail the run when a role returns null'; drop the preflight and the web_search clause."
+    },
+    {
+     "refuted": true,
+     "confidence": "high",
+     "key_findings": [
+      "The probe H7 proposes was already run as factory-route-smoke and returned {kimi:null, glm:null, flash:'FLASH_OK'}",
+      "The catalog never refreshes itself, so a zero-token check of the launch-generated route file beats a live probe",
+      "The workflow vm injects no filesystem or network globals, so the check cannot live in the script body",
+      "No ctx.web provider exists for OpenRouter search — that half needs a new plugin",
+      "No fallback/retry-on-alternate-route knob exists in pi-ai"
+     ],
+     "correction": "Keep only a zero-token bash preflight against the route file plus treating a null child as a hard failure."
+    }
+   ]
+  },
+  {
+   "id": "H8",
+   "kind": "harness",
+   "title": "Mount the Claude-Code hooks bridge that already ships in the pin",
+   "survives": false,
+   "tally": {
+    "refuted": 2,
+    "upheld": 1
+   },
+   "one_line": "The bridge works when mounted (verified end to end), but the incidents cited were already stopped by file mode and PAM, the lane already has a deterministic boundary, and it cannot shorten approval waits because allow does not pre-approve.",
+   "surviving_kernel": "~/.config/openrouter/key is 0600 and readable by the seat — a deny-only rule there is defensible defence-in-depth.",
+   "votes": [
+    {
+     "refuted": true,
+     "confidence": "high",
+     "key_findings": [
+      "Both the plain cat and the sudo cat at 3a312871 +43:41/+43:46 returned '(no output)' — file mode and PAM stopped them",
+      "The 334MB download answered the operator's own question and landed in a per-call tmpfs; it does not exist today and is outside the proposed deny list",
+      "Two of three approvals were decided in 5 s and 3 s; the 3h35m one spans 05:03-08:39 CDT (operator asleep)",
+      "allow does not pre-approve, so no hook shortens it",
+      "SessionStart context is resent until compaction — not zero-cost"
+     ],
+     "correction": "Reframe as auditability and blast radius, not latency or a missing guard; drop the 194ad2cb example."
+    },
+    {
+     "refuted": true,
+     "confidence": "high",
+     "key_findings": [
+      "The two cited incidents were contained: the key file is 0440 root:egress-broker, and the download ran via nix develop -c bash -c, matching no proposed hook",
+      "The seat already refuses to start under the same eight protected prefixes, and modelLane.nix already provides the deterministic version for the factory path",
+      "A deny-list over shell command strings is a heuristic, not a boundary",
+      "23 of Claude Code's 30 hook events are unsupported by the bridge",
+      "The one open hole is ~/.config/openrouter/key (0600, readable by the seat) — unobserved"
+     ],
+     "correction": "Demote to a small deny-only hygiene item; move the approval-latency fix to a launch flag."
+    },
+    {
+     "refuted": false,
+     "confidence": "high",
+     "key_findings": [
+      "Verified end to end against a mock endpoint: unmounted the privileged command ran; mounted, PreToolUse fired twice and the command never ran",
+      "The deny held under DSH_PERMISSION_MODE=danger-full-access",
+      "Zero token cost measured: turn-1 request body 32822 bytes with and without",
+      "Trap 1: a bare top-level name composes nothing; it must be wrapped in `- insert:`",
+      "Trap 2: dsh's tool is `bash`, not Claude Code's `Bash` — a verbatim CC hooks.json silently never fires",
+      "SessionStart injection is detached and missed the first model request"
+     ],
+     "correction": "Ship deny-only with the two traps documented; drop the allowlist-for-latency item; move the index to the system prompt."
+    }
+   ]
+  },
+  {
+   "id": "H10",
+   "kind": "harness",
+   "title": "Turn on the session index and add a cost ledger",
+   "survives": false,
+   "tally": {
+    "refuted": 3,
+    "upheld": 0
+   },
+   "one_line": "Turning the index on gives the operator a search box, not agent recall — no session-search tool is mounted and neither consumer runs in the headless profile; the reads it blames are one-per-session spec loads, not failed recall.",
+   "surviving_kernel": "dsh records no cost at all (there is no cost field in its usage type) — carried as debt item D5.",
+   "votes": [
+    {
+     "refuted": true,
+     "confidence": "high",
+     "key_findings": [
+      "No cost FIELD exists: dsh's TokenUsage declares only token counts",
+      "OPERATIONS.md is 8 reads over 5 sessions and the three Helm docs are 11/11, 15/15, 11/11 — one read per session, zero within-session repeats",
+      "openAt: never disables ranked content search only; exact reads, titles and lineage still work",
+      "The tool roster has no session-search tool",
+      "The three docs sum to 898,139 chars, not 897,139",
+      "193,252,224 is 90% cache-read tokens counted at full weight"
+     ],
+     "correction": "Say 'no cost field exists'; drop the causal link to the read volume; note the index serves the operator's UI."
+    },
+    {
+     "refuted": true,
+     "confidence": "high",
+     "key_findings": [
+      "cost is null in all 21 sessions carrying usage (0 of 998 records)",
+      "openAt: 'open' is not a valid value — the enum is startup | first-search | never",
+      "The plugin registers nothing model-facing; dsh-tool-session-query is absent from the pinned tree",
+      "Its only callers are the web UI and the session API controller, neither mounted headless",
+      "A Nix-pinned price table goes stale and is wrong for the 3 deepseek-official sessions"
+     ],
+     "correction": "Split: the index is an operator convenience; source ledger dollars from the provider, not a local table."
+    },
+    {
+     "refuted": true,
+     "confidence": "high",
+     "key_findings": [
+      "Verified in both bundles; booting with openAt: open dies with a schemastery ValidationError",
+      "$DSH_HOME/sessions/*.jsonl matches zero files — sessions are sessions/<slug>/<uuid>/session.jsonl.zstd",
+      "The only searchSessions callers are the web sidebar and the session API controller; the model's 26-tool catalogue has no session-search tool",
+      "bash/grep/glob plus an AGENTS.md pointer would give agent recall with no config change",
+      "git diff --stat per session is unsound, since sessions interleave in one cwd"
+     ],
+     "correction": "Use openAt: first-search and the correct glob with zstd -dc; drop the git diff --stat column."
+    }
+   ]
+  },
+  {
+   "id": "U1",
+   "kind": "product",
+   "title": "Per-session git worktree for the seat instead of the live checkout",
+   "survives": false,
+   "tally": {
+    "refuted": 2,
+    "upheld": 1
+   },
+   "one_line": "No two writers ever overlapped (the fan-out was strictly sequential), the one real collision cost 24 s, and a linked worktree would break outright under dsh's sandbox because its gitdir sits outside the writable workspace.",
+   "surviving_kernel": "The live-tree hazard is real and is recorded on the board; the cheap guard is a clean-tree assertion in the factory between tasks.",
+   "votes": [
+    {
+     "refuted": true,
+     "confidence": "high",
+     "key_findings": [
+      "The 661e7f48 ref-lock was the Claude orchestrator's own board commit (3624dc7), not a factory lane; ~18 s lost, no damage",
+      "fc45cd50's two stale-edit errors were self-inflicted by its own treefmt run",
+      "No two dsh subagents ever wrote concurrently; the three 19:55:08 planners made zero edits",
+      "The render.py coupling is a flake-tracked-files constraint a worktree would not fix",
+      "No dsh session was running during the 09:52-09:56 dirty tree",
+      "The seat already refuses eight local-only prefixes"
+     ],
+     "correction": "Re-anchor on the live-tree hazard and the one cross-lane collision; drop the concurrency-damage framing."
+    },
+    {
+     "refuted": true,
+     "confidence": "high",
+     "key_findings": [
+      "Writers ran strictly back-to-back (timings from manifest.json); the three same-millisecond subagents wrote nothing",
+      "3 stale-edit errors in 1,247 tool calls, none preventable by a worktree",
+      "The render.py stub is 16 inert lines, superseded four hours later",
+      "The board incident was scope, not isolation — the wrapper and bats edits were KEPT",
+      "The run produced eight reviewable commits on main, so the 'reviewable diff' gain is already delivered",
+      "A linked worktree evaluates fine (0.046 s, identical fingerprint) — the objection is value, not feasibility"
+     ],
+     "correction": "Replace with a clean-tree assertion in dark-factory.js between tasks; keep the interactive seat in the live checkout."
+    },
+    {
+     "refuted": false,
+     "confidence": "high",
+     "key_findings": [
+      "dsh keys sessions by workspace path; there is exactly one bucket with 30 sessions, all cwd=nixos-agent-env",
+      "The three planners were created 9 ms apart, not the same millisecond",
+      "Sandbox root comes from the session cwd, so the wrapper's cd is a sufficient lever",
+      "git worktree add BREAKS: reproduced with dsh's exact bwrap profile — 'Unable to create .git/worktrees/wt/index.lock: Read-only file system'; an ordinary clone commits fine",
+      "Ephemeral paths orphan --resume, and /run/user/$UID is wiped at logout",
+      "This reverses tools/factory/dark-factory.js:69 ('Do not create branches or worktrees')"
+     ],
+     "correction": "If pursued, use a self-contained clone, not a linked worktree; refuse the live tree by comparing HEAD to configurationRevision."
+    }
+   ]
+  },
+  {
+   "id": "U3",
+   "kind": "product",
+   "title": "Make operator-judgment acceptance steps mechanically probeable",
+   "survives": false,
+   "tally": {
+    "refuted": 3,
+    "upheld": 0
+   },
+   "one_line": "The drill has two operator-judgment gates rather than one, the defect was already found mechanically by the technical reviewer 300 minutes earlier, and a live probe shows the proposed dry-run resolves the bare names fine — so it would have passed the failing generation.",
+   "surviving_kernel": "Two green checks pinned opposite contracts with nothing asserting they matched — a one-line consistency assertion would have been red at cf21507.",
+   "votes": [
+    {
+     "refuted": true,
+     "confidence": "high",
+     "key_findings": [
+      "tests/acceptance/helm-v1.sh has two confirm() calls (:420 Firefox, :446 Console)",
+      "flake.nix:1049 asserted the correct absolute path in config.json while test_serve.py:373 asserted the bare name — two green checks, opposite contracts",
+      "0e727ba had to EDIT that test, so it was not vacuous — it froze a wrong expectation",
+      "The plan's verify-first flag was about kgx's -e flag form, which proved correct",
+      "The reviewer judged the defect 'harmless in practice' and never touched the launcher layer"
+     ],
+     "correction": "Retitle to 'make plan-declared invariants machine-checkable where two artifacts must agree'; assert argv against the config value, not a literal."
+    },
+    {
+     "refuted": true,
+     "confidence": "high",
+     "key_findings": [
+      "Measured on the live host: systemctl --user show-environment includes /run/current-system/sw/bin, and systemd-run --user resolves helm-open-workspace, claude and bash",
+      "The journal shows kgx spawned a VTE child, so 'command not found' does not fit",
+      "The pre-fix generations shipped all four binaries in sw/bin",
+      "A --dry-run would therefore have printed a pass on the failing generation",
+      "last_switch already has 8 dedicated unit tests; the operator reaches the journal via wheel, not systemd-journal"
+     ],
+     "correction": "Capture evidence from the real spawn (named unit, no --collect, read the child's Result) instead of a dry-run."
+    },
+    {
+     "refuted": true,
+     "confidence": "high",
+     "key_findings": [
+      "The reviewer named both findings ~300 min before the field failure and they were lost with the run's return value",
+      "tools/factory/dark-factory.js:235 serializes title with no default and no validation — still unguarded",
+      "Two confirm gates, not one",
+      "The test is an exact-argv characterization test pinned to the wrong value",
+      "A dry-run reproduces the user-manager PATH but not kgx's -e shell layer"
+     ],
+     "correction": "Make delivery, not detection, the headline; assert the launcher equals the module's config value."
+    }
+   ]
+  },
+  {
+   "id": "U4",
+   "kind": "product",
+   "title": "Gate empty commit bodies and put the real model in the Co-Authored-By trailer",
+   "survives": false,
+   "tally": {
+    "refuted": 2,
+    "upheld": 1
+   },
+   "one_line": "One empty body in 187 commits (0.53%), and that commit's red evidence is machine-verified by its own four negative fixtures; the trailer misattribution is one commit, not six.",
+   "surviving_kernel": "Authorship and the one-byte body are reported as fact in §6 rather than as a gate.",
+   "votes": [
+    {
+     "refuted": true,
+     "confidence": "high",
+     "key_findings": [
+      "Five of the six GLM trailers are CORRECT — T2, T3, T5x2 and T7 all ran glm-5.3",
+      "Only 667f25d is misattributed, by a glm-5.3-flash session that copied the trailer from git log",
+      "5c0c44d is not Kimi's: Kimi's T1 died at +08:07 and committed nothing; T5 implemented render.py",
+      "No implementer prompt mentioned a trailer at all — the convention was improvised",
+      "tools/factory/dark-factory.js:60 hardcodes a Fable trailer these commits never used"
+     ],
+     "correction": "Retitle to 'gate empty bodies; make the trailer a machine-set fact'; fix the attribution mapping."
+    },
+    {
+     "refuted": true,
+     "confidence": "high",
+     "key_findings": [
+      "b678875's red evidence is executable: flake.nix:1056-1109 throws unless the bad config fails the build",
+      "Base rate is 1 in 187; a regex gate can only check that prose exists",
+      "dark-factory.js's TRAILERS is a model-independent constant, so no factory run could emit 'GLM 5.3'",
+      "IMPL_SCHEMA already requires red-then-green evidence, but the run's return map drops test_results"
+     ],
+     "correction": "Carry test_results into the returned task record instead of adding a pre-commit body gate."
+    },
+    {
+     "refuted": false,
+     "confidence": "high",
+     "key_findings": [
+      "Verified: 1-byte body, no trailer, written by fc45cd50 (deepseek-v4-pro) at +151:09.83 with the pre-commit hook returning 0",
+      "No script supplies the trailer — ee2739fc invented it ('Since I'm GLM powered by z-ai/glm-5.3') and later sessions copied it",
+      "Wrong hook: pre-commit gets no args and sees the PREVIOUS message; the gate belongs in commit-msg",
+      "--no-verify and a fabricated Red: line both pass, so 'cannot commit without it' is too strong",
+      "tools/factory has only role aliases, not model ids"
+     ],
+     "correction": "Use a commit-msg hook; soften 'cannot commit'; note runId is not harness-supplied."
+    }
+   ]
+  },
+  {
+   "id": "U5",
+   "kind": "product",
+   "title": "Store-back the seat's policy surface (AGENTS.md, skills, cordis.patch.yml)",
+   "survives": false,
+   "tally": {
+    "refuted": 2,
+    "upheld": 1
+   },
+   "one_line": "The stale AGENTS.md bullet is ambiguous rather than false (it still describes the Claude-side script correctly), no session ever acted on it, and its cost is ~$0.03; U6 carries the packaging argument on stronger grounds.",
+   "surviving_kernel": "Two doc fixes (disambiguate the bullet, map superpowers:X to bare X) are worth doing on their own.",
+   "votes": [
+    {
+     "refuted": true,
+     "confidence": "high",
+     "key_findings": [
+      "The bullet was written in af01427, 24 minutes before the second dark-factory.js existed; tools/factory still uses sonnet/opus/fable, so dsh-tools.md is correct as written",
+      "'A day' is 14h49m",
+      "'Every request' is wrong: injection is once per session, and 7 of 32 injections predate the symlink",
+      "Only ~200 chars of the 239,340 is the offending bullet — a ~50x overstatement",
+      "26 occurrences of 10 distinct names, one file being a reference for a different harness"
+     ],
+     "correction": "Reframe as ambiguity created by a second same-named file; correct the cost framing."
+    },
+    {
+     "refuted": true,
+     "confidence": "high",
+     "key_findings": [
+      "Injection is once per session at seq 8; the bullet is 213 chars (~53 tokens), $0.003-$0.03 of a $23.73 corpus",
+      "'remap' occurs exactly once per transcript — that occurrence IS the injection; no session acted on it",
+      "Writes to ~/flakes/dsh-harness require a danger-full-access escalation, so this is not a one-write foothold",
+      "The 8-prefix list is a cwd check, not a write ACL — adding these paths blocks nothing",
+      "Brief invariant 5 is about data class, already enforced at build time"
+     ],
+     "correction": "Demote to a doc fix and fold the packaging into U6."
+    },
+    {
+     "refuted": false,
+     "confidence": "high",
+     "key_findings": [
+      "Every factual sub-claim reproduces, including the three escalated commits and their approval offsets",
+      "dsh-agent-instructions never writes AGENTS.md and dsh-skill-filesystem has no fs writes, so a read-only store target is safe",
+      "prepareProfile rewrites cordis.yml on every boot, so the profile dir must stay writable",
+      "Higher-ranked project skill roots remain writable, so the foothold is narrowed, not closed",
+      "The web profile's patchReload is 'live', bypassing a launch-time check"
+     ],
+     "correction": "Say 'narrows, does not close'; leave cordis.yml alone; set the web profile's patchReload to startup."
+    }
+   ]
+  },
+  {
+   "id": "U8",
+   "kind": "product",
+   "title": "lane-shell: the interactive seat inside the broker's network namespace",
+   "survives": false,
+   "tally": {
+    "refuted": 3,
+    "upheld": 0
+   },
+   "one_line": "The diagnosis holds, but the proposed mechanism silently fails open — measured on this host, a systemd --user unit with NetworkNamespacePath= starts successfully and stays in the host network namespace.",
+   "surviving_kernel": "Interactive egress is genuinely unlogged and unrefusable; the cheap first step is the bwrap mask over the seat's own credential files.",
+   "votes": [
+    {
+     "refuted": true,
+     "confidence": "high",
+     "key_findings": [
+      "Diagnosis verified: OPERATIONS.md records the ~18:00 measurement and the OPEN ZDR toggle; 3a312871's offsets are exact (+43:35 audit read, +43:41 cat, +43:46 sudo cat)",
+      "There is no lib/proxy-shim.cjs in the repo — it is generated into the package output",
+      "docs/concepts/2026-09-03b explicitly says the interactive lane is a later concept",
+      "Measured: nsenter into the broker netns as uid 1000 returns Operation not permitted, with or without a user namespace",
+      "checks.lane-vm exercises the batch path only — no pty, no user-session entry",
+      "Invariant 2 is equally false on this path"
+     ],
+     "correction": "Downgrade readiness; require a system unit plus a privileged entry path; add invariant 2."
+    },
+    {
+     "refuted": true,
+     "confidence": "high",
+     "key_findings": [
+      "Ran the proposed shape live: the unit reports success while readlink /proc/self/ns/net returns the HOST namespace, and ip addr shows the host interfaces",
+      "The user journal says 'network namespace setup not permitted, proceeding without'",
+      "A bogus path still exits 225, so the option is parsed and the setns silently skipped — fail-open",
+      "lane-vm has no --kind dsh run; the proxy shim is only string-asserted at eval",
+      "The lane sets danger-full-access BECAUSE the unit is the sandbox; a seat inverts that posture",
+      "The seat's own env probe at +43:51.64 shows OPENROUTER_API_KEY empty — the residual reach is the key FILE"
+     ],
+     "correction": "Split off the cheap bwrap mask; require a system unit; decide the allowlist question (the namespace allows only openrouter.ai)."
+    },
+    {
+     "refuted": true,
+     "confidence": "high",
+     "key_findings": [
+      "systemd-run --user with NetworkNamespacePath runs in net:[4026531840] (host) vs the broker's net:[4026533919]",
+      "The nsfs file is root:root 0444 owned by the init user namespace; setns as uid 1000 returns EPERM",
+      "lane-vm proves netns + injected Bearer + TLS using kind=chat and a fake claude script, not real dsh",
+      "lib/proxy-shim.cjs is generated at $out/lib in the harness package",
+      "The filesystem posture inverts and the nested bwrap mask is untested",
+      "Nothing in dsh 0.1.2-rc.1 blocks this — the blocker is systemd-side"
+     ],
+     "correction": "Require a system unit plus polkit; add a regression test asserting the seat's netns inode matches the broker's."
+    }
+   ]
+  }
+ ]
+}
