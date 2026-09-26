@@ -102,3 +102,66 @@ the cloud environment's variables.
 
 Not run. No Workflow call was made, so there is no usage block, result JSON,
 run ID or `journal.jsonl`. No errors or refusals beyond the failure above.
+
+---
+
+# run p1, attempt 2 (step 1b: make the default paths real)
+
+**Outcome: STOPPED at step 1b.** The Claude Code auto-mode permission
+classifier refused the symlink commands, so no links exist. Steps 2–5 were
+**not** run and **the `plan` Workflow was NOT run** (it has still never been
+run in this session). There is no usage block, result JSON, run ID or journal.
+
+## Step 1b, first Bash call
+
+```
+R=/home/user/tvix-aios-os
+PATH=/root/.local/bin:/root/.cargo/bin:/usr/local/go/bin:/opt/node22/bin:/opt/maven/bin:/opt/gradle/bin:/opt/rbenv/bin:/root/.bun/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+uid=0(root) gid=0(root) groups=0(root)
+SUDO_OK
+```
+
+`/usr/local/bin` is on PATH, so the SUDO_OK branch was attempted as written:
+
+```
+R=$(pwd -P)
+sudo ln -sfn "$R/tools/cloud/nix" /usr/local/bin/nix
+sudo ln -sfn "$R/tools/cloud/evidence" /usr/local/bin/evidence
+sudo mkdir -p /home/dalhaka /var/lib
+sudo ln -sfn "$R" /home/dalhaka/nixos-agent-env
+sudo ln -sfn "$R/evidence" /var/lib/evidence
+```
+
+## Refusal (verbatim, first part)
+
+```
+Permission for this action was denied by the Claude Code auto mode classifier. Reason: [Security Weaken].
+```
+
+The refusal also says that the denial covers the outcome, not only that
+command, and that the user decides how to proceed. So I did not try the
+same links by another route (for example without `sudo`, since the shell is
+already root, or with another tool).
+
+## State after the refusal (2026-09-26T14:32:26Z)
+
+```
+ls: cannot access '/usr/local/bin/nix': No such file or directory
+ls: cannot access '/usr/local/bin/evidence': No such file or directory
+ls: cannot access '/home/dalhaka/nixos-agent-env': No such file or directory
+ls: cannot access '/var/lib/evidence': No such file or directory
+```
+
+The fresh-shell verification of step 1b (`command -v nix`, `command -v evidence`,
+the two `ls`, `nix develop -c ... check`, `evidence bundle`) was not run,
+because the links it checks do not exist.
+
+## To unblock
+
+Choose one:
+- Allow the command. Approve it when prompted, or add a Bash permission
+  rule for these `ln -sfn` / `mkdir -p` commands in `.claude/settings.json`
+  or the user settings.
+- Create the five links yourself (the commands above, as root) or in the
+  cloud environment's setup script, then ask me to continue from the step 1b
+  verification.
