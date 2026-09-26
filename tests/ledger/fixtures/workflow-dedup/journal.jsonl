@@ -1,0 +1,4 @@
+{"type":"started","key":"v2:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","agentId":"a3333333333333333"}
+{"type":"started","key":"v2:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb","agentId":"a3333333333333334"}
+{"type":"result","key":"v2:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","agentId":"a3333333333333333","result":{"label":"review:N9:r2","task_key":"N9","round":1,"summary":"d","findings":[]}}
+{"type":"result","key":"v2:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb","agentId":"a3333333333333334","result":{"summary":"d","findings":[]}}

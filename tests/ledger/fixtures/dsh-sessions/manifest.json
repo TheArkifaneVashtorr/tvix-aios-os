@@ -1,0 +1,10 @@
+{
+  "session-aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa": {
+    "role": "deepseekPro",
+    "model": "deepseek/deepseek-v4-pro-0813"
+  },
+  "session-bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb": {
+    "role": "deepseekFlash",
+    "model": "deepseek/deepseek-v4-flash"
+  }
+}

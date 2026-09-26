@@ -1,0 +1,1042 @@
+#!/usr/bin/env bash
+# factory-task <run> <repo-path> <KEY> [--model ID] [--after KEY2] [--prior <run>/<KEY>]
+#
+# Runs factory-ws, then the dsh-openrouter seat, headless, in that workspace,
+# on the task brief factory-brief composes. stdout+stderr are teed to
+# ~/factory/runs/<run>/<KEY>.log; the run is bounded by FACTORY_TIMEOUT
+# seconds (default 3h). Writes ~/factory/runs/<run>/<KEY>.result: the
+# agent's own FACTORY-RESULT/CHECKS/COMMITS/NOTES lines (or a synthesized
+# FACTORY-RESULT status=failed if the agent never printed them), the branch
+# head, the commit log and diffstat against the task's fork point, and a
+# best-effort token-usage line read from the newest dsh session transcript.
+#
+# Env:
+#   FACTORY_PLAN              plan.md to read the task brief from (required;
+#                              unset or empty refuses with exit 2 before any
+#                              workspace or run dir is created)
+#   FACTORY_TASK_TEXT         ad-hoc task text for a KEY not in the plan
+#                              (passed through to factory-brief)
+#   FACTORY_TIMEOUT           wall-clock limit in seconds (default 10800)
+#   FACTORY_SHARED_DSH_HOME   1 = run against the operator's own shared
+#                              DSH_HOME (~/.local/share/dsh-openrouter)
+#                              instead of a fresh per-task one. Default 0:
+#                              see README.md for why (storages/workspace.json
+#                              races under concurrent headless launches).
+set -euo pipefail
+
+here=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)
+# shellcheck source=./factory-lib.sh
+# shellcheck disable=SC1091
+. "$here/factory-lib.sh"
+
+usage() {
+  cat <<'USAGE' >&2
+usage: factory-task <run> <repo-path> <KEY> [--model ID] [--after KEY2] [--prior <run>/<KEY>] [--rung N] [--fallback]
+USAGE
+}
+
+[ $# -ge 3 ] || {
+  usage
+  exit 2
+}
+run=$1
+repo_path_arg=$2
+key=$3
+shift 3
+
+model=
+after=
+prior=
+rung=
+rung_explicit=0
+want_fallback=0
+while [ $# -gt 0 ]; do
+  case $1 in
+    --model)
+      [ $# -ge 2 ] || factory_die 2 "--model needs a value"
+      model=$2
+      shift 2
+      ;;
+    --after)
+      [ $# -ge 2 ] || factory_die 2 "--after needs a value"
+      after=$2
+      shift 2
+      ;;
+    --rung)
+      [ $# -ge 2 ] || factory_die 2 "--rung needs a value"
+      case $2 in
+        '' | *[!0-9]* | 0) factory_die 2 "--rung $2 is not a positive integer" ;;
+        *) rung=$2 ;;
+      esac
+      rung_explicit=1
+      shift 2
+      ;;
+    --fallback)
+      want_fallback=1
+      shift
+      ;;
+    --prior)
+      [ $# -ge 2 ] || factory_die 2 "--prior needs a value"
+      prior=$2
+      shift 2
+      # A fix round names the prior attempt as <run>/<KEY>: any other shape is
+      # refused before a workspace or run dir exists.
+      [[ $prior =~ ^[A-Za-z0-9._-]+/[A-Za-z][A-Za-z0-9-]*$ ]] \
+        || factory_die 2 "--prior $prior is not a <run>/<KEY> pair"
+      ;;
+    *)
+      usage
+      exit 2
+      ;;
+  esac
+done
+
+repo_path=$(cd -- "$repo_path_arg" && pwd -P) || factory_die 2 "no such repo: $repo_path_arg"
+
+# A5 (P11): the plan must be named explicitly before any workspace or run dir
+# is created. Unset-or-empty refuses (exit 2, nothing written); a set but
+# unreadable path dies through factory_need_file's existing exit-2 message.
+if [ -z "${FACTORY_PLAN:-}" ]; then
+  factory_die 2 "FACTORY_PLAN is unset — name the plan (FACTORY_PLAN=<plan.md> …) or launch through factory-dispatch"
+fi
+plan=$FACTORY_PLAN
+factory_need_file "$plan"
+# A5 (P11) / P11r: absolutise our own FACTORY_PLAN the same way factory-wave
+# does, through the shared factory_abs_plan helper, so the brief and the
+# routing lookup read the same canonical path (a symlinked plan resolves to
+# the file it actually names) regardless of the caller's cwd.
+plan=$(factory_abs_plan "$plan")
+export FACTORY_PLAN="$plan"
+
+# CA1: the codex arm's config reader. Prints the value of the first top-level
+# line `<key> = "<value>"` in $1 (spaces optional around `=`; only a
+# double-quoted value), reading lines only until the first line whose first
+# non-blank character is `[` (a table header). Prints nothing for an absent or
+# unreadable file, an absent key, or a key that appears only inside a table.
+# Exit 0 always. `model_reasoning_effort` never matches the key `model` (the
+# line must continue with `=` after the key and optional blanks).
+factory_codex_config_value() {
+  local file=$1 key=$2 line rest
+  [ -r "$file" ] || return 0
+  while IFS= read -r line || [ -n "$line" ]; do
+    line=${line#"${line%%[![:space:]]*}"}
+    case $line in
+      '['*) return 0 ;;
+      "$key"*)
+        rest=${line#"$key"}
+        rest=${rest#"${rest%%[![:space:]]*}"}
+        case $rest in
+          '='*)
+            rest=${rest#=}
+            rest=${rest#"${rest%%[![:space:]]*}"}
+            case $rest in
+              '"'*'"'*)
+                rest=${rest#\"}
+                printf '%s\n' "${rest%%\"*}"
+                return 0
+                ;;
+            esac
+            ;;
+        esac
+        ;;
+    esac
+  done <"$file"
+}
+
+# SD3: a claude rung. Resolve the claude implement row, then write
+# $FACTORY_RUNS/<run>/<KEY>.escalate (run, key, role, rung, escalate, model,
+# effort, route, class, plan, launch) and exit 4 -- before any workspace, log,
+# pid file or .result exists. The launch: line (a dark-factory Workflow over
+# this one key) is printed on stdout and recorded as the .escalate's launch:
+# line. Called only on the dsh arm; reads the surrounding script locals.
+factory_task_escalate() {
+  local claude_line claude_model claude_effort
+  local repo_name plan_base chain_root prefix plan_rel scratch launch tasks_json
+  claude_line=$route_line
+  # FA1: a cross-route claude winner (a class-scoped claude row at the requested
+  # rung) already printed its row on stdout before returning 4 (see
+  # factory_route); take that printed row instead of re-resolving --route claude
+  # at rung 1, which would name a different, less specific claude row. The
+  # exhausted-ladder path prints nothing, so $route_line is empty there and we
+  # still re-resolve the claude ladder.
+  [ -n "$claude_line" ] || claude_line=$(factory_route --route claude --class "$class" implement "$kind" "$size" || true)
+  claude_model=${claude_line%% *}
+  claude_effort=${claude_line##* }
+  repo_name=$(basename -- "$repo_path")
+  plan_base=$(basename -- "$plan")
+  # The one-key tasks[] array for the launch line, from the graph's own
+  # --factory-args; the literal placeholder when the query cannot run.
+  tasks_json=$(factory_py "$FACTORY_TOOLBOX_REPO/pkgs/evidence/tasks.py" \
+    --root "$repo_path" waves --repo "$repo_name" --plan "$plan_base" --factory-args 2>/dev/null) \
+    || tasks_json='[ /* tasks.py waves --factory-args failed: run it by hand */ ]'
+  case $key in
+    *[0-9][a-z][a-z]) chain_root=${key%??} ;;
+    *[0-9][a-z]) chain_root=${key%?} ;;
+    *) chain_root=$key ;;
+  esac
+  prefix=${chain_root,,}
+  plan_rel=$(realpath --relative-to="$repo_path" "$plan" 2>/dev/null || printf '%s' "$plan")
+  # shellcheck disable=SC2153  # FACTORY_RUNS comes from the sourced factory-lib.sh, not a typo of FACTORY_RUN
+  scratch="$FACTORY_RUNS/$run/$key-scratch"
+  launch="Workflow({ scriptPath: 'tools/factory/dark-factory.js', args: { plan: '$plan_rel', prefix: '$prefix', tasks: $tasks_json, scratch: '$scratch' } })"
+  # shellcheck disable=SC2153
+  mkdir -p -- "$FACTORY_RUNS/$run"
+  {
+    printf 'run: %s\n' "$run"
+    printf 'key: %s\n' "$key"
+    printf 'role: implement\n'
+    printf 'rung: %s\n' "$rung"
+    printf 'escalate: claude/implement\n'
+    printf 'model: %s\n' "$claude_model"
+    printf 'effort: %s\n' "$claude_effort"
+    printf 'route: implement/%s/%s\n' "$kind" "$size"
+    printf 'class: %s\n' "$class"
+    printf 'plan: %s\n' "$plan"
+    printf 'launch: %s\n' "$launch"
+  } >"$FACTORY_RUNS/$run/$key.escalate"
+  factory_log "$key at rung $rung is a claude rung — the launch line is in $FACTORY_RUNS/$run/$key.escalate"
+  printf 'launch: %s\n' "$launch"
+  exit 4
+}
+
+# CA1: the seat arm. Exactly `codex` selects the Codex arm; unset or empty is
+# today's seat (seat-submit or dsh-openrouter), byte for byte; any other value
+# refuses before a workspace or run dir exists (the FACTORY_PLAN guard's shape).
+seat_arm=dsh
+case ${FACTORY_SEAT:-} in
+  '') ;;
+  codex)
+    seat_arm=codex
+    command -v codex >/dev/null 2>&1 || factory_die 2 "FACTORY_SEAT=codex but no codex on PATH"
+    ;;
+  *) factory_die 2 "FACTORY_SEAT=${FACTORY_SEAT} is not a seat arm (unset it, or set it to codex)" ;;
+esac
+
+# Resolve the model and effort for this task. On the dsh arm the model: an
+# explicit --model flag wins, then OPENROUTER_MODEL, then the routing table's
+# row for this task's role/kind/size (role implement), then the built-in
+# default if the table is unusable. The effort: OPENROUTER_REASONING_EFFORT if
+# set, else the route's effort. `explicit` (vs `role/kind/size`) records where
+# the model came from. On the codex arm (FACTORY_SEAT=codex) the route is never
+# consulted: OPENROUTER_MODEL and OPENROUTER_REASONING_EFFORT are ignored, the
+# --model flag still wins (recorded as `explicit`), and the version, the
+# brief's <model> and the banner's model fall back through codex's own config.
+kind_size=$(factory_task_kind_size "$plan" "$key")
+read -r kind size <<<"$kind_size"
+class=$(factory_task_class "$plan" "$key")
+# SD3: the rung comes from the key (an explicit --rung wins). The fallback
+# model, recorded only when --fallback actually chose it, starts empty.
+rung=${rung:-$(factory_rung_of_key "$key")}
+rung_label=$rung
+[ "$rung_explicit" -eq 1 ] && rung_label="$rung (explicit)"
+fallback_model=
+if [ "$seat_arm" = codex ]; then
+  [ -z "${OPENROUTER_MODEL:-}" ] || factory_log "warning: OPENROUTER_MODEL is ignored under FACTORY_SEAT=codex"
+  [ -z "${OPENROUTER_REASONING_EFFORT:-}" ] || factory_log "warning: OPENROUTER_REASONING_EFFORT is ignored under FACTORY_SEAT=codex"
+  codex_home=${CODEX_HOME:-$HOME/.codex}
+  effort=
+  if [ -n "$model" ]; then route_label=explicit; else route_label="codex/$kind/$size"; fi
+  codex_version=$(codex --version 2>/dev/null | head -n1 || true)
+  codex_version=${codex_version##* }
+  if [[ $codex_version =~ ^[0-9]+\.[0-9]+\.[0-9]+([.-][0-9A-Za-z.-]+)?$ ]]; then
+    export FACTORY_SEAT_VERSION=$codex_version
+  else
+    unset FACTORY_SEAT_VERSION
+    factory_log "warning: codex --version printed no version; the brief's trailer keeps its <version> placeholder"
+  fi
+  brief_model=$model
+  [ -n "$brief_model" ] || brief_model=$(factory_codex_config_value "$codex_home/config.toml" model)
+  brief_model=${brief_model:-unknown}
+else
+  explicit=0
+  if [ -n "$model" ]; then
+    explicit=1
+  elif [ -n "${OPENROUTER_MODEL:-}" ]; then
+    model=$OPENROUTER_MODEL
+    explicit=1
+  fi
+  if [ "$explicit" -eq 1 ]; then
+    # An explicit --model/OPENROUTER_MODEL wins over the ladder and any
+    # --fallback: the lookup below only feeds the effort (lenient, no
+    # escalation, no fallback), and the route is recorded explicit.
+    route_line=$(factory_route --rung "$rung" --class "$class" implement "$kind" "$size" || true)
+    route_model=${route_line%% *}
+    route_effort=${route_line##* }
+    effort=${OPENROUTER_REASONING_EFFORT:-$route_effort}
+    route_label=explicit
+  else
+    route_args=(--rung "$rung" --class "$class")
+    [ "$want_fallback" -eq 1 ] && route_args+=(--fallback)
+    route_args+=(implement "$kind" "$size")
+    route_rc=0
+    route_line=$(factory_route "${route_args[@]}") || route_rc=$?
+    route_model=${route_line%% *}
+    route_effort=${route_line##* }
+    effort=${OPENROUTER_REASONING_EFFORT:-$route_effort}
+    case $route_rc in
+      0)
+        model=$route_model
+        if [ "$want_fallback" -eq 1 ]; then
+          fallback_model=$route_model
+        fi
+        route_label="implement/$kind/$size"
+        ;;
+      3)
+        model=deepseek/deepseek-v4-pro-0813
+        factory_log "warning: routing table unusable (docs/ledger/routing.toml); using built-in default $model"
+        route_label="implement/$kind/$size"
+        ;;
+      4)
+        if [ "$want_fallback" -eq 1 ]; then
+          factory_die 2 "no fallback for $key at rung $rung"
+        fi
+        factory_task_escalate
+        ;;
+      *)
+        model=deepseek/deepseek-v4-pro-0813
+        factory_log "warning: routing table unusable (docs/ledger/routing.toml); using built-in default $model"
+        route_label="implement/$kind/$size"
+        ;;
+    esac
+  fi
+  brief_model=$model
+fi
+
+# SD4: a fix round composes the prior attempt before the brief (and before any
+# run dir or workspace exists), so a missing prior .result dies with nothing
+# created. factory_prior_block prints stderr and returns 2 on a missing result;
+# set -e propagates that status out of the assignment.
+if [ -n "$prior" ]; then
+  prior_run=${prior%%/*}
+  prior_key=${prior#*/}
+  # shellcheck disable=SC2153  # FACTORY_RUNS comes from the sourced factory-lib.sh, not a typo of FACTORY_RUN
+  FACTORY_BRIEF_PRIOR=$(factory_prior_block "$FACTORY_RUNS" "$repo_path" "$prior_run" "$prior_key")
+  export FACTORY_BRIEF_PRIOR
+fi
+
+# shellcheck disable=SC2153  # FACTORY_RUNS and FACTORY_BIN (below) come from the sourced factory-lib.sh, not a typo of FACTORY_RUN/FACTORY_ROOT
+runs_dir=$FACTORY_RUNS/$run
+mkdir -p -- "$runs_dir"
+
+# CR3b: record this task's own pid in <KEY>.pid beside its log while it runs,
+# and remove it on exit. This is the task's liveness record, distinct from the
+# wave's pid in run.meta, so the ritual's in-flight table can tell a running
+# seat from a wave that already finished.
+pid_file=$runs_dir/$key.pid
+printf '%s\n' "$$" >"$pid_file"
+trap 'rm -f -- "$pid_file"' EXIT
+
+ws_args=("$run" "$repo_path" "$key")
+if [ -n "$after" ]; then ws_args+=("task/$after"); elif [ -n "${FACTORY_BASE_BRANCH:-}" ]; then ws_args+=("$FACTORY_BASE_BRANCH"); fi
+factory_log "workspace: factory-ws ${ws_args[*]}"
+# shellcheck disable=SC2153  # FACTORY_BIN comes from the sourced factory-lib.sh, not a typo
+ws=$("$FACTORY_BIN/factory-ws" "${ws_args[@]}")
+
+# CA1: no DSH_HOME under codex -- the seed (and the <KEY>.dsh-home dir) is the
+# dsh arm's alone; dsh_home stays unset so the usage lookup below knows to read
+# codex's rollout instead.
+if [ "$seat_arm" != codex ]; then
+  shared_dsh=${FACTORY_SHARED_DSH_HOME:-0}
+  if [ "$shared_dsh" = "1" ]; then
+    dsh_home=${DSH_HOME:-$HOME/.local/share/dsh-openrouter}
+    factory_log "DSH_HOME: shared ($dsh_home) -- FACTORY_SHARED_DSH_HOME=1"
+  else
+    dsh_home=$runs_dir/$key.dsh-home
+    factory_seed_dsh_home "$dsh_home"
+    factory_log "DSH_HOME: isolated ($dsh_home)"
+  fi
+fi
+
+export FACTORY_RUN=$run
+export FACTORY_MODEL=$brief_model
+brief=$(FACTORY_TASK_TEXT=${FACTORY_TASK_TEXT:-} "$FACTORY_BIN/factory-brief" "$plan" "$key")
+
+log=$runs_dir/$key.log
+: >"$log"
+marker=$(mktemp -p "$runs_dir" ".marker-$key.XXXXXX")
+timeout_s=${FACTORY_TIMEOUT:-10800}
+
+# FIX1 (part b): resolve the submit command exactly as seat-drive.sh:111-114
+# does -- $SEAT_SUBMIT if set, else seat-submit on PATH -- before any harness
+# launches. The direct arm (else, below) exports the operator's key and runs
+# dsh-openrouter outside the broker, so it may run only as the explicit
+# FACTORY_SEAT_UNIT=0 opt-out: when neither spelling resolves and the seam is
+# not "0", refuse instead of silently degrading into the direct arm (brief §3
+# invariants 2 and 3). The $SEAT_SUBMIT override is how the tests inject a
+# fake and how the fix is proven before the switch; it is never a nix run
+# fallback (a runtime fallback in the launch path is the defect's own shape).
+if [ "$seat_arm" != codex ]; then
+  seat_cmd=()
+  if [ -n "${SEAT_SUBMIT:-}" ]; then
+    seat_cmd=("$SEAT_SUBMIT")
+  elif command -v seat-submit >/dev/null 2>&1; then
+    seat_cmd=(seat-submit)
+  elif [ "${FACTORY_SEAT_UNIT:-1}" != "0" ]; then
+    printf '%s\n' "factory-task: refusing -- no seat-submit on PATH and SEAT_SUBMIT is unset; set FACTORY_SEAT_UNIT=0 for the direct arm (docs/brief.md invariants 2 and 3)" >&2
+    exit 2
+  fi
+fi
+
+# When seat-submit resolves (see the FIX1 preflight above) and FACTORY_SEAT_UNIT
+# is not "0", run the task through seat-submit instead of dsh-openrouter
+# directly: seat-submit writes the job, starts seat@<id>, and (headless) streams
+# the unit's stdout.txt back -- which lands in $log below exactly as the seat's
+# stdout did before, so the FACTORY-RESULT extraction further down is
+# unchanged. Otherwise keep today's direct-launch path (now guarded to run only
+# under FACTORY_SEAT_UNIT=0). The model/effort chosen by factory_route above are
+# passed to seat-submit; the DSH_HOME isolation (P0) is preserved via --dsh-home
+# / DSH_HOME.
+seat_id=
+submit_failed=0
+if [ "$seat_arm" = codex ]; then
+  factory_log "launching codex exec in $ws (timeout ${timeout_s}s, log $log)"
+  codex_args=(exec -c features.plugins=false -c 'otel.metrics_exporter="none"' --sandbox danger-full-access --color never)
+  [ -z "$model" ] || codex_args+=(-m "$model")
+  codex_args+=(-)
+  start_ts=$(date +%s)
+  set +e
+  (
+    cd -- "$ws" &&
+      printf '%s\n' "$brief" | timeout -- "$timeout_s" codex "${codex_args[@]}"
+  ) 2>&1 | tee -a -- "$log"
+  exit_code=${PIPESTATUS[0]}
+  set -e
+  end_ts=$(date +%s)
+  wall_s=$((end_ts - start_ts))
+  factory_log "codex exited $exit_code after ${wall_s}s"
+elif [ "${#seat_cmd[@]}" -gt 0 ] && [ "${FACTORY_SEAT_UNIT:-1}" != "0" ]; then
+  brief_file=$(mktemp -p "$runs_dir" "brief-$key.XXXXXX")
+  printf '%s\n' "$brief" >"$brief_file"
+  submit_out=$(mktemp -p "$runs_dir" ".submit-$key.XXXXXX")
+  submit_err=$(mktemp -p "$runs_dir" ".submit-err-$key.XXXXXX")
+  factory_log "submitting seat job via seat-submit headless in $ws (timeout ${timeout_s}s, log $log)"
+  start_ts=$(date +%s)
+  set +e
+  # SD3: inside a seat unit (SEAT_JOB_ID exported by seat-run) the submit is
+  # spooled, not started -- the enclosing unit's spool starts the job and
+  # --wait streams it. On the host the started call is unchanged.
+  if [ -n "${SEAT_JOB_ID:-}" ]; then
+    spool_flags=(--no-start --wait)
+  else
+    spool_flags=()
+  fi
+  (
+    DSH_HOME=$dsh_home \
+      OPENROUTER_REASONING_EFFORT=$effort \
+      "${seat_cmd[@]}" headless \
+        "${spool_flags[@]}" \
+        --workspace "$ws" \
+        --dsh-home "$dsh_home" \
+        --model "$model" \
+        --effort "$effort" \
+        --brief "$brief_file" \
+        --timeout "$timeout_s" \
+        2>"$submit_err"
+  ) | tee -a -- "$log" >"$submit_out"
+  exit_code=${PIPESTATUS[0]}
+  set -e
+  # Stream seat-submit's stderr into the task log so its errors sit next to the
+  # streamed stdout instead of being lost; stdout (which carries the id and the
+  # unit's stdout.txt) was tee'd into the log live above.
+  tee -a -- "$log" <"$submit_err" >/dev/null
+  seat_id=$(head -n1 -- "$submit_out" || true)
+  # Trust only a printf-shaped id `YYYYmmdd-HHMMSS-<6 hex>`. Anything else (an
+  # error line that beat the id into the stream, a blank, plain garbage) means
+  # the submit produced no usable id -- record that as a failure rather than a
+  # bogus `seat:` line.
+  if [[ "$seat_id" =~ ^[0-9]{8}-[0-9]{6}-[0-9a-f]{6}$ ]]; then
+    :
+  else
+    seat_id=
+    submit_failed=1
+    factory_log "seat-submit produced no valid job id on stdout; marking the submit failed"
+  fi
+  rm -f -- "$submit_out" "$submit_err" "$brief_file"
+  end_ts=$(date +%s)
+  wall_s=$((end_ts - start_ts))
+  factory_log "seat ${seat_id:-<no id>} exited $exit_code after ${wall_s}s"
+else
+  factory_log "launching dsh-openrouter --model $model --headless in $ws (timeout ${timeout_s}s, log $log)"
+  # FIX1 (part b): the direct arm runs the harness with the operator's key
+  # exported outside the broker, so it may only run under the explicit
+  # FACTORY_SEAT_UNIT=0 opt-out. Name that in the log so a bypass can never
+  # again be invisible in a run log.
+  printf '%s\n' "FACTORY_SEAT_UNIT=0: direct arm, the operator's key outside the broker" >>"$log"
+  start_ts=$(date +%s)
+  set +e
+  (
+    cd -- "$ws" &&
+      DSH_HOME=$dsh_home \
+        OPENROUTER_REASONING_EFFORT=$effort \
+        timeout -- "$timeout_s" dsh-openrouter --model "$model" --headless "$brief"
+  ) 2>&1 | tee -a -- "$log"
+  exit_code=${PIPESTATUS[0]}
+  set -e
+  end_ts=$(date +%s)
+  wall_s=$((end_ts - start_ts))
+  factory_log "seat exited $exit_code after ${wall_s}s"
+fi
+
+# CA1: read the banner window -- the block between the first two lines that are
+# exactly `--------` -- and only inside it the `model:`, `reasoning effort:` and
+# `session id:` fields. model = the banner's, else the config file's top-level
+# `model`, else `unknown`; effort = the banner's `reasoning effort`, else the
+# config's `model_reasoning_effort`, else `unknown` (the ingest maps anything
+# outside off|low|medium|high|xhigh to `unknown`); session_id = the banner's
+# `session id` when it is 36 hex-and-dash characters, else empty.
+if [ "$seat_arm" = codex ]; then
+  banner=$(awk '$0 == "--------" { n++; if (n == 2) exit; next } n == 1 { print }' "$log")
+  banner_model=$(printf '%s\n' "$banner" | sed -nE 's/^model:[[:space:]]+(.+)$/\1/p' | head -n1)
+  banner_effort=$(printf '%s\n' "$banner" | sed -nE 's/^reasoning effort:[[:space:]]+(.+)$/\1/p' | head -n1)
+  session_id=$(printf '%s\n' "$banner" | sed -nE 's/^session id:[[:space:]]+([0-9a-fA-F-]{36})[[:space:]]*$/\1/p' | head -n1)
+  model=${banner_model:-$(factory_codex_config_value "$codex_home/config.toml" model)}
+  model=${model:-unknown}
+  effort=${banner_effort:-$(factory_codex_config_value "$codex_home/config.toml" model_reasoning_effort)}
+  effort=${effort:-unknown}
+fi
+
+# SH2: compute the git facts immediately after the seat exits, before the
+# result-line synthesis below reads them (they were ~30 lines lower, where the
+# arms could only assert a constant 0). With no .factory-meta base_sha is
+# empty, so actual_commits stays empty — nothing is verifiable then.
+head_sha=$(git -C "$ws" rev-parse "task/$key" 2>/dev/null || echo unknown)
+base_sha=$(factory_task_base_sha "$run" "$key")
+actual_commits=
+if [ -n "$base_sha" ]; then
+  actual_commits=$(git -C "$ws" rev-list --count "$base_sha..task/$key" 2>/dev/null || true)
+fi
+
+# The brief itself quotes the FACTORY-RESULT format as a template (with
+# literal "<done|partial|failed>" placeholders), and a headless model's
+# visible reasoning routinely echoes that template back while it plans its
+# answer -- both land in $log ahead of the real, final block. So: take the
+# LAST line matching each label, and skip any candidate that still has "<"
+# in it (the placeholder's tell -- a real answer never needs one).
+extract_field() {
+  grep -E "^$1([[:space:]]|\$)" -- "$log" | grep -v '<' | tail -n1 || true
+}
+# A5 (P11): ACCEPTED is a line with no '<' matching the strict grammar
+# `FACTORY-RESULT status=(done|partial|failed)` (the last one wins, as today).
+# NEAR-MISS is a line with no '<' that mentions FACTORY-RESULT but does not
+# match that grammar -- a colon after the label, `status:` instead of `status=`,
+# a status word outside the three, or markdown decoration around the label.
+result_line=$(
+  grep -E '^FACTORY-RESULT[[:space:]]+status=(done|partial|failed)([[:space:]]|$)' -- "$log" \
+    | grep -v '<' | tail -n1 || true
+)
+near_miss_line=$(
+  grep 'FACTORY-RESULT' -- "$log" \
+    | grep -v '<' \
+    | grep -vE '^FACTORY-RESULT[[:space:]]+status=(done|partial|failed)([[:space:]]|$)' \
+    | tail -n1 || true
+)
+checks_line=$(extract_field 'FACTORY-CHECKS')
+commits_line=$(extract_field 'FACTORY-COMMITS')
+notes_line=$(extract_field 'FACTORY-NOTES')
+
+# The seat's claim body, captured before the synthesis arms can rewrite
+# checks_line: it drives both the verification name set and the demotion table.
+seat_checks_body=$(printf '%s\n' "$checks_line" | sed -nE 's/^FACTORY-CHECKS[[:space:]]*(.*)$/\1/p' | tr -d '[:cntrl:]')
+
+# SH4: verify the acceptance checks at the committed rev before the synthesis
+# arms read the driver's verdicts. One budget per task (FACTORY_VERIFY_TIMEOUT,
+# default 1800), shared with SH5's probes; FACTORY_VERIFY=0 skips entirely (an
+# operator hand run). The name set is the section's acceptance names union the
+# seat's claimed passes (hr1/H2's pre-commit=pass), in that order.
+verify_flag=
+checks_verified=
+checks_verified_src=
+verify_s=
+checks_scope=
+checks_scope_files=
+checks_scope_list=
+verify_folded_checks=
+probes_verified=
+probe_values=
+probe_env_out=
+probe_notes=
+probe_demoted=
+if [ "${FACTORY_VERIFY:-1}" = "0" ]; then
+  factory_log "verify: skipped (FACTORY_VERIFY=0)"
+elif [ "$head_sha" != "unknown" ]; then
+  mapfile -t verify_names < <(factory_acceptance_names "$plan" "$key") || true
+  if [ "${#verify_names[@]}" -gt 0 ]; then
+    verify_budget=${FACTORY_VERIFY_TIMEOUT:-1800}
+    printf '%s\n' "$verify_budget" >"$runs_dir/$key.verify-budget"
+    if [ -n "$seat_checks_body" ]; then
+      read -r -a seat_tokens <<<"$seat_checks_body" || true
+      for token in "${seat_tokens[@]}"; do
+        case "$token" in
+          *=pass)
+            vname=${token%=pass}
+            already=0
+            for n in "${verify_names[@]}"; do
+              [ "$n" = "$vname" ] && already=1
+            done
+            if [ "$already" -eq 0 ]; then
+              verify_names+=("$vname")
+            fi
+            ;;
+        esac
+      done
+    fi
+    verify_start=$(date +%s)
+    verify_rc=0
+    checks_verified_out=$(factory_verify_checks "$ws" "$head_sha" "$verify_budget" "${verify_names[@]}") || verify_rc=$?
+    verify_s=$(( $(date +%s) - verify_start ))
+    if [ "$verify_rc" -eq 3 ]; then
+      verify_flag=timeout
+    fi
+    while read -r vname vverdict vsrc _; do
+      [ -n "$vname" ] || continue
+      checks_verified="${checks_verified:+$checks_verified }$vname=$vverdict"
+      checks_verified_src="${checks_verified_src:+$checks_verified_src }$vname=$vsrc"
+    done <<<"$checks_verified_out"
+    # checks_scope: dirty when the diff touches flake.nix, tests, or githooks.
+    if [ -n "$base_sha" ]; then
+      scope_roots=$(mktemp -p "$runs_dir" ".scope-$key.XXXXXX")
+      printf 'flake.nix\ntests\ngithooks\n' >"$scope_roots"
+      checks_scope=clean
+      checks_scope_files=0
+      while IFS= read -r p; do
+        [ -n "$p" ] || continue
+        if factory_touches_covers "$p" "$scope_roots"; then
+          checks_scope=dirty
+          checks_scope_files=$((checks_scope_files + 1))
+          checks_scope_list="${checks_scope_list:+$checks_scope_list }$p"
+        fi
+      done < <(git -C "$ws" diff --name-only "$base_sha..task/$key" 2>/dev/null || true)
+      rm -f -- "$scope_roots"
+    fi
+    # SH5: run the section's probes under the same budget, in the seat's
+    # workspace (FACTORY_RUN unset, the section's probe_env tokens applied after,
+    # the seat's cwd and rev — the workspace as the seat left it). The seat's
+    # own values are the last `FACTORY-PROBE <name>=<value>` line per name.
+    probe_contract=
+    probe_rc=0
+    probe_contract=$(factory_task_probes "$plan" "$key") || probe_rc=$?
+    if [ "$probe_rc" -eq 0 ]; then
+      probe_env_line=$(printf '%s\n' "$probe_contract" | sed -n '1s/^env\t//p')
+      probe_env_out=${probe_env_line:--}
+      probe_rows=$(printf '%s\n' "$probe_contract" | tail -n +2 | sed '/^[[:space:]]*$/d')
+      if [ -n "$probe_rows" ]; then
+        # pby is the bullet's "by whom" attribution — read, never recorded.
+        while IFS= read -r line; do
+          # Tab is IFS whitespace, so a naive IFS=$'\t' read collapses the
+          # empty <value> column of an empty/nonempty probe. Split on the unit
+          # separator instead (never present in a probe line) so empty fields
+          # survive and the command stays in its own column.
+          line=${line//$'\t'/$'\x1f'}
+          # shellcheck disable=SC2034
+          IFS=$'\x1f' read -r pname pop pvalue pby pcmd <<<"$line"
+          [ -n "$pname" ] || continue
+          remaining=$((verify_budget - ($(date +%s) - verify_start)))
+          pdiver=
+          poutcome=
+          pseat=
+          pseat_line=
+          if [ "$remaining" -lt 1 ]; then
+            poutcome=not-run
+          else
+            prc=0
+            pdiver=$(factory_run_probe "$ws" "$probe_env_line" "$remaining" "$pcmd") || prc=$?
+            if [ "$prc" -eq 124 ]; then
+              poutcome=not-run
+              verify_flag=timeout
+            fi
+          fi
+          pseat_line=$(grep -E "^FACTORY-PROBE[[:space:]]+$pname=" -- "$log" 2>/dev/null | grep -v '<' | tail -n1) || true
+          pseat=$(printf '%s' "$pseat_line" | sed -E "s/^FACTORY-PROBE[[:space:]]+$pname=//")
+          if [ -z "$poutcome" ]; then
+            cmpv=$(factory_probe_compare "$pop" "$pvalue" "$pdiver")
+            if [ "$cmpv" = "fail" ]; then
+              poutcome=fail
+            elif [ -z "$pseat_line" ]; then
+              poutcome=missing
+            elif [ "$pseat" != "$pdiver" ]; then
+              poutcome=drift
+            else
+              poutcome=pass
+            fi
+          fi
+          pdv=$(printf '%s' "$pdiver" | tr ' ' '_')
+          psv=$(printf '%s' "$pseat" | tr ' ' '_')
+          [ -n "$pdv" ] || pdv=-
+          [ -n "$psv" ] || psv=-
+          probes_verified="${probes_verified:+$probes_verified }$pname=$poutcome"
+          probe_values="${probe_values:+$probe_values }$pname=$pdv|$psv"
+          case "$poutcome" in
+            fail)
+              probe_demoted=probe-mismatch
+              probe_notes="${probe_notes}; probe $pname driver $pdiver $pop $pvalue: fail"
+              ;;
+            missing)
+              [ -n "$probe_demoted" ] || probe_demoted=probe-missing
+              probe_notes="${probe_notes}; probe $pname not pasted by the seat"
+              ;;
+            drift)
+              probe_notes="${probe_notes}; probe $pname drift: seat $pseat, driver $pdiver"
+              ;;
+            not-run)
+              probe_notes="${probe_notes}; probe $pname not-run"
+              ;;
+          esac
+        done <<<"$probe_rows"
+      fi
+    fi
+  fi
+fi
+verify_folded_checks=$(printf '%s\n' "$checks_verified" | sed -E 's/not-run:[a-z-]+/not-run/g')
+
+synth=
+demoted=
+derived=
+if [ "$submit_failed" -eq 1 ]; then
+  synth=submit
+  factory_log "seat submit produced no valid job id; synthesizing a failure record"
+  result_line="FACTORY-RESULT status=failed exit_code=$exit_code"
+  checks_line="FACTORY-CHECKS none=not-run"
+  commits_line="FACTORY-COMMITS 0"
+  notes_line="FACTORY-NOTES seat-submit produced no valid job id; see $log"
+elif [ -z "$result_line" ] && [ -n "$near_miss_line" ]; then
+  # A near-miss is recorded verbatim (not guessed at): the last such line,
+  # first 200 bytes, tabs and control bytes folded to a space.
+  synth=nearmiss
+  near_note=$(printf '%s' "$near_miss_line" | head -c 200 | tr '[:cntrl:]' ' ')
+  notes_line="FACTORY-NOTES result-misparse: $near_note"
+  if [ -n "$actual_commits" ] && [ "$actual_commits" -gt 0 ]; then
+    # SH2: the seat lost its result block but the branch has commits — record
+    # it honestly as unreported with the real git facts rather than a failure
+    # the seat did not actually reach.
+    factory_log "near-miss FACTORY-RESULT line, but task/$key has $actual_commits commit(s); recording unreported"
+    result_line="FACTORY-RESULT status=unreported exit_code=$exit_code"
+    checks_line=$(factory_derived_checks_line "$verify_folded_checks")
+    commits_line="FACTORY-COMMITS $actual_commits"
+    derived="checks commits"
+  else
+    factory_log "near-miss FACTORY-RESULT line in the seat's output; recording it verbatim as failed"
+    result_line="FACTORY-RESULT status=failed exit_code=$exit_code"
+    checks_line="FACTORY-CHECKS none=not-run"
+    commits_line="FACTORY-COMMITS 0"
+  fi
+elif [ -z "$result_line" ]; then
+  synth=none
+  notes_line="FACTORY-NOTES the seat produced no usable FACTORY-RESULT line; see $log"
+  if [ -n "$actual_commits" ] && [ "$actual_commits" -gt 0 ]; then
+    factory_log "no usable FACTORY-RESULT line, but task/$key has $actual_commits commit(s); recording unreported"
+    result_line="FACTORY-RESULT status=unreported exit_code=$exit_code"
+    checks_line=$(factory_derived_checks_line "$verify_folded_checks")
+    commits_line="FACTORY-COMMITS $actual_commits"
+    derived="checks commits"
+  else
+    factory_log "no usable FACTORY-RESULT line in the seat's output; synthesizing a failure record"
+    result_line="FACTORY-RESULT status=failed exit_code=$exit_code"
+    checks_line="FACTORY-CHECKS none=not-run"
+    commits_line="FACTORY-COMMITS 0"
+  fi
+fi
+[ -n "$checks_line" ] || checks_line='FACTORY-CHECKS none=not-run'
+[ -n "$commits_line" ] || commits_line='FACTORY-COMMITS 0'
+[ -n "$notes_line" ] || notes_line='FACTORY-NOTES (none given)'
+result_block=$(printf '%s\n%s\n%s\n%s' "$result_line" "$checks_line" "$commits_line" "$notes_line")
+
+status=$(printf '%s\n' "$result_line" | sed -nE 's/^FACTORY-RESULT[[:space:]]+status=([a-zA-Z_-]+).*/\1/p')
+
+# CR3r (rule A1, item 6): never record status=done for a run with no commit.
+# Once the fork point is known, verify the seat's FACTORY-COMMITS claim against
+# the branch and reject a template echo (a bare "ok" NOTES): a done with a
+# mismatched claim, or with no commits at all, is demoted to failed and the lie
+# is spelled out in the notes. Without a fork point nothing can be verified, so
+# the seat's own word stands (the historical lenient path). head_sha/base_sha
+# and actual_commits are hoisted above (before the synthesis arms), so this
+# block reads them rather than recomputing.
+if [ -n "$base_sha" ]; then
+  claimed_commits=$(printf '%s\n' "$commits_line" | sed -nE 's/^FACTORY-COMMITS[[:space:]]*([0-9]+).*/\1/p')
+  notes_body=$(printf '%s\n' "$notes_line" | sed -E 's/^FACTORY-NOTES[[:space:]]*//; s/^[[:space:]]+//; s/[[:space:]]+$//')
+  if [ "$status" = "done" ] && [ -n "$claimed_commits" ] && [ -n "$actual_commits" ] && [ "$claimed_commits" != "$actual_commits" ]; then
+    # Scope the mismatch arm to a done claim: a seat that already reported
+    # status=failed keeps its own diagnosis (CR3r re-review MINOR-1). The
+    # claimed/found clause is appended to the seat's own notes, not substituted
+    # for them, so the operator still reads why the seat thought it was done.
+    demoted=mismatch
+    factory_log "FACTORY-COMMITS claims $claimed_commits, the branch has $actual_commits; recording failed"
+    status=failed
+    notes_line="FACTORY-NOTES ${notes_body}; claimed $claimed_commits commits, found $actual_commits"
+  elif [ "$status" = "done" ] && [ -n "$actual_commits" ] && [ "$actual_commits" -eq 0 ]; then
+    demoted=zero-commits
+    factory_log "status=done but task/$key has no commits; recording failed"
+    status=failed
+    notes_line="FACTORY-NOTES status=done but the branch has no commits"
+  elif [ "$status" = "done" ] && [ "$notes_body" = "ok" ]; then
+    demoted="echo"
+    factory_log "a bare 'ok' result is a template echo, not a completion; recording failed"
+    status=failed
+    notes_line="FACTORY-NOTES a bare result was echoed, not a real completion"
+  fi
+  if [ "$status" = "failed" ]; then
+    # Demote without dropping other fields the original result line carried --
+    # notably exit_code= on a synthesized or timed-out seat's line -- by
+    # rewriting just the status= field in place (CR3r re-review MINOR-1).
+    result_line=$(printf '%s\n' "$result_line" | sed -E 's/^(FACTORY-RESULT[[:space:]]+)status=[A-Za-z_-]+/\1status=failed/')
+  fi
+fi
+
+# SH4: the demotion table, applied only to a status still `done` after CR3r.
+# `claimed` is the seat's token for the name (absent when it is not on the line);
+# the driver verdict is the verification result. checks-misreported outranks
+# checks-unverifiable when several cells fire; every firing cell appends
+# `; <name> claimed <token>, driver <verdict>` to the notes.
+if [ "$status" = "done" ] && [ -n "$checks_verified" ]; then
+  has_misreported=0
+  has_unverifiable=0
+  verify_notes=
+  while read -r vname vverdict _ _; do
+    [ -n "$vname" ] || continue
+    claimed=$(factory_checks_token "$vname" "$seat_checks_body")
+    case "$claimed:$vverdict" in
+      pass:fail | not-run:fail | absent:fail) has_misreported=1 ;;
+      pass:not-run:absent) has_unverifiable=1 ;;
+    esac
+    case "$claimed:$vverdict" in
+      pass:fail | pass:not-run:absent | not-run:fail | absent:fail)
+        verify_notes="${verify_notes}; $vname claimed $claimed, driver $vverdict"
+        ;;
+    esac
+  done <<<"$checks_verified_out"
+  verify_demoted=
+  if [ "$has_misreported" -eq 1 ]; then
+    verify_demoted=checks-misreported
+  elif [ "$has_unverifiable" -eq 1 ]; then
+    verify_demoted=checks-unverifiable
+  fi
+  if [ -n "$verify_demoted" ]; then
+    demoted=$verify_demoted
+    status=partial
+    notes_line="${notes_line}${verify_notes}"
+    result_line=$(printf '%s\n' "$result_line" | sed -E 's/^(FACTORY-RESULT[[:space:]]+)status=[A-Za-z_-]+/\1status=partial/')
+  fi
+fi
+
+# SH3: enforce the `touches` contract from the branch diff. The extra paths are
+# the changed files outside the contract; touches_disclosed counts how many of
+# them the commit body names. A done with an undisclosed extra is demoted to
+# partial (error_class touches-violation); a failed/partial/unreported status is
+# never demoted, but the counts are recorded for every status. The counts are
+# recomputed here, from the branch, after the seat exits -- the record the
+# commit-msg hook only approximated.
+touches_extra=
+touches_disclosed=
+touches_files=
+if [ -n "$base_sha" ]; then
+  touches=
+  touches_rc=0
+  touches=$(factory_task_touches "$plan" "$key") || touches_rc=$?
+  if [ "$touches_rc" -eq 0 ] && [ -n "$touches" ]; then
+    touches_file=$(mktemp -p "$runs_dir" ".touches-$key.XXXXXX")
+    changed_file=$(mktemp -p "$runs_dir" ".changed-$key.XXXXXX")
+    bodymsgs_file=$(mktemp -p "$runs_dir" ".bodymsgs-$key.XXXXXX")
+    printf '%s\n' "$touches" >"$touches_file"
+    git -C "$ws" diff --name-only "$base_sha..task/$key" >"$changed_file" 2>/dev/null || true
+    git -C "$ws" log --format=%B "$base_sha..task/$key" >"$bodymsgs_file" 2>/dev/null || true
+    extra=$(factory_touches_extra "$ws" "$touches_file" "$base_sha" "task/$key" "$changed_file")
+    touches_extra=0
+    touches_disclosed=0
+    undisclosed_paths=
+    while IFS= read -r p; do
+      [ -n "$p" ] || continue
+      touches_extra=$((touches_extra + 1))
+      if [ -n "$touches_files" ]; then
+        touches_files="$touches_files $p"
+      else
+        touches_files=$p
+      fi
+      if factory_disclosed "$p" "$bodymsgs_file"; then
+        touches_disclosed=$((touches_disclosed + 1))
+      else
+        if [ -n "$undisclosed_paths" ]; then
+          undisclosed_paths="$undisclosed_paths $p"
+        else
+          undisclosed_paths=$p
+        fi
+      fi
+    done <<<"$extra"
+    rm -f -- "$touches_file" "$changed_file" "$bodymsgs_file"
+    if [ "$touches_extra" -gt "$touches_disclosed" ]; then
+      notes_line="${notes_line}; $((touches_extra - touches_disclosed)) file(s) outside touches undisclosed: $undisclosed_paths"
+      if [ "$status" = "done" ]; then
+        demoted=touches
+        status=partial
+        result_line=$(printf '%s\n' "$result_line" | sed -E 's/^(FACTORY-RESULT[[:space:]]+)status=[A-Za-z_-]+/\1status=partial/')
+      fi
+    fi
+  else
+    factory_log "touches: no contract for $key (empty union or query failed)"
+  fi
+fi
+
+# SH5 demotion (D5, after SH4's table and SH3's touches): any failing probe
+# demotes a still-done status to probe-mismatch; else any missing-paste to
+# probe-missing. drift and not-run append a clause and never demote. The clauses
+# are appended for every status; only the demotion is gated on `done`.
+if [ -n "$probe_notes" ]; then
+  notes_line="${notes_line}${probe_notes}"
+fi
+if [ -n "$probe_demoted" ] && [ "$status" = "done" ]; then
+  demoted=$probe_demoted
+  status=partial
+  result_line=$(printf '%s\n' "$result_line" | sed -E 's/^(FACTORY-RESULT[[:space:]]+)status=[A-Za-z_-]+/\1status=partial/')
+fi
+
+case $status in
+  done) task_rc=0 ;;
+  partial) task_rc=1 ;;
+  failed) task_rc=2 ;;
+  unreported) task_rc=0 ;;
+  *)
+    status=${status:-unknown}
+    task_rc=3
+    ;;
+esac
+result_block=$(printf '%s\n%s\n%s\n%s' "$result_line" "$checks_line" "$commits_line" "$notes_line")
+
+commit_log='(base commit unknown -- .factory-meta missing)'
+diffstat='(base commit unknown -- .factory-meta missing)'
+if [ -n "$base_sha" ]; then
+  commit_log=$(git -C "$ws" log --oneline "$base_sha..task/$key" 2>/dev/null || echo '(none)')
+  [ -n "$commit_log" ] || commit_log='(no commits)'
+  diffstat=$(git -C "$ws" diff --stat "$base_sha..task/$key" 2>/dev/null || echo '(none)')
+  [ -n "$diffstat" ] || diffstat='(no changes)'
+fi
+
+# Best-effort usage: the newest session transcript written since the marker,
+# under this run's DSH_HOME. Never fatal -- a missing/unreadable transcript
+# just leaves the usage line at its zero default. Under codex, the usage comes
+# from the rollout: by its session id when the banner named one, else the
+# newest-by-name rollout newer than the launch marker; either runs through
+# factory_py (so FACTORY_PYTHON3_CMD reaches it in the sandbox) and a missing
+# file or a script failure keeps `{}` (events 0 -> the boot-failure arm).
+usage_json='{}'
+if [ "$seat_arm" = codex ]; then
+  rollout=
+  if [ -n "$session_id" ]; then
+    rollout=$(find "$codex_home/sessions" -type f -name "rollout-*-$session_id.jsonl" 2>/dev/null | sort | tail -n1 || true)
+    [ -n "$rollout" ] || factory_log "no rollout named by session id $session_id under $codex_home/sessions"
+  else
+    rollout=$(find "$codex_home/sessions" -type f -name 'rollout-*.jsonl' -newer "$marker" 2>/dev/null | sort | tail -n1 || true)
+    [ -n "$rollout" ] || factory_log "no banner and no rollout newer than the launch marker under $codex_home/sessions"
+  fi
+  if [ -n "$rollout" ]; then
+    factory_log "usage source: $rollout"
+    usage_json=$(factory_py "$FACTORY_BIN/factory-codex-usage.py" <"$rollout" 2>/dev/null || echo '{}')
+  fi
+else
+  sessions_dir=$dsh_home/sessions
+  if [ -d "$sessions_dir" ]; then
+    session_file=$(find "$sessions_dir" -type f -name 'session.jsonl.zstd' -newer "$marker" 2>/dev/null | sort | tail -n1 || true)
+    if [ -n "$session_file" ]; then
+      factory_log "usage source: $session_file"
+      usage_json=$(zstd -dc -- "$session_file" 2>/dev/null | factory_python3 "$FACTORY_BIN/factory-usage.py" 2>/dev/null || echo '{}')
+    else
+      factory_log "no session transcript found under $sessions_dir newer than the launch marker"
+    fi
+  fi
+fi
+rm -f -- "$marker"
+
+# The token-usage event count drives the boot-failure arm of error_class.
+events=
+if [[ $usage_json =~ \"events\":\ *([0-9]+) ]]; then
+  events=${BASH_REMATCH[1]}
+fi
+# CA1: the classifier sees only the agent's output under codex -- the lines
+# after the first `codex` marker that follows the echoed brief (the banner, the
+# `user` line and as many lines as the brief has are skipped, so a bare `codex`
+# line inside the brief is never the marker). Without such a line the copy is
+# empty and every tail keyword reads none/boot-failure by factory_error_class's
+# own order. The copy is a mktemp without a .log suffix (tasks.py's *.log glob
+# never sees it) and is removed after the call.
+class_log=$log
+if [ "$seat_arm" = codex ]; then
+  class_log=$(mktemp -p "$runs_dir" ".agent-$key.XXXXXX")
+  brief_lines=$(printf '%s\n' "$brief" | wc -l)
+  awk -v skip="$brief_lines" '
+    !banner { if ($0 == "--------") n++; if (n == 2) banner = 1; next }
+    !user { if ($0 == "user") { user = 1; left = skip }; next }
+    left > 0 { left--; next }
+    !on { if ($0 == "codex") on = 1; next }
+    { print }' "$log" >"$class_log"
+fi
+error_class=$(factory_error_class "$class_log" "$status" "$exit_code" "$wall_s" "$events" "$synth" "$demoted" "$verify_flag")
+[ "$class_log" = "$log" ] || rm -f -- "$class_log"
+
+result=$runs_dir/$key.result
+{
+  printf '%s\n' "$result_block"
+  echo
+  printf 'run: %s\n' "$run"
+  printf 'key: %s\n' "$key"
+  printf 'model: %s\n' "$model"
+  printf 'effort: %s\n' "$effort"
+  printf 'rung: %s\n' "$rung_label"
+  printf 'route: %s\n' "$route_label"
+  printf 'class: %s\n' "$class"
+  if [ -n "$fallback_model" ]; then
+    printf 'fallback: %s\n' "$fallback_model"
+  fi
+  if [ -n "$prior" ]; then
+    printf 'prior: %s\n' "$prior"
+  fi
+  printf 'plan: %s\n' "$plan"
+  printf 'workspace: %s\n' "$ws"
+  if [ "$seat_arm" = codex ] && [ -n "$session_id" ]; then
+    printf 'seat: codex %s\n' "$session_id"
+  elif [ -n "$seat_id" ]; then
+    printf 'seat: unit seat@%s\n' "$seat_id"
+  elif [ "$submit_failed" -eq 1 ]; then
+    printf 'seat: submit failed (no job id)\n'
+  fi
+  printf 'branch: task/%s\n' "$key"
+  printf 'head: %s\n' "$head_sha"
+  printf 'base: %s\n' "${base_sha:-unknown}"
+  printf 'wall_s: %s\n' "$wall_s"
+  printf 'exit_code: %s\n' "$exit_code"
+  printf 'error_class: %s\n' "$error_class"
+  if [ -n "$derived" ]; then
+    printf 'derived: %s\n' "$derived"
+  fi
+  if [ -n "$touches_extra" ]; then
+    printf 'touches_extra: %s\n' "$touches_extra"
+    printf 'touches_disclosed: %s\n' "$touches_disclosed"
+    if [ "$touches_extra" -gt 0 ]; then
+      printf 'touches_files: %s\n' "$touches_files"
+    fi
+  fi
+  if [ -n "$checks_verified" ]; then
+    printf 'checks_verified: %s\n' "$checks_verified"
+    printf 'checks_verified_src: %s\n' "$checks_verified_src"
+    printf 'verify_s: %s\n' "$verify_s"
+    printf 'checks_scope: %s\n' "$checks_scope"
+    printf 'checks_scope_files: %s\n' "$checks_scope_files"
+    if [ "$checks_scope" = "dirty" ]; then
+      printf 'checks_scope_list: %s\n' "$checks_scope_list"
+    fi
+  fi
+  if [ -n "$probes_verified" ]; then
+    printf 'probes_verified: %s\n' "$probes_verified"
+    printf 'probe_values: %s\n' "$probe_values"
+    printf 'probe_env: %s\n' "$probe_env_out"
+  fi
+  echo
+  echo "commits (base..task/$key):"
+  printf '%s\n' "$commit_log"
+  echo
+  echo "diffstat:"
+  printf '%s\n' "$diffstat"
+  echo
+  printf 'usage: %s\n' "$usage_json"
+} >"$result"
+
+factory_ingest_result "$result" || factory_log "evidence: could not record $key"
+factory_ingest_usage || factory_log "evidence: could not ingest usage for $key"
+factory_log "result: $result (status=$status)"
+exit "$task_rc"

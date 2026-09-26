@@ -1,0 +1,30 @@
+FACTORY-RESULT status=done
+FACTORY-CHECKS version=pass config=pass config-rejects-typo=pass config-precedence=pass wrapper-path=pass module-eval=pass lint=pass
+FACTORY-COMMITS 5
+FACTORY-NOTES the flake builds and its seven checks are green; MINORs 1, 3, 4 and 5 left for CX2
+
+run: cx1b
+key: CX1b
+model: gpt-6-astra
+effort: medium
+route: codex/code/XS
+workspace: /gone/base/ws/cx1b/CX1b
+seat: codex 0f1e2d3c-4b5a-4c6d-8e9f-0a1b2c3d4e5f
+branch: task/CX1b
+head: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+base: bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
+wall_s: 2400
+exit_code: 0
+error_class: none
+
+commits (base..task/CX1b):
+a58b3aa docs: record precedence and red-green evidence with prose tooling (test: lint)
+853a760 json: pin nixpkgs and validate lock formatting (test: lint)
+305f6de nix: package pinned Codex and enforce managed settings (test: version, config, config-rejects-typo, config-precedence, wrapper-path, module-eval, lint)
+dd3b2e4 shell: add strict config and wrapper probes with tooling (test: version, config, config-rejects-typo, config-precedence, wrapper-path, lint)
+e12c468 toml: add formatting and lint gate (test: lint)
+
+diffstat:
+ 15 files changed, 612 insertions(+), 0 deletions(-)
+
+usage: {"model": "gpt-6-astra", "events": 239, "input": 68620, "output": 13584, "cacheRead": 1642368, "reasoning": 3631, "duration_s": 2400.0}
