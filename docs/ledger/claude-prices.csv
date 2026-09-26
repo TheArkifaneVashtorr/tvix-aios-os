@@ -1,0 +1,5 @@
+date,model,in_per_1m,out_per_1m,cache_read_per_1m,cache_write_per_1m
+2026-06-24,claude-fable-5-1,10.00,50.00,0.25,
+2026-06-24,claude-opus-5,5.00,25.00,,
+2026-06-24,claude-sonnet-5,2.00,10.00,,
+2026-06-24,claude-haiku-4-5,1.00,5.00,,

@@ -1,0 +1,47 @@
+---
+reviewer: opus
+majors: null
+minors: null
+---
+# Opus gate — seat run ev3, task R3rb — APPROVED
+
+Branch head `9b42619134ea` (`~/factory/ws/ev3/R3rb`, `task/R3rb`). Reviewer: Opus, high effort, throwaway clone; checks re-run by ref.
+
+## Summary
+
+Approved. R3rb is a two-item XS fix round and both items landed exactly as specified, in one commit (9b42619) touching only pkgs/helm/collect.py and tests/helm/test_collect.py. (1) test_parity_nonzero_exit_status_is_fail closes the major the R3r gate raised: the `or status != \"0\"` half of tile_backup_parity's guard is now observed. I proved it red-by-mutation myself — deleting the clause gives \"AssertionError: assert 'ok' == 'fail'\", \"1 failed, 145 passed\", matching the R3r gate's MG1 exactly. The test is not vacuous in any direction I could find: it pins the systemd scope (M3 kills), the unit name (M4 kills), the ExecMainStatus parser (M5 kills), the boolean operator (M2 kills), and flipping its own fake from \"1\" to \"0\" reds it (M7). Only a self-fulfilling constant substitution in the detail dict survives (M6), which no single-case detail assertion could catch. (2) The _unit_result docstring now cites docs/reviews/2026-09-05-opus-review-ev3-R3b.md instead of asserting a bare probe, verbatim as dictated; I confirmed that review file is tracked in main and really does record the read-only host probe it is cited for. Both acceptance checks are green on a forced rebuild (helm-unit \"146 passed in 13.33s\"; lint built fresh, \"All checks passed!\"), as is the full pre-commit gate. Commit subject is byte-exact including the em dash, both trailers present in order, no bypass flags, no 2>/dev/null, no secrets, stdlib only, workspace clean. One minor recorded for a later round: the tile's summary says \"last result success\" on a tile it just reddened.
+
+## Checks
+
+- green — helm-unit: nix build .#checks.x86_64-linux.helm-unit -L --no-link --rebuild (forced, not a cache hit) → 'helm-unit-tests> 146 passed in 13.33s', EXIT=0
+- green — lint: nix build .#checks.x86_64-linux.lint -L --no-link → built fresh: 'lint> formatted 78 files (0 changed)', 'lint> All checks passed!', '26 files already formatted', EXIT=0
+- green — githooks/pre-commit (full lint gate): nix develop -c githooks/pre-commit → 'formatted 78 files (0 changed)', 'All checks passed!', '26 files already formatted', 'render.test.mjs: all assertions passed', EXIT=0
+- green — pytest tests/helm -q: 146 passed in 13.29s — matches the FACTORY-NOTES count (145 + 1 added)
+- green — touches contract: git show --stat 9b42619 = pkgs/helm/collect.py, tests/helm/test_collect.py only (33 insertions, 5 deletions); worktree clean, one commit on top of e1a4282 (task/R3r)
+- green — commit subject + trailers: byte-exact match to the prompt's subject (em dash included); 'Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>' exact, preceded by the required Generated-By line
+- green — hard rules: transcript grep for sudo|nixos-rebuild|systemctl start/stop/restart/enable|--no-verify|2>/dev/null|/var/lib/secrets|openrouter/key|restic/password → only dsh's own launch banner; no secrets, no placeholder text, Python stdlib only, no new files
+- green — docstring citation resolves: docs/reviews/2026-09-05-opus-review-ev3-R3b.md is tracked in main (commit 407eb56) and its minor finding does record the read-only host probe the docstring now cites — the citation is real, not decorative (the file is absent from the branch only because task/R3r forked before 407eb56; it resolves on integration)
+
+## Red before green
+
+This task is red-BY-MUTATION by construction (the implementation was already correct from R3r; the deliverable is the missing pin), and the prompt named the mutation itself: change `if result != "success" or status != "0":` to `if result != "success":` in pkgs/helm/collect.py:165. Reproduced in the throwaway clone: `nix develop -c pytest tests/helm -q` → "FAILED tests/helm/test_collect.py::test_parity_nonzero_exit_status_is_fail", decisive line "E       AssertionError: assert 'ok' == 'fail'" at tests/helm/test_collect.py:389, summary "1 failed, 145 passed in 13.21s". Exactly the new test reds, and the 145 count matches the R3r gate's MG1 observation that the clause was previously unobserved. Restored with `git checkout -- pkgs/helm/collect.py`; tree verified clean afterwards.
+
+## Mutation table
+
+| mutation | killed | by |
+|---|---|---|
+| MG1 (the prompt's own red proof) — pkgs/helm/collect.py:165 `if result != "success" or status != "0":` → `if result != "success":` (whole ExecMainStatus guard deleted) | yes | test_parity_nonzero_exit_status_is_fail — "AssertionError: assert 'ok' == 'fail'", "1 failed, 145 passed in 13.21s" |
+| M2 — collect.py:165 `or` → `and` (`if result != "success" and status != "0":`) | yes | test_parity_nonzero_exit_status_is_fail — "1 failed, 145 passed in 13.20s" |
+| M3 (scope pin) — collect.py:164 `_unit_result(["--user"], "proton-drive-push.service")` → `_unit_result([], ...)` | yes | test_parity_nonzero_exit_status_is_fail plus test_parity_unit_failure_beats_a_stale_ok_line and test_parity_unit_success_keeps_the_journal_verdict — "3 failed, 143 passed in 13.22s" (the new test's scope="user" fake raises, the tile decorator turns it into status 'unknown') |
+| M4 (unit-name pin) — collect.py:164 unit → "proton-drive-pushx.service" (falls through systemctl_fake's default success/0) | yes | test_parity_nonzero_exit_status_is_fail + test_parity_unit_failure_beats_a_stale_ok_line — "2 failed, 144 passed in 13.21s" |
+| M5 (parser pin) — collect.py:281 `status = line[len("ExecMainStatus=") :]` → `status = "0"` (ExecMainStatus never actually read) | yes | test_parity_nonzero_exit_status_is_fail — "1 failed, 145 passed in 13.20s"; this is the mutation a summary-only assertion would have missed |
+| M7 (vacuity probe, test side) — tests/helm/test_collect.py:378 `_unit_show("success", "1")` → `_unit_show("success", "0")` in the new test's fake | yes | the new test itself — "1 failed, 145 passed in 13.24s"; the '1' it feeds is load-bearing, the test is not vacuous |
+| M6 (constant substitution) — collect.py:167 detail `"exec_main_status": status` → `"exec_main_status": "1"` | NO | nothing — "146 passed in 13.18s". Expected and not a defect: the second assertion is a single-value detail pin, so a hardcoded identical constant is indistinguishable without a second parity case. The load-bearing behaviour (status == 'fail') is killed by MG1/M2/M5 above. |
+
+## Findings
+
+- **minor** `pkgs/helm/collect.py:166` — The backup-parity tile's summary for the newly pinned case reads "proton-drive-push.service last result success" while the tile status is "fail" — a red tile whose summary says the word "success". The non-zero exit lives only in detail.exec_main_status, which the Helm page's summary line does not show. This is inherited from R3/R3r, not introduced here, and fixing it was outside R3rb's remit (item 2 confined collect.py to the docstring), but it is the reason the prompt's suggested `"1" in t["summary"]` assertion was unwritable. **Fix:** In a follow-up (one line, plus one assertion in the existing test): make the guard's summary name the failing half, e.g. f"proton-drive-push.service last result {result} (exit {status})", and tighten test_parity_nonzero_exit_status_is_fail to assert "1" in t["summary"] as well as the detail — which would also kill mutation M6 above.
+
+## Deviations
+
+FACTORY-RESULT declares status=done, helm-unit/lint/hed pass, 1 commit, and notes "Added test_parity_nonzero_exit_status_is_fail (red-by-mutation MG1) and cited the ExecMainStatus probe; 146 helm tests green, pre-commit clean." All of that reproduces exactly. One undeclared-in-FACTORY-NOTES (but declared in the commit body) deviation from the prompt's literal wording: the prompt offered `assert "1" in t["summary"]` or "the summary names the exit status (match the implementation's wording; read tile_backup_parity first)"; the implementer read tile_backup_parity, found the summary is `f"proton-drive-push.service last result {result}"` (which contains neither "1" nor the exit status), and asserted `t["detail"]["exec_main_status"] == "1"` instead. I accept this: the prompt explicitly told it to match the implementation's wording, item (2) confined collect.py changes to the docstring, and the literal assertion would have been false. The commit body says so plainly ("asserts the tile is 'fail' with the non-zero exit named in the detail"). No file outside `touches` was written; no hard rule broken; the docstring reword is verbatim the text the prompt dictated.

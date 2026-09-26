@@ -1,0 +1,9 @@
+{
+  "name": "dsh-wrapper",
+  "version": "0.1.2-rc.1",
+  "private": true,
+  "description": "Pins @deepseek-ai/dsh (DeepSeek Harness) for nixpkgs buildNpmPackage; the lockfile is the pin",
+  "dependencies": {
+    "@deepseek-ai/dsh": "0.1.2-rc.1"
+  }
+}

@@ -1,0 +1,1 @@
+{ "id": "work-notes", "classification": "local-only", "mount": "/data/notes", "access": "ro" }

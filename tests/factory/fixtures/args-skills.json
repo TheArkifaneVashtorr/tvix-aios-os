@@ -1,0 +1,23 @@
+{
+  "plan": "docs/superpowers/plans/2026-09-03-factory-skills-and-review-gate.md",
+  "prefix": "factory-test",
+  "scratch": "/tmp/factory-test-scratch",
+  "skills": { "nixos": "/skills/nixos" },
+  "tasks": [
+    {
+      "key": "A",
+      "title": "Task A — has skillRefs",
+      "kind": "code",
+      "checks": ["unit"],
+      "spec": "Task A spec text.",
+      "skillRefs": ["systemd-units"]
+    },
+    {
+      "key": "B",
+      "title": "Task B — no skillRefs",
+      "kind": "docs",
+      "checks": ["lint"],
+      "spec": "Task B spec text."
+    }
+  ]
+}

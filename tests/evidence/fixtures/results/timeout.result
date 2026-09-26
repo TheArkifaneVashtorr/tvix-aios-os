@@ -1,0 +1,23 @@
+FACTORY-RESULT status=failed
+FACTORY-CHECKS none=not-run
+FACTORY-COMMITS 0
+FACTORY-NOTES killed by timeout
+
+run: tel5
+key: T2
+model: deepseek/deepseek-v4-pro-0813
+effort: medium
+route: implement/code/S
+workspace: /gone/base/ws/tel5/T2
+head: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+base: bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
+wall_s: 100
+exit_code: 124
+
+commits (base..task/T2):
+(no commits)
+
+diffstat:
+ 0 files changed
+
+usage: {"input":1,"output":1,"cacheRead":0,"reasoning":0,"events":1,"duration_s":1.0}

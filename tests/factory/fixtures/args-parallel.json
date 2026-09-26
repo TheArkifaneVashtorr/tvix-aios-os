@@ -1,0 +1,12 @@
+{
+  "plan": "docs/superpowers/plans/2026-09-04-dsh-review-fix-round.md",
+  "prefix": "sched",
+  "scratch": "/tmp/factory-sched-scratch",
+  "concurrency": 4,
+  "tasks": [
+    { "key": "A", "title": "A writes pkgs/a", "kind": "code", "checks": ["unit"], "spec": "A spec.", "touches": ["pkgs/a/a.sh"], "dependsOn": [] },
+    { "key": "B", "title": "B writes pkgs/b", "kind": "code", "checks": ["unit"], "spec": "B spec.", "touches": ["pkgs/b/b.sh"], "dependsOn": [] },
+    { "key": "C", "title": "C also writes pkgs/a", "kind": "code", "checks": ["unit"], "spec": "C spec.", "touches": ["pkgs/a/*.sh"], "dependsOn": [] },
+    { "key": "D", "title": "D depends on A", "kind": "docs", "checks": ["lint"], "spec": "D spec.", "touches": ["docs/d.md"], "dependsOn": ["A"] }
+  ]
+}
