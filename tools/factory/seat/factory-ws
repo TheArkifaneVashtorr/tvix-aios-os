@@ -1,0 +1,144 @@
+#!/usr/bin/env bash
+# factory-ws <run> <repo-path> <KEY> [base-branch]
+#
+# Ensures ~/factory/base/<repo-name> is a `git clone --local` of <repo-path>
+# refreshed to <repo-path>'s current HEAD (fetch + reset), then creates
+# ~/factory/ws/<run>/<KEY> as a clone of that base at <base-branch> and
+# checks out task/<KEY> from it. Prints the workspace path to stdout (the
+# only thing this script puts on stdout) and nothing else.
+#
+# base-branch default: `integ/<run>` if it already exists in the base clone,
+# else the branch <repo-path> currently has checked out. If base-branch
+# names a task/<KEY2> branch that exists only in another task's workspace
+# (the --after chaining case in factory-task), it is fetched into the base
+# clone first.
+set -euo pipefail
+
+here=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)
+# shellcheck source=./factory-lib.sh
+# shellcheck disable=SC1091
+. "$here/factory-lib.sh"
+
+usage() {
+  cat <<'USAGE' >&2
+usage: factory-ws <run> <repo-path> <KEY> [base-branch]
+USAGE
+}
+
+[ $# -eq 3 ] || [ $# -eq 4 ] || {
+  usage
+  exit 2
+}
+run=$1
+repo_path=$2
+key=$3
+base_branch_arg=${4:-}
+
+case $run in
+  '' | *[!A-Za-z0-9._-]*) factory_die 2 "run name '$run' must match [A-Za-z0-9._-]+" ;;
+esac
+case $key in
+  '' | *[!A-Za-z0-9._-]*) factory_die 2 "task key '$key' must match [A-Za-z0-9._-]+" ;;
+esac
+
+repo_path=$(cd -- "$repo_path" && pwd -P) || factory_die 2 "no such repo: $2"
+git -C "$repo_path" rev-parse --git-dir >/dev/null 2>&1 || factory_die 2 "$repo_path is not a git repository"
+repo_name=$(basename -- "$repo_path")
+base=$FACTORY_BASE/$repo_name
+# Serialise base-clone refresh across concurrent factory-task runs (wave groups
+# start together; two refreshes at once collide on .git/index.lock).
+mkdir -p -- "$FACTORY_BASE"
+exec 9>"$base.lock"
+flock 9
+
+mkdir -p -- "$FACTORY_BASE" "$FACTORY_WS/$run" "$FACTORY_RUNS/$run"
+
+repo_branch=$(factory_current_branch "$repo_path")
+repo_head=$(git -C "$repo_path" rev-parse HEAD)
+
+if [ ! -d "$base" ]; then
+  factory_log "cloning $repo_path -> $base"
+  git clone --local --quiet -- "$repo_path" "$base" >&2
+else
+  git -C "$base" remote set-url origin "$repo_path" >&2
+fi
+factory_set_identity "$base" "$repo_path"
+
+factory_log "refreshing $base to $repo_path's HEAD ($repo_head, branch $repo_branch)"
+git -C "$base" fetch --quiet origin >&2
+git -C "$base" checkout --quiet -B "$repo_branch" "$repo_head" >&2
+git -C "$base" reset --quiet --hard "$repo_head" >&2
+
+base_branch=$base_branch_arg
+if [ -z "$base_branch" ]; then
+  if git -C "$base" show-ref --verify --quiet "refs/heads/integ/$run"; then
+    base_branch="integ/$run"
+  else
+    base_branch=$repo_branch
+  fi
+fi
+
+# If base-branch is a task/<KEY2> branch that only exists in that task's own
+# workspace so far (the --after chain case), pull it into the base clone.
+if ! git -C "$base" show-ref --verify --quiet "refs/heads/$base_branch"; then
+  case $base_branch in
+    task/*)
+      src_key=${base_branch#task/}
+      src_ws=$FACTORY_WS/$run/$src_key
+      [ -d "$src_ws" ] || factory_die 2 "base branch $base_branch not found in $base, and no workspace $src_ws to fetch it from"
+      factory_log "fetching $base_branch from $src_ws into $base"
+      git -C "$base" fetch --quiet -- "$src_ws" "refs/heads/$base_branch:refs/heads/$base_branch" >&2
+      ;;
+    *)
+      factory_die 2 "base branch '$base_branch' does not exist in $base"
+      ;;
+  esac
+fi
+
+ws=$FACTORY_WS/$run/$key
+if [ -e "$ws" ]; then
+  factory_log "removing existing workspace $ws"
+  rm -rf -- "$ws"
+fi
+
+factory_log "cloning $base @ $base_branch -> $ws"
+git clone --local --quiet --branch "$base_branch" -- "$base" "$ws" >&2
+factory_set_identity "$ws" "$repo_path"
+base_sha=$(git -C "$ws" rev-parse HEAD)
+
+if git -C "$ws" show-ref --verify --quiet "refs/heads/task/$key"; then
+  factory_die 2 "$ws already has a task/$key branch after a fresh clone -- unexpected"
+fi
+git -C "$ws" checkout --quiet -b "task/$key" >&2
+factory_write_meta "$ws" "$base_sha" "$base_branch"
+printf '.factory-meta\n' >>"$ws/.git/info/exclude"
+
+# SH3: install the per-workspace commit-msg hook and, when the plan names a
+# `touches` contract for this key, write it to .factory-touches. Both live in
+# .git/info/exclude so neither shows in `git status --porcelain`.
+git -C "$ws" config core.hooksPath githooks
+if git -C "$ws" ls-files --error-unmatch githooks/commit-msg >/dev/null 2>&1; then
+  factory_log "commit-msg hook: the tree has its own githooks/commit-msg; not installed"
+else
+  mkdir -p -- "$ws/githooks"
+  {
+    printf '#!%s\n' "$BASH"
+    printf 'exec "%s" "%s/factory-commit-msg.sh" "$@"\n' "$BASH" "$FACTORY_BIN"
+  } >"$ws/githooks/commit-msg"
+  chmod 0755 -- "$ws/githooks/commit-msg"
+  printf 'githooks/commit-msg\n' >>"$ws/.git/info/exclude"
+fi
+if [ -n "${FACTORY_PLAN:-}" ]; then
+  touches=
+  touches_rc=0
+  touches=$(factory_task_touches "$FACTORY_PLAN" "$key") || touches_rc=$?
+  if [ "$touches_rc" -eq 0 ] && [ -n "$touches" ]; then
+    printf '%s\n' "$touches" >"$ws/.factory-touches"
+    printf '.factory-touches\n' >>"$ws/.git/info/exclude"
+  else
+    factory_log "touches: no contract for $key (empty union or query failed)"
+  fi
+fi
+
+factory_log "workspace ready: $ws (task/$key, forked from $base_branch @ ${base_sha:0:12})"
+printf '%s\n' "$ws"

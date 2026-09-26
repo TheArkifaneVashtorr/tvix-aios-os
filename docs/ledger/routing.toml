@@ -1,0 +1,189 @@
+# Model routing for the whole factory: the HEADLESS seat driver
+# (tools/factory/seat) reads the openrouter rows; tools/factory/route.py
+# derives the dark factory's models map from the claude rows. The interactive
+# seat the operator opens on core is not governed by this file.
+# Lookup: factory_route [--route R] <role> <kind> <size>. Each row carries a
+# route (openrouter = DeepSeek via OpenRouter, claude = the dark factory's
+# Anthropic models); a row without a route key defaults to openrouter. The
+# most specific matching row wins (fewest "any" fields); ties go to the first
+# row; a row with all three "any" is the default for its route and must exist.
+# Explicit --model, OPENROUTER_MODEL and OPENROUTER_REASONING_EFFORT always
+# override. Evidence for the rows:
+# docs/reviews/2026-09-05-m2b-effort-measurement.md,
+# docs/reviews/2026-09-05-model-comparison.md. Change rows here, nowhere else.
+# A `rung` climbs within one (route, role, kind, size, class) key: the fix
+# round is rung 2 and the re-plan rung 3 (rule A1), a `fallback` is a sideways
+# relaunch (the three relaunch classes); a row above rung 1 exists only with a
+# claims row until the report justifies it. `class` defaults to "any"; `rung`
+# defaults to 1; `fallback` names a model that is another row's model.
+
+[[route]]
+route = "openrouter"
+role = "implement"
+kind = "docs"
+size = "any"
+model = "deepseek/deepseek-v4-flash"
+effort = "off"
+
+# unmeasured: ladder-implement-docs-rung2-unmeasured
+[[route]]
+route = "openrouter"
+role = "implement"
+kind = "docs"
+size = "any"
+rung = 2
+model = "deepseek/deepseek-v4-pro-0813"
+effort = "off"
+
+# unmeasured: ladder-implement-docs-rung3-unmeasured
+[[route]]
+route = "openrouter"
+role = "implement"
+kind = "docs"
+size = "any"
+rung = 3
+model = "deepseek/deepseek-v4-pro-0813"
+effort = "medium"
+
+[[route]]
+route = "openrouter"
+role = "implement"
+kind = "any"
+size = "XS"
+model = "deepseek/deepseek-v4-flash"
+effort = "off"
+
+# unmeasured: ladder-implement-xs-rung2-unmeasured
+[[route]]
+route = "openrouter"
+role = "implement"
+kind = "any"
+size = "XS"
+rung = 2
+model = "deepseek/deepseek-v4-pro-0813"
+effort = "off"
+
+# unmeasured: ladder-implement-xs-rung3-unmeasured
+[[route]]
+route = "openrouter"
+role = "implement"
+kind = "any"
+size = "XS"
+rung = 3
+model = "deepseek/deepseek-v4-pro-0813"
+effort = "medium"
+
+[[route]]
+route = "openrouter"
+role = "implement"
+kind = "code"
+size = "any"
+model = "deepseek/deepseek-v4-pro-0813"
+effort = "medium"
+
+# unmeasured: ladder-implement-code-rung2-unmeasured
+[[route]]
+route = "openrouter"
+role = "implement"
+kind = "code"
+size = "any"
+rung = 2
+model = "deepseek/deepseek-v4-pro-0813"
+effort = "high"
+
+[[route]]
+route = "openrouter"
+role = "review"
+kind = "any"
+size = "any"
+model = "deepseek/deepseek-v4-pro-0813"
+effort = "medium"
+
+# unmeasured: driver-row-unmeasured
+[[route]]
+route = "openrouter"
+role = "orchestrate"
+kind = "any"
+size = "any"
+model = "deepseek/deepseek-v4-pro-0813"
+effort = "medium"
+
+[[route]]
+route = "openrouter"
+role = "any"
+kind = "any"
+size = "any"
+model = "deepseek/deepseek-v4-pro-0813"
+effort = "medium"
+
+[[route]]
+route = "claude"
+role = "orchestrate"
+kind = "any"
+size = "any"
+model = "fable"
+effort = "high"
+
+[[route]]
+route = "claude"
+role = "baseline"
+kind = "any"
+size = "any"
+model = "sonnet"
+effort = "low"
+
+[[route]]
+route = "claude"
+role = "implement"
+kind = "any"
+size = "any"
+model = "sonnet"
+effort = "high"
+
+[[route]]
+route = "claude"
+role = "review"
+kind = "code"
+size = "any"
+model = "opus"
+effort = "high"
+
+[[route]]
+route = "claude"
+role = "review"
+kind = "docs"
+size = "any"
+model = "sonnet"
+effort = "medium"
+
+[[route]]
+route = "claude"
+role = "verify"
+kind = "any"
+size = "any"
+model = "sonnet"
+effort = "medium"
+
+[[route]]
+route = "claude"
+role = "research"
+kind = "any"
+size = "any"
+model = "sonnet"
+effort = "medium"
+
+[[route]]
+route = "claude"
+role = "audit"
+kind = "any"
+size = "any"
+model = "fable"
+effort = "high"
+
+[[route]]
+route = "claude"
+role = "any"
+kind = "any"
+size = "any"
+model = "sonnet"
+effort = "medium"

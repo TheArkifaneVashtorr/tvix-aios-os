@@ -1,0 +1,23 @@
+FACTORY-RESULT status=pass
+FACTORY-CHECKS unit=pass
+FACTORY-COMMITS 1
+FACTORY-NOTES ok
+
+run: tel2
+key: T2
+model: deepseek/deepseek-v4-pro-0813
+effort: medium
+route: implement/code/S
+workspace: /gone/base/ws/tel2/T2
+head: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+base: bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
+wall_s: 100
+exit_code: 0
+
+commits (base..task/T2):
+abc1234 subject
+
+diffstat:
+ 1 file changed
+
+usage: {"input":1,"output":1,"cacheRead":0,"reasoning":0,"events":1,"duration_s":1.0}

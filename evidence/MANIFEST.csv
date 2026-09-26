@@ -1,0 +1,11 @@
+# evidence snapshot -- fixture F7, cutoff 2026-09-08T21:09:53-05:00 (1788919793)
+stream,kept,total
+derived/tasks.jsonl,291,706
+ledger/openrouter-usage.jsonl,0,43104
+ledger/engagement.jsonl,0,12
+helm-status.jsonl,98,627
+ledger/operator.jsonl,0,388
+plans.jsonl,8,30
+ledger/otel-claude.jsonl,0,247326
+checks.jsonl,1299,4202
+derived/gates.jsonl,226,681

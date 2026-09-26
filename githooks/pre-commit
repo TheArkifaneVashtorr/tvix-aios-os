@@ -1,0 +1,96 @@
+#!/usr/bin/env bash
+# Autolint gate: formatting and static analysis must pass before any commit.
+set -euo pipefail
+if ! command -v treefmt >/dev/null; then
+  echo "pre-commit: lint tools missing — commit from the devShell: nix develop -c git commit ..." >&2
+  exit 1
+fi
+treefmt --ci --config-file treefmt.toml --tree-root . ||
+  {
+    echo "pre-commit: treefmt found unformatted files (run: treefmt)" >&2
+    exit 1
+  }
+shellcheck pkgs/basket/basket.sh pkgs/proton-backup/push.sh pkgs/dsh-openrouter/dsh-openrouter.sh pkgs/helm/helm-switch.sh pkgs/helm/helm-open-workspace.sh tests/mocks/proton-drive-mock.sh githooks/pre-push githooks/pre-commit
+# The seat driver's entry scripts are extensionless (factory-brief, -ws,
+# -task, -wave, -integrate, -review), so the `find tools -name '*.sh'` sweep
+# below misses them; their `.sh` sibling (factory-lib.sh) is swept normally.
+shellcheck tools/factory/seat/factory-brief tools/factory/seat/factory-ws tools/factory/seat/factory-task tools/factory/seat/factory-wave tools/factory/seat/factory-integrate tools/factory/seat/factory-review
+find tests -name '*.sh' -print0 2>/dev/null | xargs -0 --no-run-if-empty shellcheck
+find tools -name '*.sh' -print0 2>/dev/null | xargs -0 --no-run-if-empty shellcheck
+# hosts/core/hardware-configuration.nix is a byte-for-byte copy of
+# nixos-generate-config output (plan: hosts/core must stay verbatim) and is
+# exempt from these two style linters accordingly.
+statix check --ignore .claude . -i hosts/core/hardware-configuration.nix
+deadnix --fail --exclude hosts/core/hardware-configuration.nix .claude -- .
+ruff check pkgs/broker tests/broker pkgs/helm tests/helm pkgs/lane tests/lane tests/mocks tools/ledger tests/ledger pkgs/dsh-openrouter tools/factory/seat tools/factory/route.py pkgs/evidence tests/evidence
+ruff format --check pkgs/broker tests/broker pkgs/helm tests/helm pkgs/lane tests/lane tests/mocks tools/ledger tests/ledger pkgs/dsh-openrouter tools/factory/seat tools/factory/route.py pkgs/evidence tests/evidence
+# P2: no '] && [' chains in bats tests (vacuous under errexit).
+tests/lint/bats-and-chain.sh
+# P12: prettier + oxlint gate every tracked JS file. The self-test runs first
+# on its own line (not joined by `&&`: under errexit a failing first command
+# in an `a && b` list is swallowed, silently gutting the vacuous-gate guard);
+# the project sweep runs only if it passes.
+bash tests/lint/js-lint.sh --self-test
+bash tests/lint/js-lint.sh
+# T1W: no writer outside evidence.py may reopen the store for writing or
+# hard-code the store root. Same self-test-first discipline as js-lint.sh: the
+# fixture sweep runs on its own line so the vacuous-gate guard is never
+# swallowed.
+bash tests/lint/store-writers.sh --self-test
+bash tests/lint/store-writers.sh
+# Board shape (plan 2026-09-05-evidence-store, E8/D5): the board carries the
+# plan; facts come from `evidence bundle`. One START HERE, one screen or two.
+test "$(grep -c '^## START HERE' docs/OPERATIONS.md)" -eq 1 || {
+  echo "lint: docs/OPERATIONS.md must have exactly one '## START HERE' heading" >&2
+  exit 1
+}
+test "$(wc -l <docs/OPERATIONS.md)" -le 160 || {
+  echo "lint: docs/OPERATIONS.md must be at most 160 lines (log and archive live under docs/board/)" >&2
+  exit 1
+}
+# E2: the claims file's stale gaps fail the commit (a real clock lives in the
+# devShell, unlike the flake sandbox, which checks shape only).
+python3 pkgs/evidence/claims.py validate docs/ledger/claims.toml --today "$(date +%F)" --repo-root .
+# G5: the derived task graph must be well-formed and the repo map current.
+# tasks.py reads its repos from a `--repos` file pointing at THIS tree ($PWD),
+# not ~/nixos-agent-env (the default), so the gate inspects the commit rather
+# than the operator's live checkout.
+repos_file="$(mktemp)"
+printf '[[repo]]\nname = "nixos-agent-env"\npath = "%s"\n' "$PWD" >"$repos_file"
+python3 pkgs/evidence/tasks.py --root . --repos "$repos_file" --runs-dir /nonexistent --store /nonexistent check
+rm -f "$repos_file"
+# G8c: the board's Queued block is derived from THIS tree only (git landed +
+# reviews, never runs/store); regenerate it first and refuse a commit where it
+# drifted — a landed key leaves the queue, so staleness is by design.
+python3 pkgs/evidence/tasks.py --root . write-board --board docs/OPERATIONS.md --quiet
+if ! git diff --quiet -- docs/OPERATIONS.md; then
+  echo "tasks: docs/OPERATIONS.md queue block was stale and has been regenerated — git add docs/OPERATIONS.md and commit again" >&2
+  exit 1
+fi
+python3 pkgs/evidence/repomap.py --root . check
+# node --check is a parse-only syntax check (F35): dark-factory.js is a
+# Workflow script, never executed by this repo's own test suite, so a typo
+# in it would otherwise only surface the next time it's run against the
+# live host.
+#
+# Plain `node --check tools/factory/dark-factory.js` does NOT work: a bare
+# .js file containing a top-level `export` (dark-factory.js has `export
+# const meta = {...}`) makes Node auto-detect it as an ES module, and
+# node --check's synchronous checker silently no-ops for that case --
+# verified: `printf 'export const x=1;\nconst y=(\n' | node --check` exits
+# 0 despite the unterminated paren. The Workflow harness itself evaluates
+# this file as the body of an async function (it uses top-level `await`
+# and `return`, both illegal in a real module or a plain script), so the
+# check below reproduces that shape instead: strip the one `export`
+# keyword and wrap the body in `async function(){...}` before handing it
+# to node --check, which does catch real syntax errors in that shape.
+{
+  echo 'async function __dark_factory_syntax_check() {'
+  sed 's/^export const meta/const meta/' tools/factory/dark-factory.js
+  echo '}'
+} | node --check
+# render.test.mjs loads dark-factory.js's real text and runs it with stub
+# globals (checks.factory-unit does the same in the sandbox) -- a drifted
+# prompt site or a regression in the review-error handling fails here too,
+# not just on the next live run.
+node tests/factory/render.test.mjs

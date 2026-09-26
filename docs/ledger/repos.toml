@@ -1,0 +1,31 @@
+# Repos the derived task graph reads (plan 2026-09-05-session-context, G3).
+# Read-only: nothing here writes to a sibling. `plans` defaults to
+# docs/superpowers/plans/*.md. Order = display order in the brief.
+
+[[repo]]
+name = "nixos-agent-env"
+path = "~/nixos-agent-env"
+
+[[repo]]
+name = "media"
+path = "~/flakes/media"
+
+[[repo]]
+name = "gaming"
+path = "~/flakes/gaming"
+
+[[repo]]
+name = "nixos-skill"
+path = "~/flakes/nixos-skill"
+
+[[repo]]
+name = "dsh-harness"
+path = "~/flakes/dsh-harness"
+
+[[repo]]
+name = "codex"
+path = "~/flakes/codex"
+
+[[repo]]
+name = "openai-lab"
+path = "~/flakes/openai-lab"
