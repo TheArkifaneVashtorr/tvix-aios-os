@@ -426,3 +426,33 @@ status = "open"
 closing_check = ""
 task = ""
 evidence = "docs/superpowers/plans/2026-09-11-evidence.md"
+
+[[bug]]
+id = "BUG-secret-shapes-drift"
+found = 2026-09-25
+symptom = "Three secret-shape lists disagree. pkgs/evidence/streams.py SECRET_RE (evidence values) has AKIA[0-9A-Z]{16}, ghp_ and xox[bp]-; flake.nix's KN13 lint grep (commit time) claims to mirror SECRET_RE minus its prose-prone tokens but carries only the four sk-or/sk-ant/PRIVATE KEY/AGE-SECRET-KEY arms; docs/ledger/publish.toml's deny patterns (export time, the gate that protects the public repo) carry the same four and no AWS, Slack or GitHub shape (GitHub arrives with PL16). A committed AWS key or Slack token passes both the pre-commit lint and the publish gate today. Measured while drafting PL16."
+repro = '''! grep -q 'AKIA' docs/ledger/publish.toml'''
+status = "open"
+closing_check = ""
+task = ""
+evidence = "flake.nix"
+
+[[bug]]
+id = "BUG-check-reads-live-repo"
+found = 2026-09-25
+symptom = "`tasks.py --root <X> check` runs its per-repo checks (reviews, task classes, the area manifest) against the path in docs/ledger/repos.toml (`~/nixos-agent-env`, the live checkout), not against <X>. From an archived checkout it reported errors that belonged to the live tree, including a review a seat committed mid-test; pointing HOME at a directory whose nixos-agent-env links to the copy flips the result. So a check run from a seat workspace, a scratch clone or plan.js's whole-lens `cp -a` copy checks main's working tree, not the copy. A sibling of BUG-ledger-read-from-live-path (EV11, ledgers only). Measured by the JAZ session 2026-09-25; parked under the goal-1 focus."
+repro = '''grep -q 'nixos-agent-env' docs/ledger/repos.toml'''
+status = "open"
+closing_check = ""
+task = ""
+evidence = "pkgs/evidence/tasks.py"
+
+[[bug]]
+id = "BUG-integrate-reads-imported-history"
+found = 2026-09-26
+symptom = "factory-integrate runs every check named in the `(test: …)` lists of all merged commits, including history a `git subtree add` imports. PL14b's integrate (run s43pl, head 7bbb3bea) refused on three names from gaming's own old subjects that are not checks of this flake (`flake-check`, `drill-unit`, `gaming-assertion-negative-1..6`) while all 14 real checks passed; the operator approved a manual fast-forward. Fix: read test lists only from commits on the task's own first-parent line (or skip names that are not attributes of checks.x86_64-linux, with a warning)."
+repro = '''git log --format=%s 7bbb3bea | grep -c '(test: .*flake-check' '''
+status = "open"
+closing_check = ""
+task = ""
+evidence = "tools/factory/seat/factory-integrate"

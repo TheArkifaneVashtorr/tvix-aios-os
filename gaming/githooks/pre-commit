@@ -1,0 +1,21 @@
+#!/usr/bin/env bash
+# Autolint gate: formatting and static analysis must pass before any commit.
+set -euo pipefail
+if ! command -v treefmt >/dev/null; then
+  echo "pre-commit: lint tools missing — commit from the devShell: nix develop -c git commit ..." >&2
+  exit 1
+fi
+treefmt --ci --config-file treefmt.toml --tree-root . ||
+  {
+    echo "pre-commit: treefmt found unformatted files (run: treefmt)" >&2
+    exit 1
+  }
+shellcheck githooks/pre-push githooks/pre-commit
+if [ -d tests ]; then
+  # -x: follow shellcheck source= directives (tests/unit/listeners.sh
+  # sources tests/acceptance/gaming.sh); run from the repo root so those
+  # directive paths, written relative to the root, resolve.
+  find tests -name '*.sh' -print0 | xargs -0 --no-run-if-empty shellcheck -x
+fi
+statix check .
+deadnix --fail .

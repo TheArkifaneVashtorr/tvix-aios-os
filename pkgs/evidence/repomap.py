@@ -83,11 +83,15 @@ def _flake_check_sources(flake_text: str) -> tuple[list[str], list[str]]:
     in_checks = False
     after_checks = False
     for line in flake_text.splitlines():
-        # import paths: the historical `// (import ./x` merge or the GN12b
-        # `mediaChecks = import ./x` binding (both after the inline block).
+        # import paths: the historical `// (import ./x` merge or a
+        # `<name>Checks = import ./x` binding (both after the inline
+        # block). The binding name is generalized (PL14): GN12b
+        # hardcoded mediaChecks, so gaming's gamingChecks -- and any
+        # future absorbed subtree's own binding -- was silently
+        # dropped from MAP.md's Checks section.
         im = re.match(r"^\s*//\s*\(?\s*import\s+(\./\S+)", line)
         if not im:
-            im = re.match(r"^\s*mediaChecks\s*=\s*import\s+(\./\S+)", line)
+            im = re.match(r"^\s*\w+Checks\s*=\s*import\s+(\./\S+)", line)
         if after_checks and im:
             imports.append(im.group(1))
             continue

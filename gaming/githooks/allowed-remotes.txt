@@ -1,0 +1,3 @@
+# Exact remote URLs allowed for push. One per line. Empty = all pushes refused.
+# Public forges (GitHub/GitLab/Bitbucket/...) are refused regardless of this file.
+# Add the self-hosted remote URL here deliberately, in a reviewed commit.

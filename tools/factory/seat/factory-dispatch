@@ -12,16 +12,36 @@
 # logged to stderr and appended to $FACTORY_RUNS/<run>/dispatch.log; each task's
 # model and effort still resolve from docs/ledger/routing.toml via factory-task.
 #
+# The same graph answers whether a key was judged before it may run (ER9):
+#
+#   tasks.py --root <repo-path> judged <basename> --repo NAME
+#
+# which prints one `KEY<TAB>judged|unjudged|exempt<TAB>reason` row per open
+# task. A wave holding an unjudged key is refused with 8 before anything is
+# written -- no run directory, no dispatch.log, and under --dry-run too (the
+# refusal prints in place of "would run:"); a key absent from the rows is read
+# as unjudged ("not reported by tasks.py judged"), never silently passed.
+# FACTORY_DISPATCH_UNJUDGED=1 turns the refusal into a logged line (stderr and
+# dispatch.log, beside the groups line) and proceeds.
+#
 # Exit codes: 2 usage/bad repo or plan path/repo unknown; 5 malformed wave
-# line; 6 graph query failed; 7 the launched wave failed, or --all made no
-# progress (the same wave came back after a wave that exited 0). A dry run
-# touches nothing and exits 0.
+# line; 6 graph query failed (waves or judged); 7 the launched wave failed, or
+# --all made no progress (the same wave came back after a wave that exited 0);
+# 8 the wave holds an unjudged key and FACTORY_DISPATCH_UNJUDGED is not 1. A
+# dry run touches nothing and exits 0.
 #
 # Env overrides (tests and sandboxes):
 #   FACTORY_WAVES_CMD     command whose stdout is the next wave's one line, in
 #                         place of the tasks.py `waves --next` query (a fake
 #                         graph in tests -- malformed/crashing/stalled sources
 #                         exercise the die-5/die-6/die-7 paths).
+#   FACTORY_JUDGED_CMD    command whose stdout is the plan's judged rows, in
+#                         place of the tasks.py `judged` query (a fake judgement
+#                         in tests -- rows exercise the die-8 refusal and the
+#                         escape; a crashing source the die-6 path).
+#   FACTORY_DISPATCH_UNJUDGED  when 1, an unjudged key is logged and the wave
+#                         proceeds (the die-8 refusal becomes a log line); the
+#                         escape hatch for judging retroactively.
 #   FACTORY_PYTHON3_CMD   interpreter for tasks.py instead of the toolbox
 #                         devShell python (nix develop), which the nix build
 #                         sandbox lacks -- tests set it to the sandbox's
@@ -138,6 +158,23 @@ next_wave_line() {
   printf '%s\n' "$out"
 }
 
+# The plan's judgement rows, ONE line per open task, `KEY<TAB>judged|unjudged|
+# exempt<TAB>reason` (ER9's `tasks.py judged`). FACTORY_JUDGED_CMD, when set,
+# supplies the rows directly; otherwise the real graph is queried with
+# `judged <basename> --repo NAME`. A non-zero graph exit is a hard failure
+# (die 6), never the reassuring "everything is judged".
+judged_lines() {
+  local out
+  if [ -n "${FACTORY_JUDGED_CMD:-}" ]; then
+    if ! out=$("$FACTORY_JUDGED_CMD"); then
+      factory_die 6 "factory-dispatch: graph query failed"
+    fi
+  elif ! out=$(factory_py "$FACTORY_TOOLBOX_REPO/pkgs/evidence/tasks.py" --root "$repo_path" judged "$plan_base" --repo "$repo_name"); then
+    factory_die 6 "factory-dispatch: graph query failed"
+  fi
+  printf '%s\n' "$out"
+}
+
 if [ -z "$repo_name" ]; then
   repo_name=$(resolve_repo_name "$repo_path")
 fi
@@ -167,6 +204,36 @@ while :; do
   eval "set -- $wave_line"
   groups=("$@")
 
+  # ER10: consult the judged rows before anything is written -- no run dir, no
+  # dispatch.log, and the --dry-run prints the refusal instead of "would run:".
+  # A wave holding an unjudged key is refused with 8; a key absent from the
+  # rows is unjudged ("not reported by tasks.py judged"), never silently
+  # passed. FACTORY_DISPATCH_UNJUDGED=1 turns the refusal into a logged line
+  # (stderr, and dispatch.log beside the groups line) and proceeds.
+  judged_rows=$(judged_lines)
+  declare -A judged_state=() judged_reason=()
+  while IFS=$'\t' read -r row_key row_state row_reason; do
+    [ -n "$row_key" ] || continue
+    judged_state[$row_key]=$row_state
+    judged_reason[$row_key]=$row_reason
+  done <<<"$judged_rows"
+  escape_lines=()
+  for group in "${groups[@]}"; do
+    # shellcheck disable=SC2086  # a group is the validated, space-separated key list
+    for key in $group; do
+      state=${judged_state[$key]:-unjudged}
+      reason=${judged_reason[$key]:-"not reported by tasks.py judged"}
+      if [ "$state" = unjudged ]; then
+        if [ "${FACTORY_DISPATCH_UNJUDGED:-0}" = 1 ]; then
+          factory_log "dispatching unjudged $key (FACTORY_DISPATCH_UNJUDGED=1): $reason"
+          escape_lines+=("factory-dispatch: dispatching unjudged $key (FACTORY_DISPATCH_UNJUDGED=1): $reason")
+        else
+          factory_die 8 "factory-dispatch: refusing: $key is unjudged ($reason); judge it (plan.js judgeOnly) or set FACTORY_DISPATCH_UNJUDGED=1"
+        fi
+      fi
+    done
+  done
+
   if [ "$dry_run" -eq 1 ]; then
     printf 'would run: factory-wave %s %s' "$run" "$repo_path"
     printf ' "%s"' "${groups[@]}"
@@ -188,6 +255,11 @@ while :; do
   fi
   factory_log "run '$run' plan '$plan_base': wave groups: ${groups[*]}"
   printf 'factory-dispatch: run %s plan %s groups: %s\n' "$run" "$plan_base" "${groups[*]}" >>"$dispatch_log"
+  # The ER10 escape lines land beside the groups line (already emitted to
+  # stderr by the gate above; here they meet dispatch.log too).
+  if [ "${#escape_lines[@]}" -gt 0 ]; then
+    printf '%s\n' "${escape_lines[@]}" >>"$dispatch_log"
+  fi
 
   # Capture the launched wave's exit code explicitly rather than letting
   # `set -e` kill the script first (the brief and the caller must see the real

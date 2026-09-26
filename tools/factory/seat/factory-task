@@ -781,6 +781,16 @@ else
     # FACTORY_SEAT_UNIT=0 opt-out. Name that in the log so a bypass can never
     # again be invisible in a run log.
     printf '%s\n' "FACTORY_SEAT_UNIT=0: direct arm, the operator's key outside the broker" >>"$log"
+    # PL16 (brief §2 goal 1): this subshell inherits the process's whole
+    # ambient environment -- the one place an ambient GH_TOKEN/GITHUB_TOKEN
+    # would leak straight through, and the one place gh's default config
+    # lookup would resolve the operator's real ~/.config/gh/hosts.yml (the
+    # unit arm's twin guard is the seatLane.nix GH_CONFIG_DIR pin; this arm
+    # runs no unit, so the guard lives here). A fresh empty config dir beside
+    # the run's own artifacts, plus the env -u strip below, so gh inside the
+    # launched seat discovers no credential the operator holds.
+    gh_config_dir=$runs_dir/$key.gh-config-empty
+    mkdir -p "$gh_config_dir"
     # FA31: the brief is handed over by path (the file written before the
     # arms), so an over-cap brief launches here too instead of dying in
     # execve -- the wrapper expands @<absolute path> itself (FA30).
@@ -795,7 +805,9 @@ else
       (
         cd -- "$ws" &&
           DSH_HOME=$dsh_home \
+            GH_CONFIG_DIR=$gh_config_dir \
             OPENROUTER_REASONING_EFFORT=$effort \
+            env -u GH_TOKEN -u GITHUB_TOKEN \
             timeout -- "$timeout_s" dsh-openrouter --model "$model" --headless "@$brief_file"
       ) 2>&1 | tee -a -- "$log"
       exit_code=${PIPESTATUS[0]}

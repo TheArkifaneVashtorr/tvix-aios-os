@@ -115,6 +115,34 @@ EOF
   printf '%s\n' "$script"
 }
 
+# A fake judged source (ER10): prints the given rows ($1, one
+# `KEY<TAB>judged|unjudged|exempt<TAB>reason` line each) and exits with the
+# given code (default 0), standing in for `tasks.py judged <plan> --repo`.
+fake_judged() {
+  local body=$1 code=${2:-0} script="$BATS_TEST_TMPDIR/judged-$RANDOM"
+  cat >"$script" <<EOF
+#!$REAL_BASH
+printf '%s\n' '$body'
+exit $code
+EOF
+  chmod +x "$script"
+  printf '%s\n' "$script"
+}
+
+# A fake judged-source (ER10): prints the given judgement rows ($1,
+# `KEY<TAB>judged|unjudged|exempt<TAB>reason`, one per line) and exits with
+# the given code (default 0), standing in for `tasks.py judged <plan> --repo`.
+fake_judged() {
+  local body=$1 code=${2:-0} script="$BATS_TEST_TMPDIR/judged-$RANDOM"
+  cat >"$script" <<EOF
+#!$REAL_BASH
+printf '%s\n' '$body'
+exit $code
+EOF
+  chmod +x "$script"
+  printf '%s\n' "$script"
+}
+
 @test "factory-dispatch --dry-run prints the next wave and does not launch (FD1b a)" {
   run "$REAL_BASH" "$SEAT/factory-dispatch" r1 "$REPO" "$PLAN" --dry-run
   [ "$status" -eq 0 ]
@@ -276,6 +304,72 @@ EOF
   [[ "$output" != *"<A2>"* ]]
 }
 
+@test "factory-dispatch refuses a wave holding an unjudged key before any write (ER10 a)" {
+  # A1 is judged, B1 is not: the --dry-run refuses with 8 (the refusal, not
+  # "would run:"), and the refusal happens before any write -- no launcher
+  # record, no runs dir. The same holds for a REAL dispatch: the refusal must
+  # precede even the mkdir, or "no runs/r1" (the M1 row) would not hold.
+  judged="$(fake_judged $'A1\tjudged\tx\nB1\tunjudged\tno judgement of p.md dated on or after 2026-09-26')"
+  FACTORY_JUDGED_CMD="$judged" \
+    run "$REAL_BASH" "$SEAT/factory-dispatch" r1 "$REPO" "$PLAN" --dry-run
+  [ "$status" -eq 8 ]
+  [[ "$output" == *"refusing: B1 is unjudged"* ]]
+  [ ! -e "$REC" ]
+  [ ! -d "$FACTORY_ROOT/runs/r1" ]
+  FACTORY_JUDGED_CMD="$judged" \
+    run "$REAL_BASH" "$SEAT/factory-dispatch" r1 "$REPO" "$PLAN"
+  [ "$status" -eq 8 ]
+  [ ! -e "$REC" ]
+  [ ! -d "$FACTORY_ROOT/runs/r1" ]
+}
+
+@test "factory-dispatch logs the unjudged escape and proceeds under FACTORY_DISPATCH_UNJUDGED=1 (ER10 b)" {
+  # The same rows, but the escape hatch is set: the refusal becomes a log line
+  # (stderr and dispatch.log, beside the groups line) and the launch proceeds.
+  judged="$(fake_judged $'A1\tjudged\tx\nB1\tunjudged\tno judgement of p.md dated on or after 2026-09-26')"
+  FACTORY_JUDGED_CMD="$judged" FACTORY_DISPATCH_UNJUDGED=1 \
+    run "$REAL_BASH" "$SEAT/factory-dispatch" r1 "$REPO" "$PLAN"
+  [ "$status" -eq 0 ]
+  [ "$(grep -c '^CALL args:' "$REC")" -eq 1 ]
+  run cat "$FACTORY_ROOT/runs/r1/dispatch.log"
+  [[ "$output" == *"dispatching unjudged B1 (FACTORY_DISPATCH_UNJUDGED=1)"* ]]
+  [[ "$output" == *"factory-dispatch: run r1 plan plan.md groups: A1 B1"* ]]
+}
+
+@test "factory-dispatch passes a wave of judged and exempt keys -- the unjudged control (ER10 c)" {
+  # A1 exempt (its plan landed before the cut-in), B1 judged: both pass
+  # silently, so the dry run prints "would run:" exactly as before.
+  judged="$(fake_judged $'A1\texempt\tplan landed 2026-09-24 before 2026-09-25\nB1\tjudged\tx')"
+  FACTORY_JUDGED_CMD="$judged" \
+    run "$REAL_BASH" "$SEAT/factory-dispatch" r1 "$REPO" "$PLAN" --dry-run
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"would run: factory-wave r1 $REPO \"A1\" \"B1\""* ]]
+  [ ! -e "$REC" ]
+}
+
+@test "factory-dispatch exits 6 when the unjudged-judgement query fails (ER10 d)" {
+  # The judged query itself fails (exit 1) -- that is a graph-query failure
+  # (die 6), the same code as a failing waves query, and it writes nothing.
+  judged="$(fake_judged '' 1)"
+  FACTORY_JUDGED_CMD="$judged" \
+    run "$REAL_BASH" "$SEAT/factory-dispatch" r1 "$REPO" "$PLAN" --dry-run
+  [ "$status" -eq 6 ]
+  [[ "$output" == *"graph query failed"* ]]
+  [ ! -e "$REC" ]
+  [ ! -d "$FACTORY_ROOT/runs/r1" ]
+}
+
+@test "factory-dispatch treats a key absent from the judged query as unjudged (ER10 e)" {
+  # The query reports only A1; B1 is in the wave but has no row -- absent is
+  # unjudged, with the "not reported by tasks.py judged" reason.
+  judged="$(fake_judged $'A1\tjudged\tx')"
+  FACTORY_JUDGED_CMD="$judged" \
+    run "$REAL_BASH" "$SEAT/factory-dispatch" r1 "$REPO" "$PLAN" --dry-run
+  [ "$status" -eq 8 ]
+  [[ "$output" == *"refusing: B1 is unjudged (not reported by tasks.py judged)"* ]]
+  [ ! -e "$REC" ]
+}
+
 @test "factory-dispatch --all runs wave after wave through the real factory-wave (DF7b)" {
   # DF7b: --all launches wave after wave into ONE run directory by design. The
   # second wave is admitted by factory-wave's reuse rule (the previous
@@ -319,8 +413,13 @@ case "$n" in
 esac
 EOF
   chmod +x "$waves_script"
+  # K1 and K2 are not keys of the fixture plan -- the ER10 gate would read
+  # them as absent (unjudged) from the REAL judged query and refuse, so the
+  # judged seam is faked here too, rows for exactly the two launched keys.
+  judged_script="$(fake_judged $'K1\tjudged\tx\nK2\tjudged\tx')"
 
   FACTORY_BIN_OVERRIDE="$fbin" FACTORY_WAVES_CMD="$waves_script" FACTORY_WAVE_CMD="$fwave" \
+    FACTORY_JUDGED_CMD="$judged_script" \
     run "$REAL_BASH" "$SEAT/factory-dispatch" r1 "$REPO" "$PLAN" --all
 
   [ "$status" -eq 0 ]

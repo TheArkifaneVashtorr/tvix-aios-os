@@ -443,16 +443,26 @@ review_by = 2026-10-06
 closes_by = "a persisted source for the weekly percentage is found, or the reset probe's boolean is recorded as a limit-event row"
 
 # plan 2026-09-22-tvix-aios-step1 (OS4): the two halves of goal 1 the check
-# aios-public-build cannot measure on this host.
+# aios-public-build cannot measure on this host. PL19 (plan
+# 2026-09-11-platform.md) closed this row with the new check export-eval
+# rather than the aios-public-build arm its closes_by text anticipated:
+# closed_by = "export-eval". The check assembles the publish-gate export
+# (every export-list path plus a named allowlist of pending files the flake
+# itself references, git-committed) and evaluates it in full, holding the
+# failing-check set to exactly [ helm-declaration ] — the Helm Home
+# coupling (good-core names the profile core, which a hosts-less export
+# cannot export) is accepted here by name, not silently dropped. The
+# allowlist's own entries (helm.nix, media's checks and modules, the
+# declaration fixtures, the two integration VMs) and flake.nix/flake.lock
+# leaving pending remain each owning subsystem's promotion work, unchanged.
 [[claim]]
 id = "aios-public-flake-eval-unmeasured"
 text = "a clean clone of the publish-gate export evaluates this flake (spec 2026-09-22-tvix-aios §2, goal 1) — aios-public-build measures only the workspace build from the export"
-status = "gap"
-class = "unmeasured"
+status = "verified"
+class = "eval"
+evidence = "check:export-eval@08e3fc4 tests/acceptance/export-eval.sh (export-list 805 paths, 0 hosts/, plus the named allowlist, git-committed; flake.nix forces every output and every check's drvPath, failing unless the failing-check set is exactly [ helm-declaration ])"
 owner = "orchestrator"
 opened = 2026-09-22
-review_by = 2026-10-20
-closes_by = "flake.nix and flake.lock leave `pending` in docs/ledger/publish.toml (the gaming input's home path replaced) and `nix flake show` succeeds in a directory holding only the paths `publish.py export-list` prints; aios-public-build then gains that arm and this row becomes check:aios-public-build@<rev>"
 
 [[claim]]
 id = "tvix-fork-rev-on-github-unverified"

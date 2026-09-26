@@ -69,6 +69,7 @@ owns = [
   "flake.lock",
   "LICENSE",
   "hosts/*",
+  "gaming/*",
   "users/*",
   "tests/fixtures/user-side/*",
   "nixosModules/fleet.nix",
@@ -102,6 +103,7 @@ owns = [
   "tests/acceptance/phase4a.sh",
   "tests/acceptance/phase4b.sh",
   "tests/acceptance/backup.sh",
+  "tests/acceptance/export-eval.sh",
   "tests/integration/proton-backup-vm.nix",
   "tests/lint/*",
   "tests/mocks/*",
@@ -164,6 +166,7 @@ owns = [
   "tests/unit/80-seat-driver.bats",
   "tests/unit/88-seat-drive.bats",
   "tests/unit/94-seat-harness.bats",
+  "tests/unit/100-seat-gh-isolation.bats",
 ]
 plans = [
   "docs/superpowers/plans/2026-09-07-seat-harness-redesign.md",
@@ -221,6 +224,10 @@ owns = [
   "tests/unit/88-wave-guards.bats",
   "tests/unit/89-result-grammar.bats",
   "tests/unit/87-prior-attempt.bats",
+  "tests/unit/99-jaz-blind.bats",
+  "tests/unit/99-jaz-build.bats",
+  "tests/unit/99-jaz-fixtures.bats",
+  "tools/experiments/jaz/*",
   "docs/superpowers/specs/*",
 ]
 plans = [

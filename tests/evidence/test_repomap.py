@@ -118,6 +118,33 @@ def test_flake_check_sources_reads_hostchecks_and_import():
     )
 
 
+TWO_SUBTREES_FLAKE = """{
+  outputs = { self, nixpkgs }:
+    let x = 1; in {
+      checks.${system} =
+        let
+          hostChecks = {
+            host-core = 1;
+          };
+          mediaChecks = import ./media/checks.nix { inherit pkgs; };
+          gamingChecks = import ./gaming/checks.nix { inherit pkgs; };
+        in
+        hostChecks // mediaChecks // gamingChecks;
+    };
+}
+"""
+
+
+def test_flake_check_sources_reads_a_second_absorbed_subtree():
+    """PL14: the import-binding regex must read every `<name>Checks`
+    binding, not only GN12b's mediaChecks — gaming's absorption adds a
+    second absorbed subtree and any future one adds a third."""
+    assert rm._flake_check_sources(TWO_SUBTREES_FLAKE) == (
+        ["host-core"],
+        ["./media/checks.nix", "./gaming/checks.nix"],
+    )
+
+
 def test_first_comment_handles_shebang_docstring_and_bare(tmp_path):
     make_repo(tmp_path)
     assert (

@@ -6,3 +6,4 @@ token PLANTED-1234
 plantedwords are not the word (a substring must not match)
 Nobody@Example.Invalid is a different string (a literal is case-sensitive)
 PLANTED-12 is too short for the pattern
+a fake github-shaped token PLANTEDGH_0123456789 is planted here

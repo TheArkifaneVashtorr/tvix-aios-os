@@ -1,6 +1,13 @@
 # The negative control's manifest (plan 2026-09-21-publish-gate, PG1; spec §7).
 # Every deny value below is invented for this fixture; none is a real literal
 # of this repository. expected.txt is the report the validator must print.
+# PL16: the second pattern is the fixture-only twin of the real GitHub-token
+# shapes docs/ledger/publish.toml now denies -- INVENTED, never the real
+# `gh[opsur]_`/`github_pat_` regex text, because this fixture tree is itself a
+# tracked `publish`-classified path under the REAL manifest, so a planted
+# value shaped like a real deny pattern would trip the real whole-tree
+# publish-gate on this very fixture (measured: the first rehearsal's literal
+# ghp_-shaped plant did exactly that).
 publish  = ["README.md", "notes/*", "both.*"]
 withhold = ["publish.toml", "expected.txt", "private/*", "both.txt"]
 pending  = ["notes/stale.md"]
@@ -8,4 +15,4 @@ pending  = ["notes/stale.md"]
 [deny]
 literals = ["nobody@example.invalid", "900000001"]
 words    = ["plantedword"]
-patterns = ["PLANTED-[0-9]{4}"]
+patterns = ["PLANTED-[0-9]{4}", "PLANTEDGH_[A-Za-z0-9]{10}"]

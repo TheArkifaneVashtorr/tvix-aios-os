@@ -301,6 +301,12 @@ in
         # (the wrapper's mkdir runs under set -e, so a missing/unwritable root
         # would kill the launch -- Assumption 10).
         "d /var/lib/seat/cache 0700 ${cfg.operatorUser} users -"
+        # PL16: the seat's gh config dir (the unit's GH_CONFIG_DIR, above).
+        # 0555 root:root -- the seat (operatorUser) can read and traverse it,
+        # so gh's lookup finds an empty dir instead of failing on a missing
+        # one, but can never write a real hosts.yml or a symlink into it: no
+        # job can plant a credential gh would then trust.
+        "d /var/lib/seat/gh-config-empty 0555 root root -"
         # SA7 (decision 59a): the seat's memory store, under the evidence store.
         # 0700 operator-only -- a machine-local store a job seat's own tools can
         # reach through $DSH_HOME/memory, never world-readable. Declared (brief
@@ -361,6 +367,18 @@ in
           # harness's and nix's caches must land in a directory the unit may
           # write; tmpfiles creates it 0700 operator-only (rule above).
           DSH_CACHE_ROOT = "/var/lib/seat/cache";
+          # PL16 (brief §2 goal 1): gh joins the devShell, so a job that
+          # reaches `nix develop -c gh` inside this unit must not resolve the
+          # OPERATOR's gh identity: gh's default config lookup walks
+          # $HOME/.config/gh (the unit's HOME is the operator's real one, see
+          # the /home comment below) and the Secret Service over the session
+          # bus (hidden below). Pinning GH_CONFIG_DIR at a fresh root-owned dir
+          # -- tmpfiles creates it 0555 root:root (rule above), so the seat
+          # can read/traverse but never write a real hosts.yml or a symlink
+          # into it -- makes gh discover no credential at all ("You are not
+          # logged into any GitHub hosts.", measured). An env entry, never a
+          # credential: the sk-or- assertion above stays true by construction.
+          GH_CONFIG_DIR = "/var/lib/seat/gh-config-empty";
           # SA7 (decision 59a): the wrapper links $DSH_HOME/memory into this
           # store by workspace cwd-key, so a seat's durable memory lives under
           # the evidence store, never in the tree.
@@ -453,6 +471,20 @@ in
             "/var/lib/secrets"
             "-/run/systemd/private"
             "-/run/dbus/system_bus_socket"
+            # PL16: the operator's own session bus -- the transport the
+            # Secret Service (the desktop keyring) is reached over, and gh's
+            # fallback credential resolution when no hosts.yml answers. The
+            # uid is computed from cfg.operatorUser, never %U: systemd.unit(5)
+            # is explicit that %U resolves to the SERVICE MANAGER's own uid
+            # ("0" for a system unit, not influenced by User=), so a %U
+            # spelling would hide /run/user/0/bus (nothing) and leave the
+            # real bus untouched -- silently inert (measured against the
+            # installed man page, systemd 260). The "-" prefix tolerates a
+            # machine where no session bus exists, exactly as the two
+            # systemd sockets above; AF_UNIX is already admitted by
+            # RestrictAddressFamilies (Base), so this hide is the one thing
+            # that stands between a seat and its operator's keyring.
+            "-/run/user/${toString config.users.users.${cfg.operatorUser}.uid}/bus"
           ];
           NoNewPrivileges = true;
           # AF_NETLINK: the wrapper's `--broker` route check (`ip route`) must
@@ -611,7 +643,7 @@ in
       });
       // IS26: the seat-inhibit@ companion (as ${cfg.operatorUser}, above)
       // takes its block lock through logind's Inhibit() on the system bus.
-      // inhibit-block-shutdown's implicit `any` is auth_admin_keep, so a
+      // inhibit-block-shutdown's implicit 'any' is auth_admin_keep, so a
       // session-less system unit can never acquire it without this grant --
       // scoped to the one action and the one operator user, never a
       // blanket YES.

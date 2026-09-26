@@ -15,7 +15,9 @@ plans = "media/docs/superpowers/plans/*.md"
 
 [[repo]]
 name = "gaming"
-path = "~/flakes/gaming"
+path = "~/nixos-agent-env"
+plans = "gaming/docs/superpowers/plans/*.md"
+# absorbed 2026-09-25 under gaming/ (PL14, tag absorbed/gaming-a408d7e); the sibling clone ~/flakes/gaming is kept untouched
 
 [[repo]]
 name = "nixos-skill"
