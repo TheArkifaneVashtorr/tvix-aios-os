@@ -1,0 +1,51 @@
+---
+reviewer: opus
+majors: null
+minors: null
+---
+# Opus gate — seat run ev1, task E3 — APPROVED
+
+Branch head `5bf6e12401f1` (`~/factory/ws/ev1/E3`, `task/E3`). Reviewer: Opus, high effort, throwaway clone; checks re-run by ref.
+
+## Summary
+
+APPROVED. E3 lands exactly what the plan specifies, in exactly the two files its `touches` line allows, with the commit subject byte-identical to the plan's and the required Co-Authored-By trailer intact. Every Files/Interfaces item is present and verified at HEAD: IMPL_SCHEMA and REVIEW_SCHEMA require task_key/round/label with the plan's property descriptions; VERIFY_SCHEMA requires evidence_recorded; the attribution sentence is rendered in the implementer, fix-agent, docs-reviewer and code-reviewer prompts with the correct round/label arithmetic in each; the verifier's step 6 carries the `evidence record-check --name flake-check --rev $(git rev-parse HEAD) --class nix-check --src dark-factory-verify` line with `\\${EVIDENCE_STORE:-/var/lib/evidence}` correctly escaped so it reaches the agent as literal shell rather than being interpolated by the template literal; the recorder block sits immediately after `const spent = budget.spent()` and before `const unreviewed`, and `recorded` is added to the returned object and documented (along with args.runId and the attribution fields) in the header comment. Red-before-green is proven: with the implementation reverse-applied and the test kept at HEAD the suite dies with `AssertionError [ERR_ASSERTION]: IMPL_SCHEMA requires task_key`, the exact failure the plan predicts. Seven of nine mutations were killed, including the two places a vacuous test would most easily hide — the store-path escape (M5 proves the test actually pins the literal `${EVIDENCE_STORE:-/var/lib/evidence}` string, not an interpolated value) and the docs-reviewer round arithmetic (M4). The two survivors (the fix agent's round sentence, the report's run_id) are gaps in the test block the plan itself dictates verbatim, not implementation defects — filed as one minor with the concrete assertions that would close them. Both acceptance checks are green independently re-run in a throwaway clone (factory-unit with --rebuild to defeat the cache; lint built fresh), as is the pre-commit lint gate. No hard-rule violation: no bypass flags, no 2>/dev/null, no sudo/switch/service calls, no secrets, no placeholder text, nothing written outside the clone. The one declared deviation (the code reviewer's sentence on its own line) is necessary and correct — appending it inline would have broken the pre-existing byte-exact SKILL-line assertions. Remaining findings are three minors: scenario ordering/numbering, a skipped step number in the no-HOST verify prompt, and the coverage gap above.
+
+## Checks
+
+- green — factory-unit: nix build .#checks.x86_64-linux.factory-unit -L --no-link --rebuild → 'factory-unit> render.test.mjs: all assertions passed', exit 0 (forced --rebuild so the cached result could not stand in for a real run)
+- green — lint: nix build .#checks.x86_64-linux.lint -L --no-link → built dark-factory-syntax-check.js.drv + lint.drv; 'lint> formatted 72 files (0 changed)', 'lint> All checks passed!', '20 files already formatted', exit 0
+- green — githooks/pre-commit (lint gate): cd <clone> && nix develop -c githooks/pre-commit → 'All checks passed!' / '20 files already formatted' / 'render.test.mjs: all assertions passed', exit 0
+- green — node tests/factory/render.test.mjs (direct): nix develop -c node tests/factory/render.test.mjs → 'render.test.mjs: all assertions passed'
+- green — touches contract: git show --stat HEAD lists exactly tests/factory/render.test.mjs and tools/factory/dark-factory.js — the two paths in the plan's touches line; no file outside it
+- green — commit subject + trailer: subject is byte-identical to the plan's 'commit subject'; body states the WHY; trailer 'Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>' present verbatim as the last line (preceded by an extra 'Generated-By: dsh …' trailer the workspace rules require)
+- green — hard-rule scan: git show HEAD | grep -E '2>/dev/null|--no-verify|sudo |nixos-rebuild|systemctl|TODO|FIXME|XXX|placeholder' → no match; no secrets; no bypass flags; JS only, so the Python-stdlib rule does not apply
+- green — tree restored after mutation battery: git status --porcelain empty after all nine mutations were reverted
+
+## Red before green
+
+Reverse-applied the implementation only, keeping the new test at HEAD: `git checkout HEAD~1 -- tools/factory/dark-factory.js && nix develop -c node tests/factory/render.test.mjs`. Decisive output: `AssertionError [ERR_ASSERTION]: IMPL_SCHEMA requires task_key` at tests/factory/render.test.mjs:872 (actual false, expected true) — exactly the failure the plan's Step 2 predicts. Restored with `git checkout HEAD -- tools/factory/dark-factory.js`; the suite then printed `render.test.mjs: all assertions passed`.
+
+## Mutation table
+
+| mutation | killed | by |
+|---|---|---|
+| tools/factory/dark-factory.js:156 — remove 'task_key' from REVIEW_SCHEMA.required | yes | render.test.mjs:875 — AssertionError: REVIEW_SCHEMA requires task_key |
+| tools/factory/dark-factory.js:604 — verify prompt '--src dark-factory-verify' → '--src dark-factory' | yes | render.test.mjs — AssertionError: input did not match /--class nix-check --src dark-factory-verify/ |
+| tools/factory/dark-factory.js:663 — 'const recorded = !!(rec && rec.ok)' → '… && false' | yes | render.test.mjs — AssertionError: 'the run reports that it was recorded', false !== true |
+| tools/factory/dark-factory.js:503 — docs reviewer 'round to ${round}' → 'round to ${round + 1}' (off-by-one) | yes | render.test.mjs — AssertionError: input did not match /set task_key to "B", round to 0 and label to "review:B:r1"/i; rendered prompt showed 'round to 1' |
+| tools/factory/dark-factory.js:660 — recorder store default '/var/lib/evidence' → '/var/lib/ev' (breaks the E1 contract path) | yes | render.test.mjs — AssertionError on /--store "\$\{EVIDENCE_STORE:-\/var\/lib\/evidence\}" record runs --json/; also proves the \${…} escape renders literally rather than interpolating |
+| tools/factory/dark-factory.js:657 — report task rows drop 'status: statusOf.get(r.key)' | yes | render.test.mjs — AssertionError on /"key":"A","status":"approved"/ |
+| tools/factory/dark-factory.js:181 — remove 'evidence_recorded' from VERIFY_SCHEMA.required | yes | render.test.mjs:878 — AssertionError: VERIFY_SCHEMA requires evidence_recorded |
+| tools/factory/dark-factory.js:654 — delete 'run_id: A.runId \|\| null' from the run report | NO | survived — 'render.test.mjs: all assertions passed'; the plan's own Step 1 test block asserts no run_id, so this is a spec-level coverage gap, not an implementation defect |
+| tools/factory/dark-factory.js:530 — fix agent 'round to ${round + 1}' → 'round to ${round}' (off-by-one) | NO | survived — 'render.test.mjs: all assertions passed'; the plan's Step 1 scenario never drives a fix round, so the fix agent's attribution sentence is unasserted. The code itself matches the plan's Step 3 text exactly. |
+
+## Findings
+
+- **minor** `tests/factory/render.test.mjs:863` — The plan says to add the scenario "after the existing ones", but Scenario 26 (E3) was inserted before Scenario 25 (N18), so the file now reads 24, 26, 25. Purely cosmetic — no assertion depends on order. **Fix:** Move the Scenario 26 block below the Scenario 25 block (or renumber), and add a bullet for it to the file's header comment (lines 6-25), which enumerates what the file asserts and was not extended.
+- **minor** `tools/factory/dark-factory.js:604` — In the no-HOST branch of the verify prompt the appended step is numbered 6) while that branch only emits steps 3) and 4), so the agent-facing instruction reads 0,1,2,3,4,6 — a skipped number in the one place the prompt is meant to be read literally. **Fix:** Word the appended step as "Finally, record the observation …" instead of hard-coding "6)", or fold the number into each ternary branch.
+- **minor** `tools/factory/dark-factory.js:530` — Coverage gap: the fix agent's attribution sentence survives an off-by-one mutation (round -> round+1 becomes round) because no scenario drives a fix round with the E3 assertions. Same for run_id at line 654. The implementation matches the plan's Step 3 text exactly; the plan's own Step 1 test block simply does not reach these, so this is spec-inherited, not implementer error. **Fix:** In the existing 'rejectThenApprove' scenario (render.test.mjs:355), add assert.match(byLabel(stubs.calls,'fix:A:r1').prompt, /set task_key to "A", round to 1 and label to "fix:A:r1"/i), and add assert.match(recorder.prompt, /"run_id":/) to Scenario 26.
+
+## Deviations
+
+FACTORY-RESULT declared no deviations field beyond FACTORY-NOTES ("TDD red-then-green observed; all E3 acceptance checks pass"). The transcript's closing summary declares one placement deviation: the code reviewer's attribution sentence was put on its own line after `TASK SPEC: ${t.spec}${skillLines('reviewCode', t)}` rather than appended inline, "so the existing byte-exact SKILL-line assertions still hold". ACCEPTED and independently verified: skillLines() emits a leading "\n" and render.test.mjs:102 extracts the SKILL line with /^SKILL:.*$/m, so appending inline would have corrupted the byte-exact comparisons in scenarios 1 and 4. The rendered sentence text is still byte-identical to the plan's. No other deviation found: the touches contract holds exactly (two files), commit subject and trailer are exact, and every Files/Interfaces item of E3 is present.

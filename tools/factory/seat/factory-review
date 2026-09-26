@@ -1,0 +1,296 @@
+#!/usr/bin/env bash
+# factory-review <run> <repo-path> <KEY> [--model ID]
+#
+# A second headless dsh-openrouter session, in a FRESH clone of task/<KEY>
+# (never the workspace the implementer used), reviewing that branch against
+# the plan section for <KEY>: does the diff match the task, is red-before-
+# green real (reverse-apply the test hunk and run the check), does the
+# commit follow the subject/trailer convention, and a blocker/major/minor
+# list with file:line. The review agent is told explicitly not to fix
+# anything -- this script never applies its findings.
+#
+# Writes ~/factory/runs/<run>/<KEY>.review.md (the seat's full answer) and
+# ~/factory/runs/<run>/<KEY>.review.log (everything, for debugging). Exits
+# 0 on verdict=approve, 1 on rework, 2 on reject, 3 if no verdict line or
+# the seat failed outright.
+set -euo pipefail
+
+here=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)
+# shellcheck source=./factory-lib.sh
+# shellcheck disable=SC1091
+. "$here/factory-lib.sh"
+
+usage() {
+  cat <<'USAGE' >&2
+usage: factory-review <run> <repo-path> <KEY> [--model ID]
+USAGE
+}
+
+# SD3: a claude rung for the review role. Resolve the claude review row, write
+# $FACTORY_RUNS/<run>/<KEY>.escalate (run, key, role, rung, escalate, model,
+# effort, launch) and exit 4 -- before the gate marker or any review workspace
+# exists. The launch: line is the opus-gate sentence the orchestrator runs in a
+# fresh clone; the .escalate is the record, never a run. Reads the surrounding
+# script locals.
+factory_review_escalate() {
+  local claude_line claude_model claude_effort launch
+  claude_line=$(factory_route --route claude --class "$class" review "$kind" "$size" || true)
+  claude_model=${claude_line%% *}
+  claude_effort=${claude_line##* }
+  launch="opus-gate task/$key ~/factory/ws/$run/$key"
+  mkdir -p -- "$FACTORY_RUNS/$run"
+  {
+    printf 'run: %s\n' "$run"
+    printf 'key: %s\n' "$key"
+    printf 'role: review\n'
+    printf 'rung: %s\n' "$rung"
+    printf 'escalate: claude/review\n'
+    printf 'model: %s\n' "$claude_model"
+    printf 'effort: %s\n' "$claude_effort"
+    printf 'launch: %s\n' "$launch"
+  } >"$FACTORY_RUNS/$run/$key.escalate"
+  factory_log "$key at rung $rung is a claude rung — the launch line is in $FACTORY_RUNS/$run/$key.escalate"
+  exit 4
+}
+
+[ $# -ge 3 ] || {
+  usage
+  exit 2
+}
+run=$1
+repo_path_arg=$2
+key=$3
+shift 3
+
+model=
+while [ $# -gt 0 ]; do
+  case $1 in
+    --model)
+      [ $# -ge 2 ] || factory_die 2 "--model needs a value"
+      model=$2
+      shift 2
+      ;;
+    *)
+      usage
+      exit 2
+      ;;
+  esac
+done
+model=${model:-}
+
+repo_path=$(cd -- "$repo_path_arg" && pwd -P) || factory_die 2 "no such repo: $repo_path_arg"
+
+# The plan comes from the run's own record, not from any default: factory-wave
+# writes plan: into run.meta at dispatch time (its absolute path), and this
+# review must review that plan. Fall back to FACTORY_PLAN for a direct
+# invocation with no run.meta, then resolve to the canonical absolute path.
+runs_dir=$FACTORY_RUNS/$run
+meta=$runs_dir/run.meta
+plan_meta=
+if [ -f "$meta" ]; then
+  plan_meta=$(sed -n 's/^plan: //p' "$meta" | head -n1)
+fi
+plan=${plan_meta:-${FACTORY_PLAN:-}}
+[ -n "$plan" ] || factory_die 2 "no plan to review: $meta has no plan: line and FACTORY_PLAN is not set"
+factory_need_file "$plan"
+plan=$(factory_abs_plan "$plan")
+
+# SD3: the rung comes from the key. The review role's ladder is climbed at that
+# rung; when it is exhausted the task is a claude rung (escalation, exit 4)
+# which happens here, before the gate marker or any review workspace exists.
+rung=$(factory_rung_of_key "$key")
+
+# Same resolution as factory-task, but role review and the task heading's
+# kind/size. The model: explicit --model, then OPENROUTER_MODEL, then the
+# routing table, then the built-in default if the table is unusable. The
+# effort: OPENROUTER_REASONING_EFFORT if set, else the route's effort.
+kind_size=$(factory_task_kind_size "$plan" "$key")
+read -r kind size <<<"$kind_size"
+class=$(factory_task_class "$plan" "$key")
+explicit=0
+if [ -n "$model" ]; then
+  explicit=1
+elif [ -n "${OPENROUTER_MODEL:-}" ]; then
+  model=$OPENROUTER_MODEL
+  explicit=1
+fi
+if [ "$explicit" -eq 1 ]; then
+  # An explicit --model/OPENROUTER_MODEL wins over the ladder: the lookup only
+  # feeds the effort, lenient and with no escalation.
+  route_line=$(factory_route --rung "$rung" --class "$class" review "$kind" "$size" || true)
+  route_model=${route_line%% *}
+  route_effort=${route_line##* }
+  effort=${OPENROUTER_REASONING_EFFORT:-$route_effort}
+else
+  route_rc=0
+  route_line=$(factory_route --rung "$rung" --class "$class" review "$kind" "$size") || route_rc=$?
+  route_model=${route_line%% *}
+  route_effort=${route_line##* }
+  effort=${OPENROUTER_REASONING_EFFORT:-$route_effort}
+  case $route_rc in
+    0)
+      model=$route_model
+      ;;
+    4)
+      factory_review_escalate
+      ;;
+    *)
+      model=deepseek/deepseek-v4-pro-0813
+      factory_log "warning: routing table unusable (docs/ledger/routing.toml); using built-in default $model"
+      ;;
+  esac
+fi
+
+task_ws=$FACTORY_WS/$run/$key
+factory_need_dir "$task_ws"
+
+mkdir -p -- "$runs_dir"
+
+# CR3b: leave a `<KEY>.gate` marker holding the reviewer's pid for as long as
+# the gate is running, so in-flight state can see a review in progress even
+# though factory-review writes .review.log/.md rather than a .result. The trap
+# is armed BEFORE the marker is created so a signal between the two cannot
+# strand the marker; it removes the marker on every catchable exit path.
+# SIGKILL (and a reboot) still leave a stale marker whose pid is dead.
+gate_marker=$runs_dir/$key.gate
+trap 'rm -f -- "$gate_marker"' EXIT
+printf '%s\n' "$$" >"$gate_marker"
+
+task_section=$(factory_extract_task "$plan" "$key")
+if [ -z "$task_section" ]; then
+  task_section=$(printf '### %s (ad-hoc task, not in %s)\n\n%s\n' "$key" "$(basename -- "$plan")" "${FACTORY_TASK_TEXT:-no task text available -- this task is not in the plan}")
+fi
+
+# FA3: the gate is handed the plan's Global Constraints, so it judges against
+# the rules the task was actually bound by instead of inferring them. Extracted
+# exactly as factory-brief:52 does; a plan with no such section omits the field
+# (an older plan must still gate) and logs the same warning factory-brief:53
+# emits.
+global_constraints=$(factory_extract_h2 "$plan" '## Global Constraints')
+if [ -n "$global_constraints" ]; then
+  constraints_block=$(
+    cat <<EOF
+## Global Constraints (these bind the task under review)
+
+These are the rules the task was written and reviewed against. An edit one of
+them explicitly exempts is not a finding, and a finding that contradicts one of
+them must not be raised — a listed exemption outranks a reviewer's own reading
+of the task's \`touches\`.
+
+$global_constraints
+EOF
+  )
+else
+  constraints_block=
+  factory_log "warning: $plan has no '## Global Constraints' section; brief will omit it"
+fi
+
+base_sha=$(factory_task_base_sha "$run" "$key")
+[ -n "$base_sha" ] || factory_log "warning: no .factory-meta for $task_ws; the review brief cannot name the fork point"
+
+# The convention item below names the IMPLEMENT model (what the task ran
+# under), which factory-task recorded as model: in <KEY>.result -- not the
+# review model this script itself launches with ($model).
+impl_model=
+result_file=$runs_dir/$key.result
+if [ -f "$result_file" ]; then
+  impl_model=$(sed -n 's/^model: //p' "$result_file" | head -n1)
+fi
+
+review_key=$key-review
+factory_log "review workspace: factory-ws $run $repo_path $review_key task/$key"
+ws=$("$FACTORY_BIN/factory-ws" "$run" "$repo_path" "$review_key" "task/$key")
+
+dsh_home=$runs_dir/$review_key.dsh-home
+factory_seed_dsh_home "$dsh_home"
+
+brief=$(
+  cat <<EOF
+$constraints_block
+## Task under review
+
+$task_section
+
+## Your job: review, do not fix
+
+You are reviewing another agent's finished work on this task, in a fresh,
+disposable clone of its branch. Do NOT change any code or configuration --
+your only deliverable is the review text itself. Two branches already exist
+in this workspace for you to compare:
+  - task/$key    -- the finished work
+  - fork point   -- commit $base_sha (where task/$key started)
+
+1. Read the diff: run \`git diff $base_sha..task/$key\` and \`git log
+   --oneline $base_sha..task/$key\`, and compare it against the task
+   section above -- does the diff actually do what the task asked, nothing
+   more and nothing less?
+2. Check red-before-green is real, not merely claimed. Find the commit(s)
+   that added a test or check for this task. Reverse-apply only the test
+   hunk of that commit on top of its parent (for example: \`git show
+   <sha> -- <test file> | git apply -R\`, or restore the pre-commit version
+   of the test file another way), run the check the task's acceptance
+   criteria name (\`nix build .#checks.x86_64-linux.<name> -L --no-link\`),
+   and confirm it actually fails. Then restore the test file to the
+   commit's version and confirm the same check passes. Report exactly what
+   you ran and what you saw -- do not take the commit message's claim on
+   faith.
+3. Check every commit on task/$key against this repo's convention: subject
+   \`<area>: summary (test: <check names>)\`, and both trailer lines, in this
+   order -- Generated-By first, then Co-Authored-By:
+   \`Generated-By: dsh 0.1.2-rc.1 / $impl_model (seat headless, factory run $run)\`
+   \`Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>\`
+4. List every defect you find, most severe first, each on its own line as:
+   \`<severity: blocker|major|minor> <file>:<line> -- <what is wrong>\`.
+   blocker: the task is not actually done (a claimed check does not truly
+   pass, the diff does not match the task, or nothing was committed).
+   major: a real bug, or a WORKSPACE RULES / plan constraint violated (a
+   write outside the task's stated files, a missing red-before-green step).
+   minor: a cleanliness or clarity issue that does not change correctness.
+   If you find nothing at any severity, say so explicitly.
+5. End your final reply with, on its own line, nothing after it:
+   FACTORY-REVIEW verdict=<approve|rework|reject>
+   approve: no blockers or majors. rework: fixable defects were found and
+   are listed above. reject: the task was not actually attempted -- the
+   branch does not exist, or has no commits beyond its fork point.
+
+Never \`sudo\`, \`nixos-rebuild\`, or \`systemctl start|stop|restart\`. Never
+\`git push\`. You may run checks and reverse-apply a test hunk to prove
+red-before-green, but leave the workspace's code exactly as task/$key left
+it when you are done -- you are not fixing anything here.
+EOF
+)
+
+log=$runs_dir/$key.review.log
+md=$runs_dir/$key.review.md
+: >"$log"
+timeout_s=${FACTORY_TIMEOUT:-10800}
+
+factory_log "launching review: dsh-openrouter --model $model --headless in $ws (timeout ${timeout_s}s)"
+set +e
+(
+  cd -- "$ws" &&
+    DSH_HOME=$dsh_home \
+      OPENROUTER_REASONING_EFFORT=$effort \
+      timeout -- "$timeout_s" dsh-openrouter --model "$model" --headless "$brief"
+) 2>&1 | tee -a -- "$log"
+exit_code=${PIPESTATUS[0]}
+set -e
+factory_log "review seat exited $exit_code"
+
+cp -- "$log" "$md"
+
+verdict=$(grep -oE '^FACTORY-REVIEW verdict=[a-z]+' -- "$log" | tail -n1 | sed -E 's/^FACTORY-REVIEW verdict=//')
+case $verdict in
+  approve) rc=0 ;;
+  rework) rc=1 ;;
+  reject) rc=2 ;;
+  *)
+    factory_log "no FACTORY-REVIEW verdict line found in the seat's output (exit $exit_code)"
+    verdict=none
+    rc=3
+    ;;
+esac
+
+factory_log "review written: $md (verdict=$verdict)"
+printf 'FACTORY-REVIEW-SUMMARY key=%s verdict=%s\n' "$key" "$verdict"
+exit "$rc"

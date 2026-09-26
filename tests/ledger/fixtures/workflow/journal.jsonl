@@ -1,0 +1,4 @@
+{"type":"started","key":"v2:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","agentId":"a1111111111111111"}
+{"type":"started","key":"v2:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb","agentId":"a2222222222222222"}
+{"type":"result","key":"v2:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","agentId":"a1111111111111111","result":{"summary":"impl done","findings":[]}}
+{"type":"result","key":"v2:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb","agentId":"a2222222222222222","result":{"summary":"review done","findings":[{"severity":"major","file":"pkgs/x.py","issue":"X does Y","fix":"change X"},{"severity":"minor","file":"pkgs/z.py","issue":"Z is W","fix":"change Z"},{"severity":"minor","file":"pkgs/y.py","issue":"X does Y","fix":"change Y"}]}}

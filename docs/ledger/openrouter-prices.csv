@@ -1,0 +1,6 @@
+date,model,in_per_1m,out_per_1m,cache_read_per_1m
+2026-09-03,deepseek/deepseek-v4-pro-0813,1.02,2.05,0.0
+2026-09-03,deepseek/deepseek-v4-flash,0.08,0.16,0.0
+2026-09-04,deepseek/deepseek-v4-pro-0813,0.55,2.19,0.0
+2026-09-10,anthropic/claude-fable-5.1,10.00,50.00,0.25
+2026-09-11,anthropic/claude-fable-5.1:batch,5.00,25.00,0.125
