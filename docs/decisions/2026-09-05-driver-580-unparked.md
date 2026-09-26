@@ -1,0 +1,11 @@
+# Decision 2026-09-05 — the NVIDIA driver is kept current; the parked driver-580 item is unparked
+
+**Operator, 2026-09-05, while approving the ComfyUI worlds design (`~/flakes/media/docs/superpowers/specs/2026-09-05-comfy-worlds-design.md`):** "So we are going to keep it up to date correct? Drivers can also be updated."
+
+**Decision.** The host's NVIDIA driver is part of what "current" means for the media stack. The 2026-09-03 note that parked the driver-580 bump (the pin ships 570.195.03; 580.x is the production branch; CUDA 13 wheels need ≥ 580) no longer holds. The update loop the media spec defines (§6) also watches NVIDIA's production driver version and proposes the `hosts/core/graphics.nix` bump in this repo on a proposal branch, hashes re-derived; acceptance is the toplevel build plus `nix store diff-closures` against the running system; the operator switches and reboots.
+
+**Order of operations.** Driver bump first (this repo, one reboot); then the `nixpkgs-host` pin refresh that brings cu130 `torch-bin` (claim `nixpkgs-host-pin-age`); then the media flake's startup check drops its cu128 allowlist lines and demands a clean log.
+
+**What does not change.** The bump is proposed, never applied, by any loop; only the operator switches. The driver stays the pin's `nvidiaPackages.mkDriver` shape (open modules, RTX 5090). Rollback is the previous generation.
+
+**Addendum, 2026-09-05 (after the comfy-worlds plan review).** The number in this file's title is stale, not the decision. NVIDIA's `download.nvidia.com/XFree86/Linux-x86_64/latest.txt` names the newest driver of *any* branch (595.99.02 on 2026-09-05) and carries no branch classification; `latest-production.txt` does not exist. The production branch is read from the `Latest Production Branch Version` row of `https://www.nvidia.com/en-us/drivers/unix/` — 595.99.02 the same day, so "580.x" above was already behind. The decision stands as written for **the current production branch**, whatever its number. Two facts the probe must respect: `nvidiaPackages.mkDriver` needs all four hashes (`sha256_64bit`, `openSha256`, `settingsSha256`, `persistencedSha256`) or evaluation fails on an assertion, and `core` runs the open kernel modules.

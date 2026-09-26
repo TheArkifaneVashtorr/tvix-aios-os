@@ -1,0 +1,1 @@
+{"agents":2,"cache_read":1050,"cache_write":0,"ended":"2026-09-07T09:00:00Z","input_tokens":1300,"kind":"factory-run-usage","output_tokens":500,"plan":null,"prefix":null,"repo":null,"run_id":"run-1","src":"factory","started":"2026-09-07T08:00:00Z","tasks":[],"thinking":70,"wall_s":3600.0}

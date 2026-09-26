@@ -1,0 +1,2 @@
+{"type":"started","key":"v2:cccccccccccccccccccccccccccccccccccccccc","agentId":"a4444444444444444"}
+{"type":"result","key":"v2:cccccccccccccccccccccccccccccccccccccccc","agentId":"a4444444444444444","result":{"summary":"review","findings":["a string finding",{"severity":"minor","file":"x.py","issue":"obj"},3]}}

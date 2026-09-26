@@ -1,0 +1,32 @@
+#!/usr/bin/env bash
+# Local-only git control: refuse any push whose remote URL is not explicitly
+# allowlisted in githooks/allowed-remotes.txt. Public forges are refused even
+# if allowlisted. The allowlist ships empty: every push fails until the
+# self-hosted remote is added deliberately.
+set -euo pipefail
+
+remote_name="$1"
+remote_url="$2"
+
+hook_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+allowlist="$hook_dir/allowed-remotes.txt"
+
+case "$remote_url" in
+  *github.com* | *gitlab.com* | *bitbucket.org* | *codeberg.org* | *sr.ht* | *googlesource.com* | *dev.azure.com* | *visualstudio.com*)
+    echo "pre-push: refused — '$remote_url' is a public forge. This repo is self-hosted-only." >&2
+    exit 1
+    ;;
+esac
+
+if [[ -f "$allowlist" ]]; then
+  while IFS= read -r line; do
+    [[ -z "$line" || "$line" == \#* ]] && continue
+    if [[ "$remote_url" == "$line" ]]; then
+      exit 0
+    fi
+  done <"$allowlist"
+fi
+
+echo "pre-push: refused — '$remote_url' ($remote_name) is not in githooks/allowed-remotes.txt." >&2
+echo "Add the exact self-hosted remote URL to that file (and commit the change) to allow it." >&2
+exit 1

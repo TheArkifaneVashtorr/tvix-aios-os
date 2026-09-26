@@ -1,0 +1,22 @@
+#!/usr/bin/env bash
+# tools/cloud/nix -- a cloud-session shim for a host command written as
+# `nix develop -c CMD ARGS...` (or `nix develop --command CMD ARGS...`).
+# There is no real nix in the cloud session; this execs CMD directly.
+# Anything else this shim does not understand exits 2 with a message, so a
+# script that leans on more of nix than `develop -c` fails loudly instead of
+# silently doing the wrong thing.
+set -euo pipefail
+if [ "${1:-}" = "develop" ]; then
+  shift
+  if [ "${1:-}" = "-c" ] || [ "${1:-}" = "--command" ]; then
+    shift
+    [ $# -gt 0 ] || {
+      echo "tools/cloud/nix: -c/--command needs a command" >&2
+      exit 2
+    }
+    exec "$@"
+  fi
+fi
+echo "tools/cloud/nix: unsupported invocation: nix $*" >&2
+echo "tools/cloud/nix: only 'nix develop -c CMD...' / 'nix develop --command CMD...' is shimmed" >&2
+exit 2

@@ -1,0 +1,82 @@
+{
+  "read-mechanical": {
+    "part": "mechanical",
+    "path": "scratch/packet/mechanical.md",
+    "digest": "mechanical: 41 checks, graph sound",
+    "missing": [],
+    "checkEmpty": true
+  },
+  "read-record": {
+    "part": "record",
+    "path": "scratch/packet/record.md",
+    "digest": "record: gate reviews, Appendix A, amendments",
+    "missing": [],
+    "checkEmpty": null
+  },
+  "read-field": {
+    "part": "field",
+    "path": "scratch/packet/field.md",
+    "digest": "field: incidents, driver contract",
+    "missing": [],
+    "checkEmpty": null
+  },
+  "read-operator": {
+    "part": "operator",
+    "path": "scratch/packet/operator.md",
+    "digest": "operator: invariants, operator owns",
+    "missing": [],
+    "checkEmpty": null
+  },
+  "read-target": {
+    "part": "target",
+    "path": "scratch/packet/target.md",
+    "digest": "target: spec, size M, files",
+    "missing": [],
+    "checkEmpty": null,
+    "headings": null
+  },
+  "draft": {
+    "path": "scratch/draft-0.md",
+    "words": 19000,
+    "tasks": [
+      { "key": "P5", "kind": "code", "size": "M", "dependsOn": [], "touches": ["plan.js"] }
+    ],
+    "questions": [],
+    "selfScore": [3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3],
+    "headings": ["### P5 (code, M) — the pinned planning workflow"]
+  },
+  "revise": {
+    "path": "scratch/draft-1.md",
+    "words": 19000,
+    "tasks": [
+      { "key": "P5", "kind": "code", "size": "M", "dependsOn": [], "touches": ["plan.js"] }
+    ],
+    "questions": [],
+    "selfScore": [3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3],
+    "headings": ["### P5 (code, M) — the pinned planning workflow"]
+  },
+  "judge-implementer": {
+    "scores": [3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3],
+    "errata": [],
+    "dispatchable": true
+  },
+  "judge-reviewer": {
+    "scores": [3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3],
+    "errata": [],
+    "dispatchable": true
+  },
+  "judge-whole": {
+    "scores": [3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3],
+    "errata": [],
+    "dispatchable": true
+  },
+  "ship": {
+    "judgement": "docs/reviews/plan-judgements/2026-09-06-test.md",
+    "plan": "docs/superpowers/plans/2026-09-06-test.md",
+    "check": "",
+    "conflicts": "",
+    "nextWave": "",
+    "dryRun": "would run: factory-wave plan-test /home/dalhaka/nixos-agent-env \"P5\"",
+    "concept": "docs/concepts/2026-09-06-a-plan.md"
+  }
+}
