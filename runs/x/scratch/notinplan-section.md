@@ -1,0 +1,11 @@
+- The relaunch table (telemetry T15) — the sideways `--fallback` query lands here, the relaunch that consumes it does not; until T15 the operator relaunches by the Dispatch line.
+- Telemetry T1–T18 themselves; SD9 edits T1's and T2's files only for the four fields and the report, and waits for T10a.
+- SB5 (`docs/runbooks/seat.md`, the claim `seat-key-exception-undecided`) and SB6 — held; the Operator section carries the interim web-seat line.
+- Kimi K3 / GLM 5.3 rows; class-specific rows; a `fallback` on any committed row; Anthropic models on OpenRouter (question 2, default hold); a `plan` row.
+- Fronting the Claude Code session with a broker; Helm Home (held); Discord (a basket, decided); the media, gaming and nixos-skill repos.
+- Any change to the interactive seat the operator opens outside the unit (its `DSH_HOME` and saved selection are untouched by every task here).
+- Correcting the spec's wrong sentence about the integrator (the header names it; a docs edit of the spec is the orchestrator's after the judgement, as the board says).
+- A spool that stops units (`stop.txt`), a per-instance unit drop-in, or a runtime probe that `systemctl` fails inside `seat@` (the eval assertion on `InaccessiblePaths` and the VM's rendered-property check stand in; a probe from inside the unit's cgroup is SB6's shape).
+- The orchestrator guard's known gap (a removal through a symlink that points into the plans directory — CR2 follow-up) and the lane's/wrapper's copies of the forbidden list (`forbidden-list-single-source` stays open).
+- `factory-brief`'s section extractor becoming fence-aware (it stops at any `## ` line, fenced or not — found while drafting SD8; a defect note for the driver's board line, not a task the spec names).
+- Parked in the concept file (Ship phase): `factory-wave` writing telemetry's shape-B start/end rows for a drive-dispatched run; a `report ladder --by class` cut once class-specific rows exist.

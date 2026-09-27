@@ -1,0 +1,3 @@
+[[repo]]
+name = "nixos-agent-env"
+path = "/home/user/tvix-aios-os"
