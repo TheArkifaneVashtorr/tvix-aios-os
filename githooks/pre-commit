@@ -20,15 +20,14 @@ find tools -name '*.sh' -print0 2>/dev/null | xargs -0 --no-run-if-empty shellch
 # Every host's hardware-configuration.nix is exempt from these two style
 # linters: hosts/core's is a byte-for-byte copy of nixos-generate-config
 # output (plan: hosts/core must stay verbatim) and hosts/forge's is the marked
-# placeholder `fleet enroll` replaces verbatim. FL5 adds
-# pkgs/fleet/fleet-join.nix, the bootstrap module TEMPLATE: its
-# @DEPLOY_KEYS@ / @PARENT_IMPORTS@ placeholders are not parseable Nix until
-# substituted (fleet join-script / checks.fleet-eval), so the linters skip it.
+# placeholder `fleet enroll` replaces verbatim. PL27 retired
+# pkgs/fleet/fleet-join.nix's exemption: the file is a function now, ordinary
+# parseable Nix, so the linters cover it like any other module.
 # OS2: ./tvix is the fork linked for a hand cargo session (nix build
 # .#tvix-aios-src -o tvix); statix panics on the fork's own test suite when it
 # walks that link (measured 2026-09-22), so both Nix linters skip it.
-statix check --ignore .claude . -i hosts/core/hardware-configuration.nix -i hosts/forge/hardware-configuration.nix -i pkgs/fleet/fleet-join.nix -i tvix
-deadnix --fail --exclude hosts/core/hardware-configuration.nix hosts/forge/hardware-configuration.nix pkgs/fleet/fleet-join.nix .claude tvix -- .
+statix check --ignore .claude . -i hosts/core/hardware-configuration.nix -i hosts/forge/hardware-configuration.nix -i tvix
+deadnix --fail --exclude hosts/core/hardware-configuration.nix hosts/forge/hardware-configuration.nix .claude tvix -- .
 ruff check pkgs/broker tests/broker pkgs/helm tests/helm pkgs/lane tests/lane tests/mocks tools/ledger tests/ledger pkgs/dsh-openrouter tools/factory/seat tools/factory/route.py pkgs/evidence tests/evidence pkgs/helm-home tests/helm-home pkgs/fleet pkgs/home-classes
 ruff format --check pkgs/broker tests/broker pkgs/helm tests/helm pkgs/lane tests/lane tests/mocks tools/ledger tests/ledger pkgs/dsh-openrouter tools/factory/seat tools/factory/route.py pkgs/evidence tests/evidence pkgs/helm-home tests/helm-home pkgs/fleet pkgs/home-classes
 # PL25: actionlint gates the public CI workflow (its own

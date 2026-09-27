@@ -249,8 +249,123 @@ the fixture count, and fixed before pair 2.
 - The report states the effect size the achieved N could detect. If N_max is
   below 8, the result is labelled a pilot signal, not a test.
 
-Pass (B significantly better) → arm C gets a spec. Otherwise the record says
+Pass (B significantly better) → arm C gets a spec.
+
+**Practical arm-C rule for the 2-pair pilot** (set 2026-09-27, while pair 2
+on F4 was running and before its result existed; the budget caps the run at
+F1 + F4). Grader noise on F1 was 1 disagreement in 6 verdicts, so on F4's 10
+defects a gap of 1 is noise, 2 is borderline and 3 or more is real. With a
+and b = arm A's and arm B's hits on F4:
+- **b ≥ a − 1, and B's tokens ≤ 0.7 × A's** → write arm C's spec.
+- **b = a − 2** → decided by attribution. For each defect A caught and B
+  missed, check whether the catching fact is in A's packet files or in A's
+  drafter's own command output. If it came from the packet: no arm C. If it
+  came from the drafter's own lookups: arm C.
+- **b ≤ a − 3** → no arm C.
+
+A B loss does not refute JAZ, since arm B used no recursion, REPL or
+in-memory history. It only removes the case for spending on arm C. Otherwise the record says
 so and nothing changes.
+
+## 6b. Revision 3 (2026-09-27): arm C, JAZ on this machine through the subscription
+
+The pilot's rule fired (F1 + F4: arm B 9/13, arm A 4/13, B at 0.56× the
+tokens; `docs/research-2026-09-27-jaz-pilot-F1-results.md`). The operator then
+chose: this machine only, no cloud, no API billing, Claude through the
+subscription, and a **full JAZ replication**: the real framework drafting our
+fixtures, comparable to arms A and B. The automated subscription calls rest on
+the revised rule `docs/decisions/2026-09-27-claude-subscription-for-operator-launched-work.md`.
+Facts are from a measuring agent's notes (jaz v0.2.0a4 source, this repo's pin)
+and the Claude Code headless docs.
+
+**What stays stock.** `jaz-lang` v0.2.0a4, unmodified: the code-mode REPL,
+`invoke` with tail calls, history as a REPL variable, and its hooks. The hooks
+use the paper's long-horizon (StuLife) settings,
+`ContextWindowWarning(warn_fraction=0.7, …)`, plus
+`RecursionLimit(max_depth=2)` from the AppWorld config, so recursion is allowed
+but bounded. `BudgetPool` counts **calls** (`calls_budget`), because a
+subscription has no authoritative per-call cost; the ceiling is fixed from the
+smoke run.
+
+**What is ours, and is the whole deviation.**
+1. **The backend.** A `BaseLLM` subclass (`complete(model, messages) →
+   LLMResponse`) passed straight to `Config(llm=…)`, so LiteLLM is installed
+   (a hard dependency) but never called. Each JAZ agent maps to one
+   Claude Code session:
+   - The first call opens it with `--system-prompt` set to JAZ's own system
+     text, which replaces Claude Code's.
+   - Later calls `--resume` it and send only the new turn, so JAZ's history is
+     the session's native history and prompt caching carries over.
+   - If JAZ ever rewrites earlier turns rather than appending, the backend
+     opens a fresh session with the transcript and records that it did.
+2. **The gateway.** A small host-side process that alone holds `claude`. It
+   runs `claude -p --output-format json` in an empty directory with tools off
+   and no MCP servers. `ANTHROPIC_API_KEY`, `ANTHROPIC_AUTH_TOKEN` and
+   `apiKeyHelper` are unset. Auto-compaction is off, so JAZ's 70% warning, not
+   Claude Code, manages context. The model is `claude-fable-5-1`, the drafter
+   of arms A and B. `--bare` is out, because it never reads the subscription
+   login. The gateway serves one Unix socket, logs every call (tokens, cache
+   reads, the client-side cost estimate, the usage-limit signal), and stops
+   the run on that signal.
+3. **The tools.** JAZ's REPL fails closed: no imports and no file paths by
+   default. The drafter's access to the snapshot is therefore explicit
+   callables bound as REPL variables: `read_file`, `grep`, `tasks_py`,
+   `duckdb_query` over the evidence snapshot, and `git_log`. Each is confined
+   to the fixture checkout, and every call is logged as arm B's
+   `queries.log` was.
+4. **The task.** `invoke` receives arm B's drafting instructions
+   (`draft-byref.js`'s `draftPrompt` text, output format unchanged), the spec
+   path and the tools. It returns the draft, which is written to
+   `draft-0.md`.
+
+**Isolation.** The runner (JAZ, the backend and the tools) runs in a basket:
+the fixture checkout read-only, a scratch directory writable, no network, and
+the gateway's socket bind-mounted as its only way out. The login and `claude`
+never enter the basket. The operator mounts and launches; the build is
+build-only. It adds a package, an app and a devShell output, and **no**
+`checks.x86_64-linux` entry (the public flake's eval heap, per the goal-1
+session). Every new file gets its `publish.toml` and `subsystems.toml` rows.
+
+**Probe result (2026-09-27, `claude` 2.1.280, run on the operator's go).**
+Two Fable calls, one fresh and one resumed, from an empty directory with
+the API variables unset, using `--tools "" --strict-mcp-config
+--setting-sources "" --system-prompt …`. The startup report showed
+`apiKeySource: "none"` (the subscription), `tools: []`, `mcp_servers: []`,
+and no hook events. Resume carried the history across (turn 2 recalled turn
+1's word). Every call emits a `rate_limit_event` with the 5-hour and 7-day
+window utilisation (0.07 and 0.65 at the probe). **That utilisation, logged
+before and after each call, is arm C's spend measure,** and the gateway stops
+the run when the 7-day window reaches 0.90. Compaction is disabled per call
+with `--settings '{"autoCompactEnabled": false}'`. The resumed turn read no
+cache at about 600 tokens; the smoke run checks caching at realistic sizes.
+
+**Confinement.** The runner uses the bubblewrap placement this repo already
+uses (`lib/mkAgent.nix`, `pkgs/dsh-openrouter`): no network, the fixture
+read-only, scratch writable, and the gateway socket bound in. It is launched
+by the operator.
+
+**Order.**
+1. **Probe (operator, host, no basket).** One gateway call and one two-turn
+   resume. These pin the headless flags (tools off, compaction off, system
+   prompt replaced) and the shape of the usage-limit signal.
+2. **Smoke.** JAZ with the gateway on a toy task, to check that hooks fire,
+   recursion is bounded and the trajectory is recorded.
+3. **Arm C on F1, then F4,** one at a time, graded by the same blind
+   grader against arms A and B's existing drafts. Then F2, F3, F5 and F7
+   (and, for those, arms A and B locally through the same gateway if the
+   operator wants the pairs).
+
+**What arm C answers.** Given the same inputs and drafter model, does the
+real JAZ mechanism (the REPL, recursion and by-reference history) catch
+more recorded defects than arm B's plain self-directed lookup, and at what
+subscription usage? Arm C against arm B isolates JAZ's machinery. Arm C
+against arm A repeats the pilot's question.
+
+**Known departures from the paper**, stated rather than hidden:
+- the model (Fable, not GPT-5.4 nano);
+- the transport (headless Claude Code sessions, not an API client);
+- the task (planning, not StuLife or AppWorld);
+- the budget unit (calls, not dollars).
 
 ## 7. Not in this design
 

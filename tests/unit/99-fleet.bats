@@ -407,7 +407,10 @@ EOF
   [ "$status" -eq 0 ]
   [ "${output%%$'\n'*}" = '#!/usr/bin/env bash' ]
   printf '%s\n' "$output" | grep -qF 'fleet-fixture-deploy'
-  printf '%s\n' "$output" | grep -qF 'imports = [ ./configuration.nix ];'
+  # PL27: the bootstrap is the function file verbatim plus a one-line
+  # application -- the parent import rides the application line, not an
+  # imports = [ ... ] literal inside the module body.
+  printf '%s\n' "$output" | grep -qF 'parentImports = [ ./configuration.nix ];'
   printf '%s\n' "$output" | grep -qF 'nixos-rebuild switch -I nixos-config=/etc/nixos/fleet-join.nix'
   printf '%s\n' "$output" | grep -qF 'fleet-join: host key'
   printf '%s\n' "$output" | grep -qF 'fleet-join: address'

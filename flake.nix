@@ -101,30 +101,35 @@
       # SA8: the same package with a harness payload bound -- the good fixture
       # (skills/ non-empty) and the broken one (no skills/) -- the seam the
       # build asserts and the wrapper deploys. The broken fixture feeds
-      # checks.seat-assertion-negative's payloadAttempt arm.
+      # checks.seat-assertion-negative's payloadAttempt arm. PL27: the
+      # payload paths ride self-built strings (the flake source is already a
+      # store path; the assert reads a plain path, never a derivation).
       dshOpenrouterWithPayload = pkgs.callPackage ./pkgs/dsh-openrouter {
         dsh = dshHost;
-        harnessPayload = ./tests/fixtures/harness-payload;
+        harnessPayload = "${self}/tests/fixtures/harness-payload";
       };
       dshOpenrouterBrokenPayload = pkgs.callPackage ./pkgs/dsh-openrouter {
         dsh = dshHost;
-        harnessPayload = ./tests/fixtures/harness-payload-broken;
+        harnessPayload = "${self}/tests/fixtures/harness-payload-broken";
       };
-      # SA8b: two Nix-built negative payloads for the two conjuncts a tracked
-      # fixture file cannot express -- git carries no empty directory, so
-      # "skills/ present but empty" and "skills/ present, AGENTS.md absent"
-      # must be synthesized here rather than checked in as fixture dirs.
-      harnessPayloadNoAgents = pkgs.runCommand "harness-payload-no-agents" { } ''
-        mkdir -p $out/skills/smoke
-        : > $out/skills/smoke/SKILL.md
-      '';
+      # SA8b/PL27: one Nix-built negative payload remains, for the one
+      # conjunct a tracked fixture cannot express -- git carries no empty
+      # directory, so "skills/ present but empty" is synthesized here. Its
+      # sibling ("skills/ present, AGENTS.md absent") moved to a tracked
+      # fixture (tests/fixtures/harness-payload-no-agents, a real SKILL.md),
+      # where the assert reads a plain path; the Nix-built form forced the
+      # eval-time IFD the guard refuses (PL26 Facts 6), the tracked form
+      # cannot. This empty-skills arm keeps the derivation, so the guard
+      # still refuses it -- the one named, permanent exception
+      # tests/acceptance/ci-eval.sh prints as SKIP; the assert itself still
+      # fires for real on every actual build.
       harnessPayloadEmptySkills = pkgs.runCommand "harness-payload-empty-skills" { } ''
         mkdir -p $out/skills
         : > $out/AGENTS.md
       '';
       dshOpenrouterNoAgentsPayload = pkgs.callPackage ./pkgs/dsh-openrouter {
         dsh = dshHost;
-        harnessPayload = harnessPayloadNoAgents;
+        harnessPayload = "${self}/tests/fixtures/harness-payload-no-agents";
       };
       dshOpenrouterEmptySkillsPayload = pkgs.callPackage ./pkgs/dsh-openrouter {
         dsh = dshHost;
@@ -252,6 +257,32 @@
       );
       helmPython = pkgs.python3.withPackages (ps: [ ps.pytest ]);
       ledgerPython = pkgs.python3.withPackages (ps: [ ps.pytest ]);
+      # Arm C of docs/superpowers/specs/2026-09-25-jaz-planning-experiment-design.md
+      # (§6b): the pinned upstream jaz-lang v0.2.0a4 package, and the runner's
+      # own python env (jaz-lang + duckdb -- the latter for
+      # tools/experiments/jaz/confined_tools.py's duckdb_query over the
+      # fixture's evidence snapshot). Kept off devPython/devShellPackages on
+      # purpose: jaz-lang is a large, experiment-only dependency the
+      # interactive devShell has no reason to carry, and the bwrap launcher
+      # (run-arm-c.sh) binds jazLangPython's own closure into the basket
+      # rather than the devShell's.
+      jazLangPkg = pkgs.python3Packages.callPackage ./pkgs/jaz-lang { };
+      jazLangPython = pkgs.python3.withPackages (ps: [
+        jazLangPkg
+        ps.duckdb
+      ]);
+      # run-arm-c.sh's bwrap PATH inside the basket: the runner env plus the
+      # two external binaries confined_tools.py shells out to (git, grep).
+      # No `claude` here on purpose -- it stays on the host, reachable only
+      # through the gateway's socket (spec §6b, "Confinement").
+      jazArmcRuntime = pkgs.symlinkJoin {
+        name = "jaz-armc-runtime";
+        paths = [
+          jazLangPython
+          pkgs.git
+          pkgs.gnugrep
+        ];
+      };
       # The data-analysis stack the `data` plugin's skills drive (explore-data,
       # statistical-analysis, create-viz, build-dashboard). It joins the
       # devShell's ONE Python env rather than riding beside it: two
@@ -302,6 +333,10 @@
           # empty root-owned dir so no seat can resolve the operator's gh
           # identity.
           pkgs.gh
+          # Arm C's operator launcher (tools/experiments/jaz/run-arm-c.sh)
+          # runs run_arm_c.py under bwrap; --dry-run needs no binary on PATH
+          # (it only prints the argv), but a real launch does.
+          pkgs.bubblewrap
         ];
       helmCollect = pkgs.writeShellApplication {
         name = "helm-collect";
@@ -1716,23 +1751,22 @@
         }
       );
       # FL5 (plan 2026-09-24-fleet-and-forge.md): the bootstrap fixtures --
-      # the join template (pkgs/fleet/fleet-join.nix) with the fixture deploy
-      # key substituted and no parent import, plus the same system with
-      # fleet-join.enable = false (what the first deploy switches to, D7/D8;
-      # FL6's VM test imports the identical substituted module as the
-      # forge's initial state). replaceVars yields the substituted file as a
-      # derivation, so import it as the module (a bare derivation would be
-      # merged attrset-by-attrset, its `system` string colliding with
-      # system.stateVersion).
+      # the join module (pkgs/fleet/fleet-join.nix, a function since PL27)
+      # applied with the fixture deploy key and no parent import, plus the
+      # same system with fleet-join.enable = false (what the first deploy
+      # switches to, D7/D8; FL6's VM test applies the identical module as
+      # the forge's initial state). The import rides a string built from
+      # self with a literal suffix -- the flake source is already a store
+      # path, so nothing is realised at eval time and the IFD guard stays
+      # clean (the old replaceVars form substituted the placeholders into a
+      # derivation the module import then had to build).
       fleetJoinEval = nixpkgs.lib.nixosSystem {
         inherit system;
         modules = [
-          (import (
-            pkgs.replaceVars ./pkgs/fleet/fleet-join.nix {
-              DEPLOY_KEYS = ''[ "${builtins.head fleetFixture.deployKeys}" ]'';
-              PARENT_IMPORTS = "";
-            }
-          ))
+          (import "${self}/pkgs/fleet/fleet-join.nix" {
+            deployKeys = [ (builtins.head fleetFixture.deployKeys) ];
+            parentImports = [ ];
+          })
           (_: {
             boot.loader.grub.enable = false;
             fileSystems."/".device = "none";
@@ -1744,12 +1778,10 @@
       fleetJoinOff = nixpkgs.lib.nixosSystem {
         inherit system;
         modules = [
-          (import (
-            pkgs.replaceVars ./pkgs/fleet/fleet-join.nix {
-              DEPLOY_KEYS = ''[ "${builtins.head fleetFixture.deployKeys}" ]'';
-              PARENT_IMPORTS = "";
-            }
-          ))
+          (import "${self}/pkgs/fleet/fleet-join.nix" {
+            deployKeys = [ (builtins.head fleetFixture.deployKeys) ];
+            parentImports = [ ];
+          })
           (_: {
             boot.loader.grub.enable = false;
             fileSystems."/".device = "none";
@@ -2162,6 +2194,13 @@
           ];
           text = ''exec python3 ${./pkgs/fleet}/fleet.py "$@"'';
         };
+        # Arm C (spec 2026-09-25-jaz-planning-experiment-design.md §6b): the
+        # pinned jaz-lang package on its own (nix build .#jaz-lang, per the
+        # deliverable's own acceptance step) and the runner env
+        # (jaz-lang + duckdb) run-arm-c.sh binds into the basket.
+        jaz-lang = jazLangPkg;
+        jaz-lang-python = jazLangPython;
+        jaz-armc-runtime = jazArmcRuntime;
       }
       # GN12: media's five packages (media/packages.nix), built against pkgsHost.
       // (import ./media/packages.nix { pkgs = pkgsHost; });
@@ -2396,12 +2435,12 @@
                   # these two style linters: hosts/core's is a byte-for-byte
                   # copy of nixos-generate-config output (plan: hosts/core
                   # must stay verbatim) and hosts/forge's is the marked
-                  # placeholder `fleet enroll` replaces verbatim. FL5 adds
-                  # pkgs/fleet/fleet-join.nix, the bootstrap module TEMPLATE:
-                  # its @DEPLOY_KEYS@ / @PARENT_IMPORTS@ placeholders are not
-                  # parseable Nix until substituted, so the linters skip it.
-                  statix check . -i hosts/core/hardware-configuration.nix -i hosts/forge/hardware-configuration.nix -i pkgs/fleet/fleet-join.nix
-                  deadnix --fail . --exclude hosts/core/hardware-configuration.nix hosts/forge/hardware-configuration.nix pkgs/fleet/fleet-join.nix
+                  # placeholder `fleet enroll` replaces verbatim. PL27
+                  # retired pkgs/fleet/fleet-join.nix's exemption: the file
+                  # is a function now, ordinary parseable Nix, so the
+                  # linters cover it like any other module.
+                  statix check . -i hosts/core/hardware-configuration.nix -i hosts/forge/hardware-configuration.nix
+                  deadnix --fail . --exclude hosts/core/hardware-configuration.nix hosts/forge/hardware-configuration.nix
                   ruff check pkgs/broker tests/broker pkgs/helm tests/helm pkgs/lane tests/lane tests/mocks tools/ledger tests/ledger pkgs/dsh-openrouter tools/factory/seat tools/factory/route.py pkgs/evidence tests/evidence pkgs/seat tests/seat pkgs/helm-home tests/helm-home tests/unit/fixtures pkgs/fleet pkgs/home-classes
                   ruff format --check pkgs/broker tests/broker pkgs/helm tests/helm pkgs/lane tests/lane tests/mocks tools/ledger tests/ledger pkgs/dsh-openrouter tools/factory/seat tools/factory/route.py pkgs/evidence tests/evidence pkgs/seat tests/seat pkgs/helm-home tests/helm-home tests/unit/fixtures pkgs/fleet pkgs/home-classes
                   # PL25: actionlint gates the public CI workflow (its own
@@ -4112,7 +4151,9 @@
               inherit pkgs;
               fleetModule = self.nixosModules.fleet;
               fleetPackage = self.packages.${system}.fleet;
-              fleetJoinTemplate = ./pkgs/fleet/fleet-join.nix;
+              # A self-built string, not a path: the function file is
+              # imported with zero eval-time realisation (PL27).
+              fleetJoinTemplate = "${self}/pkgs/fleet/fleet-join.nix";
             };
             basket-vm = import ./tests/integration/basket-vm.nix {
               inherit pkgs;

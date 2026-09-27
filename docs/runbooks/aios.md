@@ -187,9 +187,13 @@ command runs the first three steps of the recipe and prints the fourth:
    — never the ambient git config, so no private name or email can leak
    into the public history; the message never quotes this repo, so no
    private commit id or subject is published either (decision 5).
-3. **Prove** — a clean `git clone` of the mirror, then
-   `nix flake check --no-build` there: the export is the whole public tree,
-   so it must stand on its own and print `all checks passed!` (with
+3. **Prove** — a clean `git clone` of the mirror, then the per-check eval
+   `tests/acceptance/ci-eval.sh` there (PL26, the same script CI runs): the
+   export is the whole public tree, so it must stand on its own — the script
+   prints one named `<check> PASS` or `<check> FAIL` line per check, never
+   one `all checks passed!` blob, and its exit code is 0 only when every
+   check evaluates (1 names at least one FAIL; 2 means even the check list
+   could not be enumerated) (with
    `docs/ledger/publish.toml` withheld, the export's flake drops the
    publish-gate-only checks by design).
 4. **Push** — yours alone; `tools/publish-snapshot` stops before this step

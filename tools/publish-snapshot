@@ -4,8 +4,11 @@
 # docs/superpowers/specs/2026-09-21-publish-gate-design.md §5): assemble the
 # publish-gate export into a fresh directory, commit it on top of the public
 # mirror's history under the mirror's fixed identity, and prove the result
-# with a clean clone and `nix flake check --no-build`. It never pushes: the
-# push needs a credential and is the operator's own step (brief §3
+# with a clean clone and the per-check eval tests/acceptance/ci-eval.sh
+# (PL26 -- the same script CI runs; one `nix flake check --no-build` held
+# the whole tree in one 24-27 GiB heap and OOMed machines, and its single
+# 'all checks passed!' line said nothing when it died). It never pushes:
+# the push needs a credential and is the operator's own step (brief §3
 # invariant 2) -- the exact command is printed at the end instead.
 #
 # Usage: tools/publish-snapshot <public-repo>
@@ -66,19 +69,19 @@ fi
 # 3. The proof: a clean clone of the mirror must stand on its own -- the
 #    export is the whole public tree, so the public flake must check green
 #    from the clone alone. --no-local forces a real copy, not hardlinks.
+#    PL26: the proof is the same per-check eval CI uses,
+#    tests/acceptance/ci-eval.sh -- a named PASS/FAIL table whose exit
+#    code is 0 only when every check evaluates, never one whole-tree
+#    `nix flake check --no-build` (and never its 'all checks passed!'
+#    line, which a runner OOM took with it: the table names the check).
 clone="$work/clone"
 git clone -q --no-local "$repo" "$clone"
 check_log="$work/check.log"
-if ! nix flake check --no-build "$clone" >"$check_log" 2>&1; then
+if ! bash "$here/../tests/acceptance/ci-eval.sh" "$clone" >"$check_log" 2>&1; then
   cat "$check_log" >&2
-  echo "tools/publish-snapshot: nix flake check --no-build failed on a clean clone of the mirror -- not pushing" >&2
+  echo "tools/publish-snapshot: per-check eval failed on a clean clone of the mirror -- not pushing" >&2
   exit 1
 fi
-grep -q 'all checks passed!' "$check_log" || {
-  cat "$check_log" >&2
-  echo "tools/publish-snapshot: nix flake check printed no 'all checks passed!' line -- not pushing" >&2
-  exit 1
-}
 
 # 4. The push -- the operator's own step, printed and never run: no
 #    credential ever passes through this script (brief §3 invariant 2).

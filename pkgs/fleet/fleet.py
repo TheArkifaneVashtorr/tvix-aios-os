@@ -381,10 +381,22 @@ def cmd_join_script(repo, args):
     keys = decl.get("deployKeys") or []
     if not keys:
         refuse(2, "join-script: no deployKeys declared; run fleet keys add first")
+    # PL27: fleet-join.nix is a Nix function now, not a placeholder template
+    # -- embed its text verbatim and apply it in one line (the paren wrap
+    # keeps the written file a single expression: the function, applied,
+    # yields the module nixos-rebuild imports). No str.replace step exists
+    # any more; a key or parent import that failed to land in the
+    # application line is a Nix parse/eval error on the console, never a
+    # silently-unsubstituted file.
     template = Path(__file__).with_name("fleet-join.nix").read_text()
     keys_literal = "[ " + " ".join(json.dumps(k) for k in keys) + " ]"
-    rendered = template.replace("@DEPLOY_KEYS@", keys_literal).replace(
-        "@PARENT_IMPORTS@", "./configuration.nix"
+    rendered = (
+        "("
+        + template
+        + ")\n"
+        + "{ deployKeys = "
+        + keys_literal
+        + "; parentImports = [ ./configuration.nix ]; }\n"
     )
     sys.stdout.write(
         "#!/usr/bin/env bash\n"

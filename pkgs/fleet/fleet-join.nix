@@ -1,23 +1,27 @@
-# FL5 (plan 2026-09-24-fleet-and-forge.md): the console bootstrap module
-# TEMPLATE -- `fleet join-script` substitutes @DEPLOY_KEYS@ (the deploy keys
-# list literal) and @PARENT_IMPORTS@ (the parent's module paths, or empty)
-# and prints the result as the bash script the operator pipes to `sudo bash`
-# on the new machine's console; checks.fleet-eval substitutes the same two
-# with the fixture key to eval the module, and FL6's VM test imports it as
-# the forge's initial state. The placeholders in expression position keep
-# this file from being parseable Nix until substituted, so the Nix linters
-# skip it (treefmt.toml, statix, deadnix) the way they skip the generator
-# files -- the substituted module is what every check evaluates.
+# FL5 (plan 2026-09-24-fleet-and-forge.md): the console bootstrap module —
+# a FUNCTION, not a template (PL27, plan 2026-09-11-platform.md): the caller
+# applies it with deployKeys (the deploy keys list) and parentImports (the
+# parent's module paths, or empty). `fleet join-script` embeds this file
+# verbatim in the bash script the operator pipes to `sudo bash` on the new
+# machine's console, wrapping it in a one-line application;
+# checks.fleet-eval imports it with the fixture key, and FL6's VM test
+# applies it as the forge's initial state. The file is ordinary parseable
+# Nix, so the Nix linters cover it like any other module (the old
+# statix/deadnix/treefmt template exemptions retired with PL27).
 {
-  lib,
+  deployKeys,
+  parentImports ? [ ],
+}:
+{
   config,
+  lib,
   ...
 }:
 let
   cfg = config.fleet-join;
 in
 {
-  imports = [ @PARENT_IMPORTS@ ];
+  imports = parentImports;
 
   options.fleet-join.enable = lib.mkOption {
     type = lib.types.bool;
@@ -38,7 +42,7 @@ in
     users.users.deploy = {
       isNormalUser = true;
       description = "fleet deploy user (bootstrap)";
-      openssh.authorizedKeys.keys = @DEPLOY_KEYS@;
+      openssh.authorizedKeys.keys = deployKeys;
     };
 
     security.sudo.extraRules = [

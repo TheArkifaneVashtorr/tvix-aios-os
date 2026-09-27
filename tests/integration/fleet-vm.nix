@@ -1,6 +1,6 @@
 # FL6 (plan 2026-09-24-fleet-and-forge.md): checks.fleet-vm -- two machines,
 # core (the operator) and forge (the deploy target). The forge boots the
-# console bootstrap FL5 ships (pkgs/fleet/fleet-join.nix, substituted with
+# console bootstrap FL5 ships (pkgs/fleet/fleet-join.nix, applied with
 # the throwaway test key) and carries the declared machine as a
 # specialisation (D8): one `fleet deploy` switches the bootstrap away in the
 # same VM, keeping the test driver's instrumentation. The deploy key and the
@@ -53,15 +53,16 @@ let
     deployKeys = [ keys.snakeOilEd25519PublicKey ];
     machines.core.roles = [ "operator" ];
   };
-  # The bootstrap, verbatim from the template FL5 ships, substituted at
-  # file level (the pkgs the test file receives): a node importing a
-  # derivation built by its own `pkgs` trips an infinite recursion in
-  # the test framework's node evaluation, while a plain path imported
-  # from the outside evaluates fine (the same substitution
-  # checks.fleet-eval performs on the same template).
-  joinModule = pkgs.replaceVars fleetJoinTemplate {
-    DEPLOY_KEYS = ''[ "${keys.snakeOilEd25519PublicKey}" ]'';
-    PARENT_IMPORTS = "";
+  # The bootstrap, verbatim from the module file FL5 ships: fleet-join.nix
+  # is a function since PL27, applied here with the throwaway test key and
+  # no parent import. There is no derivation anywhere in this path (the
+  # old pkgs.replaceVars form imported a derivation built by this same
+  # `pkgs`, tripping both the test framework's node-recursion hazard its
+  # own comment used to name and the IFD guard); a plain file imported
+  # from the outside evaluates clean.
+  joinModule = import fleetJoinTemplate {
+    deployKeys = [ keys.snakeOilEd25519PublicKey ];
+    parentImports = [ ];
   };
 
   # FL9: the declared forge plus one marker file, as a system the forge's
@@ -133,12 +134,13 @@ pkgs.testers.runNixOSTest {
       ...
     }:
     {
-      # The bootstrap, verbatim from the template FL5 ships. Like
-      # checks.fleet-eval's modules, the substituted file arrives as a
-      # derivation, so `import` it as the module (a bare derivation would
-      # be merged attrset-by-attrset, its `system` string colliding with
+      # The bootstrap, verbatim from the module file FL5 ships. PL27: the
+      # file is a function applied above, so joinModule is already the
+      # module itself (the old form imported a substituted derivation a
+      # second time here -- a bare derivation would be merged
+      # attrset-by-attrset, its `system` string colliding with
       # system.stateVersion).
-      imports = [ (import joinModule) ];
+      imports = [ joinModule ];
       # One deterministic answer for the enrolment's route and resolv
       # fetches.
       networking.defaultGateway = "192.168.1.1";

@@ -824,7 +824,11 @@ in
       cardsSfwEnv = cardsSfw.serviceConfig.Environment;
       pkgNames = map (d: d.name or "") c.environment.systemPackages;
       has = s: t: lib.hasInfix t s;
-      etcJson = builtins.fromJSON (builtins.readFile c.environment.etc."comfy-worlds.json".source);
+      # PL27: the manifest comes from the read-only option the module
+      # assigns (the attrset it already holds), never by reading the
+      # rendered /etc file back through its derivation -- that was a true
+      # IFD the allow-import-from-derivation guard refuses.
+      etcJson = c.services.comfyui-worlds.manifest;
     in
     assert lib.assertMsg (has genSfwStart "--listen 127.0.0.1") "eval: generator --listen";
     assert lib.assertMsg (has genSfwStart "--port 8188") "eval: sfw generator --port";

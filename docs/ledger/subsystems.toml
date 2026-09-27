@@ -105,6 +105,7 @@ owns = [
   "tests/acceptance/phase4b.sh",
   "tests/acceptance/backup.sh",
   "tests/acceptance/export-eval.sh",
+  "tests/acceptance/ci-eval.sh",
   "tests/integration/proton-backup-vm.nix",
   "tests/lint/*",
   "tests/mocks/*",
@@ -162,6 +163,7 @@ owns = [
   "tests/fixtures/dsh-sessions/*",
   "tests/fixtures/harness-payload/*",
   "tests/fixtures/harness-payload-broken/*",
+  "tests/fixtures/harness-payload-no-agents/*",
   "tests/integration/seat-vm.nix",
   "tests/unit/70-dsh-openrouter.bats",
   "tests/unit/80-seat-driver.bats",
@@ -229,7 +231,10 @@ owns = [
   "tests/unit/99-jaz-build.bats",
   "tests/unit/99-jaz-fixtures.bats",
   "tests/unit/99-jaz-truncation.bats",
+  "tests/unit/99-jaz-armc.bats",
+  "tests/jaz/*",
   "tools/experiments/jaz/*",
+  "pkgs/jaz-lang/*",
   "docs/superpowers/specs/*",
 ]
 plans = [
@@ -378,6 +383,7 @@ owns = [
   "docs/decisions/2026-09-22-public-project.md",
   "docs/concepts/2026-09-22b-surface-area-of-control.md",
   "docs/decisions/2026-09-23-fix-what-wastes-seats.md",
+  "docs/decisions/2026-09-27-claude-subscription-for-operator-launched-work.md",
   "docs/decisions/2026-09-23-democratic-os-answers.md",
   "docs/concepts/2026-09-24-c-contributor-onboarding-game.md",
 ]

@@ -17,9 +17,15 @@ jobs:
         with:
           extra_nix_config: |
             experimental-features = nix-command flakes
-      - name: nix flake check (eval only, no VM builds)
+      - name: nix flake check (every check in its own process, bounded memory)
+        # PL26: one `nix flake check --no-build` holds the whole ~135-check
+        # evaluation graph in one 24-27 GiB heap and OOM-kills a 16 GB
+        # runner with no logs (runs #1-3); tests/acceptance/ci-eval.sh
+        # evals each check in its own process (peak <=1.7 GiB) behind the
+        # allow-import-from-derivation=false guard, printing a named
+        # PASS/FAIL table that exits 1 on any FAIL.
         timeout-minutes: 20
-        run: nix flake check --no-build -L --show-trace
+        run: bash tests/acceptance/ci-eval.sh
       - name: aios workspace build (goal 1's Rust clause)
         timeout-minutes: 20
         run: nix build .#checks.x86_64-linux.aios-public-build -L --no-link

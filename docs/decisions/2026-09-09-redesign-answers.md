@@ -244,3 +244,11 @@ drafting tasks dispatch, each reading one context block and writing one plan
 draft. Mislabelling those tasks' `kind` to reach a better model, or launching
 them at a rung that means "fix round", would both be the re-keying defect the
 record already names in `FIX7`; neither is done here.
+
+## 5. Revision (2026-09-27)
+
+§4's rule is revised by
+`docs/decisions/2026-09-27-claude-subscription-for-operator-launched-work.md`:
+factory dispatch stays on the OpenRouter lane, and operator-launched work may
+call Claude through the subscription. The operator does not recall the words
+§4 quotes.

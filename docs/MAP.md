@@ -34,6 +34,7 @@ Paths are repo-relative. Descriptions are each file's first comment line.
 - `pkgs/helm` — Helm v2 API server — the JSON state/action API on its own loopback port.
 - `pkgs/helm-home` — The xdg-desktop-portal GlobalShortcuts client (HH1).
 - `pkgs/home-classes` — (no description)
+- `pkgs/jaz-lang` — pkgs/jaz-lang: the JAZ framework (PyPI distribution `jaz-lang`, import name
 - `pkgs/lane` — Model-lane job runner (Lane L round 1 plan, Task 3).
 - `pkgs/proton-backup` — proton-backup-push: mirror a local restic repository to Proton Drive with
 - `pkgs/proton-drive-cli` — (no description)
@@ -179,20 +180,21 @@ Paths are repo-relative. Descriptions are each file's first comment line.
 
 ## Tests
 
-- `tests/acceptance` — 10 files
+- `tests/acceptance` — 11 files
 - `tests/broker` — 2 files
 - `tests/evidence` — 114 files
 - `tests/factory` — 4 files
-- `tests/fixtures` — 26 files
+- `tests/fixtures` — 27 files
 - `tests/helm` — 8 files
 - `tests/helm-home` — 8 files
 - `tests/integration` — 12 files
+- `tests/jaz` — 1 files
 - `tests/lane` — 4 files
 - `tests/ledger` — 22 files
 - `tests/lint` — 15 files
 - `tests/mocks` — 2 files
 - `tests/seat` — 3 files
-- `tests/unit` — 57 files
+- `tests/unit` — 58 files
 
 ## Hosts
 

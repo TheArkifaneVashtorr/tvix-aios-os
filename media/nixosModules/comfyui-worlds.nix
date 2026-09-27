@@ -32,6 +32,23 @@ let
   worldNames = builtins.attrNames cfg.worlds;
   worldValues = builtins.attrValues cfg.worlds;
 
+  # PL27 (plan 2026-09-11-platform.md): the one manifest attrset, bound once
+  # and read three ways -- rendered to /etc/comfy-worlds.json below, exposed
+  # as the read-only services.comfyui-worlds.manifest option for eval-time
+  # consumers (media/checks.nix read the rendered file back through its
+  # derivation before, a true IFD the allow-import-from-derivation guard
+  # refuses), and shaped exactly as the feed server parses it (GN22/GN23/
+  # GN24: the root, the one feedPort, the sorted worldsOrder and every
+  # world's comfyPort and deckLowWater; flipGuardSeconds at the top).
+  worldsManifest = {
+    inherit (cfg) root feedPort flipGuardSeconds;
+    worldsOrder = lib.sort (a: b: a < b) worldNames;
+    worlds = lib.mapAttrs (_: v: {
+      inherit (v) comfyPort;
+      deckLowWater = v.deck.lowWater;
+    }) cfg.worlds;
+  };
+
   # World names match ^[a-z][a-z0-9-]{0,15}$.
   nameOk = name: builtins.match "^[a-z][a-z0-9-]{0,15}$" name != null;
 
@@ -391,6 +408,19 @@ in
       description = "Per-world definition (name matches ^[a-z][a-z0-9-]{0,15}$).";
     };
 
+    # PL27: the rendered manifest, exposed read-only so an eval-time consumer
+    # (checks.comfy-worlds-eval) reads the attrset the module already holds
+    # instead of reading /etc/comfy-worlds.json back through its derivation
+    # -- a true IFD the allow-import-from-derivation guard refuses. The
+    # option carries exactly the JSON shape /etc/comfy-worlds.json renders
+    # (worldsManifest in the let above).
+    manifest = lib.mkOption {
+      internal = true;
+      readOnly = true;
+      type = lib.types.attrs;
+      description = "The rendered comfy-worlds manifest (the exact attrset /etc/comfy-worlds.json serialises); internal, read-only.";
+    };
+
     mutate = {
       perLike = lib.mkOption {
         type = lib.types.int;
@@ -618,6 +648,12 @@ in
     ]
     ++ lib.optional cfg.refresh.enable worldsPkgs.comfy-upstream-probe;
 
+    # PL27: the manifest is bound once (worldsManifest, the let above) --
+    # exposed as the read-only option for eval-time consumers and rendered
+    # here as plain text, so no consumer ever reads the file back through
+    # a derivation (the old .source = (pkgs.formats.json {}).generate
+    # form was a true IFD).
+    services.comfyui-worlds.manifest = worldsManifest;
     environment.etc."comfy-worlds.json" = {
       # GN22: the one server's shape — the root, the one feedPort, the sorted
       # worldsOrder (the `/` redirect's fallback head) and every world's
@@ -625,14 +661,7 @@ in
       # GN23: each world also carries deckLowWater (the deck's demand
       # signal; the server reads the knob from the file). GN24: the top
       # level carries flipGuardSeconds (the activate route's guard window).
-      source = (pkgs.formats.json { }).generate "comfy-worlds.json" {
-        inherit (cfg) root feedPort flipGuardSeconds;
-        worldsOrder = lib.sort (a: b: a < b) worldNames;
-        worlds = lib.mapAttrs (_: v: {
-          inherit (v) comfyPort;
-          deckLowWater = v.deck.lowWater;
-        }) cfg.worlds;
-      };
+      text = builtins.toJSON worldsManifest;
       mode = "0644";
     };
     # GN26 — nothing else: no users.groups, no services.caddy, no tmpfiles
