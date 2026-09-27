@@ -14,7 +14,7 @@ shellcheck pkgs/basket/basket.sh pkgs/proton-backup/push.sh pkgs/dsh-openrouter/
 # The seat driver's entry scripts are extensionless (factory-brief, -ws,
 # -task, -wave, -integrate, -review), so the `find tools -name '*.sh'` sweep
 # below misses them; their `.sh` sibling (factory-lib.sh) is swept normally.
-shellcheck tools/factory/seat/factory-brief tools/factory/seat/factory-ws tools/factory/seat/factory-task tools/factory/seat/factory-wave tools/factory/seat/factory-integrate tools/factory/seat/factory-review tools/debug/bug-note tools/debug/investigate tools/fleet tools/home-classes
+shellcheck tools/factory/seat/factory-brief tools/factory/seat/factory-ws tools/factory/seat/factory-task tools/factory/seat/factory-wave tools/factory/seat/factory-integrate tools/factory/seat/factory-review tools/debug/bug-note tools/debug/investigate tools/fleet tools/home-classes tools/publish-snapshot
 find tests -name '*.sh' -print0 2>/dev/null | xargs -0 --no-run-if-empty shellcheck
 find tools -name '*.sh' -print0 2>/dev/null | xargs -0 --no-run-if-empty shellcheck
 # Every host's hardware-configuration.nix is exempt from these two style
@@ -31,6 +31,9 @@ statix check --ignore .claude . -i hosts/core/hardware-configuration.nix -i host
 deadnix --fail --exclude hosts/core/hardware-configuration.nix hosts/forge/hardware-configuration.nix pkgs/fleet/fleet-join.nix .claude tvix -- .
 ruff check pkgs/broker tests/broker pkgs/helm tests/helm pkgs/lane tests/lane tests/mocks tools/ledger tests/ledger pkgs/dsh-openrouter tools/factory/seat tools/factory/route.py pkgs/evidence tests/evidence pkgs/helm-home tests/helm-home pkgs/fleet pkgs/home-classes
 ruff format --check pkgs/broker tests/broker pkgs/helm tests/helm pkgs/lane tests/lane tests/mocks tools/ledger tests/ledger pkgs/dsh-openrouter tools/factory/seat tools/factory/route.py pkgs/evidence tests/evidence pkgs/helm-home tests/helm-home pkgs/fleet pkgs/home-classes
+# PL25: actionlint gates the public CI workflow (its own
+# schema plus a shellcheck pass over every run: block).
+actionlint .github/workflows/*.yml
 # P2: no '] && [' chains in bats tests (vacuous under errexit).
 tests/lint/bats-and-chain.sh
 # P12: prettier + oxlint gate every tracked JS file. The self-test runs first

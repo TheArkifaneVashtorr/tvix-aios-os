@@ -838,6 +838,106 @@ def test_secret_scan_in_values_and_map_keys():
     assert "checks.ghp_x: secret shape ghp_" in errs
 
 
+def test_secret_shapes_agree_across_the_three_lists():
+    """BUG-secret-shapes-drift (PL22): the evidence-value scan (SECRET_RE), the
+    export-time deny list (docs/ledger/publish.toml) and the commit-time lint
+    grep (tests/lint/secret-shapes.sh) must carry the same shape families.
+
+    SECRET_RE and the manifest intentionally differ in strictness (a bare
+    `ghp_` beside a length-checked `gh[opsur]_{36}`), so the two lists are
+    compared by family tag through a fixed mapping table, never by
+    regex-text equality. An alternative no row of the table recognises fails
+    the test loudly on either side, so a shape added to one list alone can
+    never pass vacuously: the task that adds a shape adds its tag here too.
+    Mutant: reverting SECRET_RE's `xox[baprs]-` to `xox[bp]-` passes this test
+    (both sides keep an `xox` alternative) — the strictness check for that
+    arm is the rehearsal in the task's own record, honestly not here.
+
+    The lint half is structural by construction — the script reads the
+    manifest live at every run — so re-parsing a third list here would test
+    the reading mechanism twice, not add a guarantee. The companion
+    assertion pins the wiring itself: the day a future edit hard-codes a
+    pattern list back into the script (dropping the manifest read), this
+    test goes red.
+    """
+    import tomllib
+
+    # family tag <- substring every alternative of the shape's family carries
+    family_table = {
+        "sk-or": "sk-or",
+        "sk-ant": "sk-ant",
+        "-----BEGIN": "PRIVATE KEY",
+        "AGE-SECRET-KEY": "AGE-SECRET-KEY",
+        "AKIA": "AKIA",
+        "ghp_": "gh",
+        "gh[opsur]_": "gh",
+        "github_pat_": "gh",
+        "xox": "xox",
+    }
+    # SECRET_RE's prose-prone tokens are evidence-value-only by design and
+    # documented as such in flake.nix's lint arm: Bearer, \bage1, \beyJ.
+    prose_only = {"Bearer ", "\\bage1", "\\beyJ"}
+
+    def families(alternatives, where):
+        tags = set()
+        for alt in alternatives:
+            if alt in prose_only:
+                continue
+            matched = [tag for key, tag in family_table.items() if key in alt]
+            assert matched, f"{where}: no family tag for secret shape {alt!r}"
+            assert len(matched) == 1, (
+                f"{where}: ambiguous family for {alt!r}: {sorted(matched)}"
+            )
+            tags.add(matched[0])
+        return tags
+
+    secret_re_alts = [alt for alt in streams.SECRET_RE.pattern.split("|")]
+    manifest = next(
+        (
+            p
+            for p in (
+                HERE.parents[2] / "docs" / "ledger" / "publish.toml",
+                pathlib.Path("docs") / "ledger" / "publish.toml",
+            )
+            if p.exists()
+        ),
+        None,
+    )
+    assert manifest is not None, "docs/ledger/publish.toml is not in the tree"
+    with open(manifest, "rb") as fh:
+        patterns = tomllib.load(fh)["deny"]["patterns"]
+
+    assert families(secret_re_alts, "SECRET_RE") == families(
+        patterns, f"{manifest.name} deny.patterns"
+    ), (
+        "BUG-secret-shapes-drift: SECRET_RE and docs/ledger/publish.toml's "
+        "deny patterns no longer carry the same shape families"
+    )
+
+    # the lint half: the script must read the manifest, not a hand-copied list
+    script = next(
+        (
+            p
+            for p in (
+                HERE.parents[2] / "tests" / "lint" / "secret-shapes.sh",
+                pathlib.Path("tests") / "lint" / "secret-shapes.sh",
+            )
+            if p.exists()
+        ),
+        None,
+    )
+    assert script is not None, "tests/lint/secret-shapes.sh is not in the tree"
+    text = script.read_text()
+    assert "docs/ledger/publish.toml" in text, (
+        "tests/lint/secret-shapes.sh no longer names docs/ledger/publish.toml: "
+        "the commit-time gate has been unwired from the export-time manifest"
+    )
+    assert "tomllib" in text, (
+        "tests/lint/secret-shapes.sh no longer reads the manifest with "
+        "tomllib: a pattern list has been hard-coded back into the script"
+    )
+
+
 def test_log_tail_cap_and_allowlist_is_load_bearing(monkeypatch):
     assert streams.validate("check", check_row(log_tail="t" * 4000)) == []
     assert streams.validate("check", check_row(log_tail="t" * 4001)) == [

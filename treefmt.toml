@@ -58,6 +58,16 @@ options = ["--write"]
 includes = ["*.css"]
 excludes = ["tests/lint/fixtures/css/*", "pkgs/dsh-harness/*", "vendor/*"]
 
+# PL25 (G10: the formatter lands with the language): prettier formats every
+# tracked YAML file — .github/workflows/check.yml, the public CI workflow,
+# and any yaml that follows it. The first tracked YAML file in the repo
+# (git ls-files | grep -cE '\.ya?ml$' was 0 before this task), so the block
+# carries no excludes yet.
+[formatter.yaml]
+command = "prettier"
+options = ["--write"]
+includes = ["*.yml", "*.yaml"]
+
 # OS2 (2026-09-22-tvix-aios-step1; the formatter lands with the language):
 # rustfmt formats every tracked Rust file at edition 2021. ./tvix is the fork
 # linked for a hand cargo session and ./target is cargo's own output; neither

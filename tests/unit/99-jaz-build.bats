@@ -86,6 +86,28 @@ EOF
 export const meta = { name: "plan" }
 EOF
 
+  # -- placeholder draft-packet.js/draft-byref.js (both optional, like
+  #    plan-byref.js below), each carrying the experiment's own vocabulary
+  #    in a header comment and meta strings, the way the real files do --
+  #    proves build-fixtures.sh's per-file scrub loop reaches these two new
+  #    names, not just plan-byref.js.
+  cat >"$WF/draft-packet.js" <<'EOF'
+// arm A of the JAZ planning experiment, draft-packet.js, pinned.
+export const meta = {
+  name: 'draft-packet',
+  description:
+    'this experiment names itself right here, JAZ arm A',
+}
+EOF
+  cat >"$WF/draft-byref.js" <<'EOF'
+// arm B of the JAZ planning experiment, draft-byref.js, pinned.
+export const meta = {
+  name: 'draft-byref',
+  description:
+    'this experiment names itself right here, JAZ arm B',
+}
+EOF
+
   # -- a fake derived/gates.jsonl exercising the null-review_commit_ts rule:
   #    kept-by-time, dropped-by-time, a NaN time (never "before"), a
   #    null-time row whose review_path exists in the archived tree (kept),
@@ -157,6 +179,23 @@ assert_absent() {
   [ "$BUILD_STATUS" -eq 0 ]
   run grep -rliE 'jaz|experiment|arm [ab]\b|by-reference' "$OUT/.claude" "$OUT/tools/cloud" "$OUT/SNAPSHOT.md"
   [ "$status" -ne 0 ]
+}
+
+@test "draft-packet.js and draft-byref.js ship scrubbed alongside plan.js/plan-byref.js" {
+  [ "$BUILD_STATUS" -eq 0 ]
+  local a="$OUT/.claude/workflows/draft-packet.js" b="$OUT/.claude/workflows/draft-byref.js"
+  [ -s "$a" ]
+  [ -s "$b" ]
+  # scrubbed clean of the experiment's own vocabulary the placeholder carried
+  assert_absent 'JAZ' "$a"
+  assert_absent 'arm A' "$a"
+  assert_absent 'experiment' "$a"
+  assert_absent 'JAZ' "$b"
+  assert_absent 'arm B' "$b"
+  assert_absent 'experiment' "$b"
+  # each file's own meta.name survives -- the scrub never touches code
+  grep -q "name: 'draft-packet'" "$a"
+  grep -q "name: 'draft-byref'" "$b"
 }
 
 @test "no captured token survives anywhere in the branch" {

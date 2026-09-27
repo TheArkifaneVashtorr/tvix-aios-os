@@ -28,6 +28,15 @@ CLASS_GLOB_RE — no matcher is copied (subsystems.py's shape).
 arms; exit 0 prints every published path (publish-classified minus pending)
 sorted, and nothing else; exits 1 and 2 are `validate`'s, byte for byte — a
 red tree yields no list.
+
+`export <manifest> --tree <dir> --out <dir> [--files <list>]` (spec §5, the
+phase-2 contract PL24 builds) runs the same four arms first: on any defect
+the report is `validate`'s and NOTHING is written — not even the `--out`
+directory — so a red tree can never leave a partial export behind. On a
+clean tree `prepare_out` gates `--out` (refused when it exists and is not
+an empty directory), then exactly the published paths are copied into it
+with `shutil.copy2` (data and mode bits), parents created as needed, and
+nothing else — no `.git`, no marker file.
 """
 
 from __future__ import annotations
@@ -37,6 +46,7 @@ import fnmatch
 import os
 import pathlib
 import re
+import shutil
 import subprocess
 import sys
 
@@ -210,6 +220,42 @@ def export_list(manifest_path: str, tree: str, files: str | None):
     return defects, counts, ([] if defects else published)
 
 
+def prepare_out(out: str) -> None:
+    """Decide whether `--out` may hold the export, before anything is
+    copied (PL24, spec §5): refused when it exists and is not a directory,
+    or exists and is a non-empty directory; created when absent; accepted
+    when present and empty. The tool never distinguishes "a directory an
+    earlier invocation of this tool created" from "an empty directory that
+    existed for any other reason" — the two are indistinguishable from the
+    filesystem alone and treating them alike is strictly safer, and no
+    marker file is written into `--out` (spec §5: export creates nothing
+    else there)."""
+    if os.path.lexists(out):
+        if not os.path.isdir(out):
+            raise ManifestError(f"--out {out} exists and is not a directory")
+        if os.listdir(out):
+            raise ManifestError(f"--out {out} exists and is not empty")
+    else:
+        os.makedirs(out)
+
+
+def export(manifest_path: str, tree: str, out: str, files: str | None):
+    """Spec §5 `export` (PL24): `validate` first — on any defect the report
+    is returned untouched and nothing is written, not even the `--out`
+    directory itself; on a clean tree `prepare_out` gates `--out`, then
+    exactly the published paths (publish-classified minus pending) are
+    copied byte for byte, mode bits included, parents created as needed."""
+    defects, counts, published = export_list(manifest_path, tree, files)
+    if defects:
+        return defects, counts
+    prepare_out(out)
+    for p in published:
+        dest = os.path.join(out, p)
+        os.makedirs(os.path.dirname(dest), exist_ok=True)
+        shutil.copy2(os.path.join(tree, p), dest)
+    return defects, counts
+
+
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(prog="publish")
     sub = ap.add_subparsers(dest="cmd", required=True)
@@ -219,16 +265,27 @@ def main(argv=None) -> int:
             "export-list",
             "validate, then print every published path (the export's dry run)",
         ),
+        (
+            "export",
+            "validate, then copy the published paths byte for byte into --out",
+        ),
     ):
         p = sub.add_parser(name, help=help_)
         p.add_argument("manifest")
         p.add_argument("--tree", required=True)
         p.add_argument("--files", default=None)
+        if name == "export":
+            p.add_argument("--out", required=True)
     args = ap.parse_args(argv)
     try:
-        defects, (published, withheld, pending), paths = export_list(
-            args.manifest, args.tree, args.files
-        )
+        if args.cmd == "export":
+            defects, (published, withheld, pending) = export(
+                args.manifest, args.tree, args.out, args.files
+            )
+        else:
+            defects, (published, withheld, pending), paths = export_list(
+                args.manifest, args.tree, args.files
+            )
     except ManifestError as e:
         print(f"publish: {e}", file=sys.stderr)
         return 2

@@ -165,3 +165,39 @@ present. The host instead dials the runner's `notify.vsock` Unix socket,
 writes `CONNECT <port>\n`, reads back `OK <n>\n`, and the guest's stream
 follows on that same socket. (qemu's vhost-vsock-pci, the step-5 fallback,
 remains real AF_VSOCK — the broker's dial recipe differs by backend.)
+
+## Publishing a snapshot to the public mirror **(operator)**
+
+The publish gate (`docs/ledger/publish.toml`, `pkgs/evidence/publish.py`)
+is the only thing that leaves this machine: `export` copies exactly the
+published paths — publish-classified minus pending — byte for byte with
+their mode bits into a directory the public mirror then commits. One
+command runs the first three steps of the recipe and prints the fourth:
+
+    nix develop -c tools/publish-snapshot <public-repo>
+
+1. **Export** — `python3 pkgs/evidence/publish.py export
+   docs/ledger/publish.toml --tree . --out <fresh dir>`: a red tree writes
+   nothing, not even the directory, and a `--out` that exists and is not an
+   empty directory is refused, so no partial export can ever lie around.
+2. **Commit** — the export becomes the mirror's work tree
+   (`git --git-dir=<public-repo>/.git --work-tree=<export> add -A`, then
+   commit) with all four git identity variables hard-set to the mirror's
+   identity, `TheArkifaneVashtorr <TheArkifaneVashtorr@users.noreply.github.com>`
+   — never the ambient git config, so no private name or email can leak
+   into the public history; the message never quotes this repo, so no
+   private commit id or subject is published either (decision 5).
+3. **Prove** — a clean `git clone` of the mirror, then
+   `nix flake check --no-build` there: the export is the whole public tree,
+   so it must stand on its own and print `all checks passed!` (with
+   `docs/ledger/publish.toml` withheld, the export's flake drops the
+   publish-gate-only checks by design).
+4. **Push** — yours alone; `tools/publish-snapshot` stops before this step
+   and prints the exact command, because the push needs a credential and
+   no credential ever passes through the tool:
+
+       git -C <public-repo> -c credential.helper='!gh auth git-credential' push
+
+Initialising the mirror's history the first time (a fresh `git init` plus
+the first snapshot, or a clone of the existing private mirror) is the
+operator's too — a one-time setup step outside this recurring recipe.

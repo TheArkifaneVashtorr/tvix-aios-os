@@ -110,8 +110,8 @@ FORBIDDEN = frozenset(
 )
 
 SECRET_RE = re.compile(
-    r"sk-or-v1-|sk-ant-|Bearer |-----BEGIN|AKIA[0-9A-Z]{16}|ghp_|xox[bp]-|"
-    r"AGE-SECRET-KEY-|\bage1|\beyJ"
+    r"sk-or-v1-|sk-ant-|Bearer |-----BEGIN|AKIA[0-9A-Z]{16}|ghp_|github_pat_|"
+    r"xox[baprs]-|AGE-SECRET-KEY-|\bage1|\beyJ"
 )
 
 CLASSES_CHECK = (

@@ -409,3 +409,122 @@ def test_export_list_over_the_shipped_fixture_is_the_negative_report():
     rc, out, _ = run_export(FIXTURE)
     assert rc == 1
     assert out == (FIXTURE / "expected.txt").read_text().splitlines()
+
+
+# --- export (PL24, plan 2026-09-11-platform.md): the snapshot copy itself ---
+
+
+def run_export_cmd(tree, out, *extra, manifest=None):
+    manifest = str(tree / "publish.toml") if manifest is None else manifest
+    r = subprocess.run(
+        [
+            sys.executable,
+            str(SRC),
+            "export",
+            manifest,
+            "--tree",
+            str(tree),
+            "--out",
+            str(out),
+            *extra,
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+        env={**os.environ, "PYTHONDONTWRITEBYTECODE": "1"},
+    )
+    return r.returncode, r.stdout.splitlines(), r.stderr
+
+
+def _walk(out):
+    return sorted(
+        os.path.relpath(os.path.join(root, name), out)
+        for root, _, names in os.walk(out)
+        for name in names
+    )
+
+
+def test_export_copies_exactly_the_published_paths_byte_for_byte(tmp_path):
+    """Mutant: the copy loop iterates every classified path — the withheld priv/x.md lands in --out."""
+    t = make_tree(
+        tmp_path,
+        {
+            "pub/b.txt": "b\n",
+            "pub/a.txt": "a\n",
+            "README.md": "r\n",
+            "priv/x.md": "x\n",
+        },
+    )
+    out = tmp_path / "out"
+    rc, lines, err = run_export_cmd(t, out)
+    assert rc == 0 and err == ""
+    assert lines == ["published 3 withheld 2 pending 0"]
+    assert _walk(out) == ["README.md", "pub/a.txt", "pub/b.txt"]
+    assert (out / "pub" / "a.txt").read_bytes() == b"a\n"
+
+
+def test_export_omits_pending_paths(tmp_path):
+    """Mutant: the pending subtraction dropped from the copy loop alone (export-list's own arm intact) — pub/leak.txt, carrying a planted literal, is copied."""
+    manifest = MANIFEST.replace("pending  = []", 'pending  = ["pub/leak.txt"]')
+    t = make_tree(
+        tmp_path,
+        {
+            "pub/a.txt": "a\n",
+            "pub/leak.txt": "nobody@example.invalid\n",
+            "README.md": "r\n",
+        },
+        manifest,
+    )
+    out = tmp_path / "out"
+    rc, lines, err = run_export_cmd(t, out)
+    assert rc == 0 and err == ""
+    assert lines == ["published 2 withheld 1 pending 1"]
+    assert _walk(out) == ["README.md", "pub/a.txt"]
+    assert not (out / "pub" / "leak.txt").exists()
+
+
+def test_export_preserves_the_exec_bit(tmp_path):
+    """Mutant: shutil.copyfile in copy2's place — data only, the mode dropped (0o644 lands where 0o755 was)."""
+    t = make_tree(tmp_path, {"pub/run.sh": "#!/bin/sh\n", "README.md": "r\n"})
+    os.chmod(t / "pub" / "run.sh", 0o755)
+    out = tmp_path / "out"
+    rc, lines, err = run_export_cmd(t, out)
+    assert rc == 0 and err == ""
+    assert lines == ["published 2 withheld 1 pending 0"]
+    assert stat.S_IMODE((out / "pub" / "run.sh").stat().st_mode) == 0o755
+
+
+def test_export_refuses_a_red_tree_and_creates_nothing(tmp_path):
+    """Mutant: prepare_out (or the copy) runs before the defect check — --out is created on a red tree."""
+    t = make_tree(tmp_path, {"stray.txt": "x\n", "README.md": "r\n"})
+    out = tmp_path / "out"
+    rc, lines, err = run_export_cmd(t, out)
+    assert rc == 1
+    assert lines == ["unclassified stray.txt", "published 1 withheld 1 pending 0"]
+    assert "brief §3.7" in err
+    assert not out.exists()
+
+
+def test_export_refuses_a_nonempty_preexisting_out(tmp_path):
+    """Mutant: the os.listdir check dropped — the export lands beside the unrelated file, exit 0 instead of 2."""
+    t = make_tree(tmp_path / "tree", {"pub/a.txt": "a\n", "README.md": "r\n"})
+    out = tmp_path / "out"
+    out.mkdir()
+    (out / "unrelated.txt").write_text("keep\n")
+    rc, lines, err = run_export_cmd(t, out)
+    assert rc == 2 and lines == []
+    assert err == f"publish: --out {out} exists and is not empty\n"
+    assert (out / "unrelated.txt").read_text() == "keep\n"
+    assert not (out / "README.md").exists()
+
+
+def test_export_accepts_an_empty_preexisting_out(tmp_path):
+    """Mutant: refuse any pre-existing --out — an empty directory this process did not create is wrongly refused."""
+    t = make_tree(tmp_path, {"pub/a.txt": "a\n", "README.md": "r\n"})
+    out = tmp_path / "out"
+    out.mkdir()
+    rc, lines, err = run_export_cmd(t, out)
+    assert rc == 0 and err == ""
+    assert lines == ["published 2 withheld 1 pending 0"]
+    assert (out / "README.md").read_text() == "r\n"
+    assert _walk(out) == ["README.md", "pub/a.txt"]

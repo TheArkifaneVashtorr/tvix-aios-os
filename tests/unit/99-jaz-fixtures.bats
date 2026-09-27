@@ -129,3 +129,70 @@ assert_absent() {
   grep -q 'a distinctive marker line the scrub must never touch' "$outfile"
   grep -q "name: 'plan-byref'" "$outfile"
 }
+
+@test "scrub_plan_byref.py scrubs each of the four JAZ workflow files, keyed by its own meta.name" {
+  local name
+  for name in plan plan-byref draft-packet draft-byref; do
+    local input="$T/$name-in.js" outfile="$T/$name-out.js"
+    {
+      printf '// .claude/workflows/%s.js — arm B of the JAZ planning experiment, pinned.\n' "$name"
+      printf '// Spec: docs/superpowers/specs/2026-09-25-jaz-planning-experiment-design.md\n'
+      printf '\n'
+      printf 'export const meta = {\n'
+      printf "  name: '%s',\n" "$name"
+      printf "  description:\n"
+      printf "    'this experiment, JAZ arm B text that must be replaced',\n"
+      printf "  whenToUse:\n"
+      printf "    'Only for the JAZ planning experiment',\n"
+      printf '}\n'
+      printf '\n'
+      printf 'function draftPrompt() {\n'
+      printf "  return 'a distinctive marker line the scrub must never touch: %s'\n" "$name"
+      printf '}\n'
+    } >"$input"
+
+    run python3 "$SCRUB_PY" "$input" "$outfile"
+    [ "$status" -eq 0 ]
+
+    # every one of the broader post-build gate's trigger words (build-fixtures.sh's
+    # own grep) is gone, not just scrub_plan_byref.py's narrower TRIGGER regex --
+    # a per-file neutral string that itself said "by-reference" or "arm a/b" would
+    # pass this script's own check but still trip that gate (measured directly:
+    # an earlier draft of the draft-byref neutral text did exactly this).
+    run grep -rliE 'jaz|experiment|arm [ab]\b|by-reference|2026-09-25' "$outfile"
+    [ "$status" -ne 0 ]
+
+    # code untouched, and each file's header/meta describes ITSELF, not a
+    # copy of one of the other three files' text.
+    grep -q "a distinctive marker line the scrub must never touch: $name" "$outfile"
+    grep -q "name: '$name'" "$outfile"
+  done
+
+  # the four neutral headers are not all the same line -- confirms the
+  # meta.name keying actually varies the text instead of collapsing every
+  # input to one generic fallback line. (`head -n1` on >1 file prints a
+  # "==> file <==" banner before each; read each file on its own instead.)
+  local f first_lines=()
+  for name in plan plan-byref draft-packet draft-byref; do
+    f="$T/$name-out.js"
+    first_lines+=("$(head -n1 "$f")")
+    [[ "${first_lines[-1]}" == //* ]]
+  done
+  local n_distinct
+  n_distinct=$(printf '%s\n' "${first_lines[@]}" | sort -u | wc -l)
+  [ "$n_distinct" -eq 4 ]
+
+  # description/whenToUse are the OPPOSITE of the header: identical across
+  # all four (Opus review, 2026-09-26) -- a per-file neutral description
+  # still contrasts "gathers a packet" against "queries the tree directly",
+  # which tells a by-reference drafter reading its own file that two
+  # differently-shaped drafters exist to compare, with no JAZ/arm wording
+  # needed at all.
+  local descs=() whens=()
+  for name in plan plan-byref draft-packet draft-byref; do
+    descs+=("$(grep -A1 "description:" "$T/$name-out.js" | tail -n1 | sed "s/^[[:space:]]*//")")
+    whens+=("$(grep -A1 "whenToUse:" "$T/$name-out.js" | tail -n1 | sed "s/^[[:space:]]*//")")
+  done
+  [ "$(printf '%s\n' "${descs[@]}" | sort -u | wc -l)" -eq 1 ]
+  [ "$(printf '%s\n' "${whens[@]}" | sort -u | wc -l)" -eq 1 ]
+}

@@ -432,9 +432,9 @@ id = "BUG-secret-shapes-drift"
 found = 2026-09-25
 symptom = "Three secret-shape lists disagree. pkgs/evidence/streams.py SECRET_RE (evidence values) has AKIA[0-9A-Z]{16}, ghp_ and xox[bp]-; flake.nix's KN13 lint grep (commit time) claims to mirror SECRET_RE minus its prose-prone tokens but carries only the four sk-or/sk-ant/PRIVATE KEY/AGE-SECRET-KEY arms; docs/ledger/publish.toml's deny patterns (export time, the gate that protects the public repo) carry the same four and no AWS, Slack or GitHub shape (GitHub arrives with PL16). A committed AWS key or Slack token passes both the pre-commit lint and the publish gate today. Measured while drafting PL16."
 repro = '''! grep -q 'AKIA' docs/ledger/publish.toml'''
-status = "open"
-closing_check = ""
-task = ""
+status = "fixed"
+closing_check = "lint"
+task = "PL22"
 evidence = "flake.nix"
 
 [[bug]]

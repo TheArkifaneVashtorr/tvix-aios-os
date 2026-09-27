@@ -20,24 +20,42 @@
   tvix,
 }:
 let
+  # PL25 (plan 2026-09-11-platform.md, Assumption 3): the public export
+  # withholds the manifest — docs/ledger/publish.toml withholds itself (spec
+  # 2026-09-21-publish-gate-design.md §6) — so on that tree publish.py's
+  # export-list has nothing to read (measured: `publish: cannot read
+  # …/docs/ledger/publish.toml: No such file or directory`). It also has
+  # nothing to do: the export tree already IS the export view, byte for
+  # byte, so `src` takes no classification pass at all. Keyed on the
+  # manifest's absence, the same test flake.nix's export-eval check keys
+  # on; the private tree always carries the manifest and never takes the
+  # branch.
+  isAlreadyExported = !builtins.pathExists (self + "/docs/ledger/publish.toml");
   src =
-    pkgs.runCommand "aios-export-src"
-      {
-        nativeBuildInputs = [ pkgs.python3 ];
-      }
-      ''
-        export PYTHONDONTWRITEBYTECODE=1
-        mkdir -p work/pkgs
-        cp -r ${self}/pkgs/evidence work/pkgs/evidence
-        find ${self} -type f -printf '%P\n' | LC_ALL=C sort > files.txt
-        python3 work/pkgs/evidence/publish.py export-list ${self}/docs/ledger/publish.toml --tree ${self} --files files.txt > export.txt
-        mkdir $out
-        while IFS= read -r p; do
-          mkdir -p "$out/$(dirname "$p")"
-          cp "${self}/$p" "$out/$p"
-        done < export.txt
+    if isAlreadyExported then
+      pkgs.runCommand "aios-export-src" { } ''
+        cp -r ${self} $out
+        chmod -R u+w $out
         ln -s ${tvix} $out/tvix
-      '';
+      ''
+    else
+      pkgs.runCommand "aios-export-src"
+        {
+          nativeBuildInputs = [ pkgs.python3 ];
+        }
+        ''
+          export PYTHONDONTWRITEBYTECODE=1
+          mkdir -p work/pkgs
+          cp -r ${self}/pkgs/evidence work/pkgs/evidence
+          find ${self} -type f -printf '%P\n' | LC_ALL=C sort > files.txt
+          python3 work/pkgs/evidence/publish.py export-list ${self}/docs/ledger/publish.toml --tree ${self} --files files.txt > export.txt
+          mkdir $out
+          while IFS= read -r p; do
+            mkdir -p "$out/$(dirname "$p")"
+            cp "${self}/$p" "$out/$p"
+          done < export.txt
+          ln -s ${tvix} $out/tvix
+        '';
   # Every crate the fork's Cargo.lock pins, fetched from crates.io by the
   # checksums in that lock (nixpkgs importCargoLock): the offline registry the
   # lock generator resolves against, so our lock is always a subset of the fork's.

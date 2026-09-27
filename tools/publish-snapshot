@@ -1,0 +1,86 @@
+#!/usr/bin/env bash
+# tools/publish-snapshot -- the operator's publish recipe as one command
+# (PL24, plan 2026-09-11-platform.md; spec
+# docs/superpowers/specs/2026-09-21-publish-gate-design.md §5): assemble the
+# publish-gate export into a fresh directory, commit it on top of the public
+# mirror's history under the mirror's fixed identity, and prove the result
+# with a clean clone and `nix flake check --no-build`. It never pushes: the
+# push needs a credential and is the operator's own step (brief §3
+# invariant 2) -- the exact command is printed at the end instead.
+#
+# Usage: tools/publish-snapshot <public-repo>
+#   <public-repo> is the local clone of the public mirror; the snapshot is
+#   committed on whatever branch it has checked out.
+set -euo pipefail
+
+here=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)
+repo=${1:?usage: tools/publish-snapshot <public-repo>}
+
+command -v python3 >/dev/null 2>&1 || {
+  echo 'tools/publish-snapshot: python3 is not on PATH; run under nix develop -c' >&2
+  exit 2
+}
+command -v nix >/dev/null 2>&1 || {
+  echo 'tools/publish-snapshot: nix is not on PATH' >&2
+  exit 2
+}
+git_dir=$(git -C "$repo" rev-parse --absolute-git-dir) || {
+  echo "tools/publish-snapshot: $repo is not a git repository" >&2
+  exit 2
+}
+
+# A hermetic git identity: all four identity vars hard-set, so nothing from
+# the ambient config can leak the operator's own name or email into the
+# mirror's history -- the same pattern tests/acceptance/export-eval.sh uses.
+# Setting only --author and leaving the committer identity to the ambient
+# config would leak exactly that way.
+export GIT_CONFIG_NOSYSTEM=1
+export GIT_AUTHOR_NAME=TheArkifaneVashtorr
+export GIT_AUTHOR_EMAIL=TheArkifaneVashtorr@users.noreply.github.com
+export GIT_COMMITTER_NAME=TheArkifaneVashtorr
+export GIT_COMMITTER_EMAIL=TheArkifaneVashtorr@users.noreply.github.com
+
+work=$(mktemp -d)
+trap 'rm -rf "$work"' EXIT
+snap="$work/export"
+
+# 1. The export: exactly the published paths, byte for byte, into a fresh
+#    directory. A red gate stops the script here with the validator's own
+#    report and exit code -- no partial export can exist.
+cd "$here/.."
+python3 pkgs/evidence/publish.py export docs/ledger/publish.toml --tree . --out "$snap"
+echo "tools/publish-snapshot: export holds $(find "$snap" -type f | wc -l) files"
+
+# 2. The commit: the export becomes the mirror's work tree, so `add -A`
+#    stages the whole snapshot -- and the deletion of anything the export no
+#    longer holds -- on top of the mirror's history. The message never
+#    quotes this repo: no private commit id, no private subject (decision 5).
+git --git-dir="$git_dir" --work-tree="$snap" add -A
+if git --git-dir="$git_dir" --work-tree="$snap" commit -qm \
+  "snapshot: the publish-gate export, $(date -u +%Y-%m-%d)"; then
+  echo "tools/publish-snapshot: committed $(git --git-dir="$git_dir" rev-parse --short HEAD)"
+else
+  echo "tools/publish-snapshot: nothing to commit -- the mirror already holds this exact export" >&2
+fi
+
+# 3. The proof: a clean clone of the mirror must stand on its own -- the
+#    export is the whole public tree, so the public flake must check green
+#    from the clone alone. --no-local forces a real copy, not hardlinks.
+clone="$work/clone"
+git clone -q --no-local "$repo" "$clone"
+check_log="$work/check.log"
+if ! nix flake check --no-build "$clone" >"$check_log" 2>&1; then
+  cat "$check_log" >&2
+  echo "tools/publish-snapshot: nix flake check --no-build failed on a clean clone of the mirror -- not pushing" >&2
+  exit 1
+fi
+grep -q 'all checks passed!' "$check_log" || {
+  cat "$check_log" >&2
+  echo "tools/publish-snapshot: nix flake check printed no 'all checks passed!' line -- not pushing" >&2
+  exit 1
+}
+
+# 4. The push -- the operator's own step, printed and never run: no
+#    credential ever passes through this script (brief §3 invariant 2).
+echo "tools/publish-snapshot: mirror verified at $(git --git-dir="$git_dir" rev-parse --short HEAD); push it yourself:"
+echo "  git -C '$repo' -c credential.helper='!gh auth git-credential' push"

@@ -1,0 +1,19 @@
+name: check
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  flake-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: DeterminateSystems/nix-installer-action@3138316df39ed29be04236d7ffc686fa525866aa # v23
+      - name: nix flake check (eval only, no VM builds)
+        run: nix flake check --no-build -L
+      - name: aios workspace build (goal 1's Rust clause)
+        run: nix build .#checks.x86_64-linux.aios-public-build -L --no-link

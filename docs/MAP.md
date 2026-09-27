@@ -189,10 +189,10 @@ Paths are repo-relative. Descriptions are each file's first comment line.
 - `tests/integration` — 12 files
 - `tests/lane` — 4 files
 - `tests/ledger` — 22 files
-- `tests/lint` — 14 files
+- `tests/lint` — 15 files
 - `tests/mocks` — 2 files
 - `tests/seat` — 3 files
-- `tests/unit` — 56 files
+- `tests/unit` — 57 files
 
 ## Hosts
 
@@ -232,6 +232,7 @@ Paths are repo-relative. Descriptions are each file's first comment line.
 - `tools/lane` — Lane L round 1 plan, Task 3: pack a JSON array of review findings into a
 - `tools/ledger` — Ledger extractor: factory workflow transcripts, dsh session usage, lane results.
 - `tools/orchestrator-guard.sh` — orchestrator-guard.sh — the orchestrator's (Claude Code) deny-only PreToolUse
+- `tools/publish-snapshot` — tools/publish-snapshot -- the operator's publish recipe as one command
 - `tools/reset-yubikey-piv.sh` — Factory-resets ONLY the encryption (PIV) module of the plugged-in YubiKey —
 - `tools/ritual.sh` — ritual.sh <stop|precompact|inflight|unmet> [repo] -- the context-reset ritual
 - `tools/run-result-hook.sh` — run-result-hook.sh -- a UserPromptSubmit hook (.claude/settings.json).

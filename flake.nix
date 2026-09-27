@@ -234,6 +234,11 @@
         # through treefmt ([formatter.rust]); clippy runs inside the workspace
         # build, where the vendored registry is, never in lint.
         rustfmt
+        # PL25: actionlint lints the public CI workflow (.github/workflows/*;
+        # G10: the linter lands with the language) — GitHub Actions' own
+        # schema plus a shellcheck pass over every run: block, preferred over
+        # yamllint (syntax only).
+        actionlint
       ];
       # G5: docs/MAP.md's Checks section must equal the flake's real check set.
       checkNamesFile = pkgs.writeText "check-names" (
@@ -2378,7 +2383,7 @@
                   # The seat driver's entry scripts are extensionless (factory-brief,
                   # -ws, -task, -wave, -integrate, -review), so the `find tools
                   # -name '*.sh'` sweep below misses them; their .sh sibling is swept.
-                  shellcheck tools/factory/seat/factory-brief tools/factory/seat/factory-ws tools/factory/seat/factory-task tools/factory/seat/factory-wave tools/factory/seat/factory-integrate tools/factory/seat/factory-review tools/debug/bug-note tools/debug/investigate tools/fleet tools/home-classes
+                  shellcheck tools/factory/seat/factory-brief tools/factory/seat/factory-ws tools/factory/seat/factory-task tools/factory/seat/factory-wave tools/factory/seat/factory-integrate tools/factory/seat/factory-review tools/debug/bug-note tools/debug/investigate tools/fleet tools/home-classes tools/publish-snapshot
                   find tests -name '*.sh' -print0 | xargs -0 --no-run-if-empty shellcheck
                   # T3 (Lane L round 1 plan): the first tools/*.sh scripts this
                   # repo actually gates on shellcheck (tools/lane/jobs/*.sh) --
@@ -2399,6 +2404,9 @@
                   deadnix --fail . --exclude hosts/core/hardware-configuration.nix hosts/forge/hardware-configuration.nix pkgs/fleet/fleet-join.nix
                   ruff check pkgs/broker tests/broker pkgs/helm tests/helm pkgs/lane tests/lane tests/mocks tools/ledger tests/ledger pkgs/dsh-openrouter tools/factory/seat tools/factory/route.py pkgs/evidence tests/evidence pkgs/seat tests/seat pkgs/helm-home tests/helm-home tests/unit/fixtures pkgs/fleet pkgs/home-classes
                   ruff format --check pkgs/broker tests/broker pkgs/helm tests/helm pkgs/lane tests/lane tests/mocks tools/ledger tests/ledger pkgs/dsh-openrouter tools/factory/seat tools/factory/route.py pkgs/evidence tests/evidence pkgs/seat tests/seat pkgs/helm-home tests/helm-home tests/unit/fixtures pkgs/fleet pkgs/home-classes
+                  # PL25: actionlint gates the public CI workflow (its own
+                  # schema plus a shellcheck pass over every run: block).
+                  actionlint .github/workflows/*.yml
                   # KN13 (b) R-practice-hardware-config-verbatim, FL2
                   # Interface 3: every host's hardware-configuration.nix is
                   # pinned by hosts/hardware-pins.sha256 (the exact producer:
@@ -2409,15 +2417,17 @@
                   sha256sum -c --quiet hosts/hardware-pins.sha256
                   for f in hosts/*/hardware-configuration.nix; do grep -q "  $f\$" hosts/hardware-pins.sha256 || { echo "lint: $f has no line in hosts/hardware-pins.sha256" >&2; exit 1; }; done
                   # KN13 (b) R-practice-brief8-no-secrets: no secret material in
-                  # the tree. The arms mirror pkgs/evidence/streams.py SECRET_RE
-                  # minus its prose-prone tokens (Bearer, \beyJ, \bage1); a new
-                  # prefix goes into both in one commit. docs/ is excluded because
-                  # it is prose that legitimately quotes these very shapes (the
-                  # plan specs document the arms and their mutants), not material.
-                  if grep -rEn -e 'sk-or-v[0-9]+-[A-Za-z0-9]{16}' -e 'sk-ant-api[0-9]{2}-[A-Za-z0-9_-]{16}' -e '-----BEGIN [A-Z ]*PRIVATE KEY-----' -e 'AGE-SECRET-KEY-1[A-Z0-9]{16}' --exclude-dir=.git --exclude-dir=docs .; then
-                    echo "lint: secret material in the tree (brief §8): the lines above" >&2
-                    exit 1
-                  fi
+                  # the tree. BUG-secret-shapes-drift (PL22): the arms are no
+                  # longer hand-copied here -- tests/lint/secret-shapes.sh reads
+                  # docs/ledger/publish.toml's [deny].patterns live (tomllib),
+                  # the export-time publish gate's own list, so the two gates
+                  # share one source and cannot drift apart again;
+                  # streams.py's SECRET_RE is pinned to the same families by
+                  # tests/evidence/test_streams_policy.py. docs/ stays excluded
+                  # (prose that legitimately quotes these very shapes). Self-test
+                  # first, on its own line, never joined by `&&`.
+                  bash tests/lint/secret-shapes.sh --self-test
+                  bash tests/lint/secret-shapes.sh
                   # Board shape (plan 2026-09-05-evidence-store, E8/D5): the board carries the
                   # plan; facts come from `evidence bundle`. One START HERE, one screen or two.
                   test "$(grep -c '^## START HERE' docs/OPERATIONS.md)" -eq 1 || {
@@ -2596,6 +2606,11 @@
                   mkdir -p pkgs tests docs docs/superpowers
                   cp -r ${self}/pkgs/evidence pkgs/evidence
                   cp -r ${self}/tests/evidence tests/evidence
+                  # PL22: test_streams_policy.py's family-parity test pins the
+                  # commit-time secret scan's wiring, so the script it greps
+                  # travels with the evidence tests here too.
+                  mkdir -p tests/lint
+                  cp ${self}/tests/lint/secret-shapes.sh tests/lint/secret-shapes.sh
                   # PG1: the negative fixture, so test_publish.py's fixture test runs here too.
                   mkdir -p tests/fixtures
                   cp -r ${self}/tests/fixtures/publish tests/fixtures/publish

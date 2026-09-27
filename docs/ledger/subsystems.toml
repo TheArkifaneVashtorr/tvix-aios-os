@@ -84,6 +84,7 @@ owns = [
   "lib/*",
   "helm.nix",
   "githooks/*",
+  ".github/workflows/*",
   "treefmt.toml",
   "Cargo.toml",
   "Cargo.lock",
@@ -227,6 +228,7 @@ owns = [
   "tests/unit/99-jaz-blind.bats",
   "tests/unit/99-jaz-build.bats",
   "tests/unit/99-jaz-fixtures.bats",
+  "tests/unit/99-jaz-truncation.bats",
   "tools/experiments/jaz/*",
   "docs/superpowers/specs/*",
 ]
@@ -247,6 +249,7 @@ owns = [
   ".agents/skills/evidence-store/*",
   "tools/ledger/*",
   "tools/debug/*",
+  "tools/publish-snapshot",
   "docs/diagnoses/*",
   "tests/evidence/*",
   "tests/ledger/*",

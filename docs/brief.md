@@ -97,8 +97,13 @@ host `core`.
 is not dispatched.
 
 1. **It builds in public.** This repository's flake evaluates and its Rust workspace
-   (the daemon, the guard) compiles against the fork's tvix crates, in CI, from a clean
-   clone of the public snapshot.
+   (the daemon) compiles against the fork's tvix crates, in CI, from a clean
+   clone of the public snapshot. Amended 2026-09-26 on the operator's word: the guard
+   crate (IS23r, parked) leaves this goal and returns with goal 2. Goal 1 is done at the
+   first green CI run on the public repository. Status 2026-09-26: a clean clone of the
+   export passes `nix flake check --no-build`, and `aios-public-build` builds; CI (PL25)
+   and the export writer (PL24) remain. The next focus is goal 2, guest first
+   (`docs/planning/2026-09-26-next-goal.md`).
 2. **One agent workflow runs on the OS image end to end.** Boot a VM from the image, run
    a seat, land a reviewed change, with every byte crossing the broker; the evidence
    store records it.

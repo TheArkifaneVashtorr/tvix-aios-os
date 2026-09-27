@@ -103,6 +103,15 @@ from the snapshot, and what one `plan.js` run costs in credit. The full run
 is sized from the pilot's number; if the Workflow tool is not available in
 cloud, the experiment stops and this spec is revised.
 
+**Spend gate (operator lesson 2026-09-26: an OpenRouter plan sweep cost
+about $450 for six plans).** The pilot is the probe: its credit delta is
+read before anything else is dispatched. The full run proceeds only if
+pilot cost × remaining runs fits the remaining credit with 20% margin;
+otherwise the design is cut, in this order: one repetition, then drop F3,
+then drop F2. The fallback is decided here, not mid-run. Runs are dispatched
+one at a time, and the balance is read after each; the experiment stops when
+the next run would cross the remaining credit.
+
 ### D5 — Where the fixtures live
 
 Cloud sessions clone from GitHub. The public export cannot serve: it
@@ -162,6 +171,86 @@ branch before any push. The push is the operator's.
 2. Operator: create the private repo, push, claim the credit.
 3. Pilot (D4). Operator reads the credit delta.
 4. Full run, scoring on the host, results table, decision (§4).
+
+## 6a. Revision 2 (2026-09-26): draft-only, sized for a test
+
+Supersedes D1's fixture count, D2's phases, D3.2, D4's pilot and §4. Taken
+as the orchestrator's recommendation; the operator stated no preference.
+
+**Why.** Twelve plans are six A/B pairs. A two-sided sign test on six pairs
+is significant only on a clean sweep (p ≈ 0.03); one tie or loss gives
+p ≥ 0.2. Counting the 24 graded defects per arm as trials overstates the
+sample, since defects within one plan are not independent. A paired test at
+α = 0.05 with 80% power needs roughly 8 pairs for d = 1.2, 14 for d = 0.8 and
+33 for d = 0.5. At the OpenRouter rate the operator measured (about $75 per
+plan) even 14 full pairs cost about $2,100.
+
+**The unit becomes the first draft.** The hypothesis is about how the drafter
+gets its information. Judge, Revise and Ship are identical in both arms, so
+they add cost and noise but no contrast. Both arms stop after Draft:
+- **A:** `plan.js`'s Packet and Draft phases, byte-identical, then return
+  the draft path.
+- **B:** `plan-byref.js`'s Draft phase, byte-identical, then return.
+
+Both are derived by truncation into two new workflow scripts, so `plan.js`
+and `plan-byref.js` stay untouched. D3.2 (the panel) is dropped. The primary
+outcome per pair is B's first-draft defect recall minus A's, from the
+blind grader (D3.1, `hit / recorded`).
+
+**Fixtures: more specs, one pair each.** Spec-to-spec variance dominates, so
+N pairs are N distinct fixtures (D1's three plus candidates from the defect
+record: plan-side defects ≥ 2, cutoff before 2026-09-25). A second
+repetition is used only if the candidates run out, and is analysed as a
+cluster.
+
+Measured 2026-09-26 (a Sonnet search of `tasks.py outcomes` joined to the
+plans; word counts re-measured at each cutoff). `plan.js`'s target reader
+refuses a spec above 4,000 words, so the factory (6,250), seat-harness
+(5,554) and platform (4,795) context blocks are out, and so is the
+16,062-word planning-agent spec. That leaves:
+
+| Key | Drafted from (at the cutoff) | Words | Plan-side defects | Cutoff commit |
+|---|---|---|---|---|
+| F1 | `specs/2026-09-06-operator-seat-driver-design.md` | 2,289 | 3 | `5972dcc1^` |
+| F2 | charter `concepts/2026-09-09a-redesign-charter.md` → isolation | 2,352 | 3 | `1bad85a9^` |
+| F3 | same charter → defects | 2,352 | 6 | `fc3d66db^` |
+| F4 | `context/generation.md` | 3,678 | 10 | `889727a` |
+| F5 | `context/helm.md` | 3,509 | 7 | `c815981` |
+| F6 | `specs/2026-09-21-publish-gate-design.md` | 2,290 | 3 | `b07f025` |
+| F7 | `specs/2026-09-08-openai-lab-spike-design.md` | 940 | 2 | `1dbd233` |
+
+F6 was then **dropped** (2026-09-26): its archived tree fails `tasks.py check`
+under an isolated `HOME` (KN17 "lands own work", and the W1 and H1
+cross-area touches with no `areas:` line). That is a real historical graph
+fault, and arm A refuses to draft on it (§5's drop rule). That leaves **6
+primary pairs** (F1–F5, F7), below the 8 a test needs for d ≈ 1.2. An
+extended set adds the four fixtures with one plan-side defect each (codex
+driver arm, LoRA cards, operator-and-collection, spend telemetry), whose
+per-plan recall is 0 or 1, so many of those pairs will tie. The extended set
+is run only if the pilot's cost leaves room, and is reported separately. With
+7 to 11 pairs, the likely outcome is a **pilot signal with an effect-size
+estimate**, not significance. Saying so now is part of the pre-registration.
+
+**Pilot.** One F1 pair, draft-only, in two cloud runs. It gives the cost per
+draft. Then N_max = floor(0.8 × remaining credit / cost per pair), capped by
+the fixture count, and fixed before pair 2.
+
+**Analysis, fixed before the run.**
+- Two-sided exact sign test on the N_max pair differences (ties dropped),
+  α = 0.05, with a Wilcoxon signed-rank test and the median difference with
+  its 95% CI reported beside it.
+- **One interim look, futility only**, at pair 8: stop if B is ahead in ≤ 3
+  of the untied pairs. A futility-only stop does not inflate the type I
+  error.
+- **Cost per draft** is the Workflow completion notification's usage line
+  (`subagent_tokens`, `agent_count`, `duration_ms`) plus the credit delta per
+  run. It is never the scripts' `outputTokensByPhase`, which counts output
+  only, and whose phases differ between the arms.
+- The report states the effect size the achieved N could detect. If N_max is
+  below 8, the result is labelled a pilot signal, not a test.
+
+Pass (B significantly better) → arm C gets a spec. Otherwise the record says
+so and nothing changes.
 
 ## 7. Not in this design
 
