@@ -1,0 +1,24 @@
+[[route]]
+route = "openrouter"
+role = "implement"
+kind = "code"
+size = "S"
+rung = 2
+model = "deepseek/deepseek-v4-pro-0813"
+effort = "high"
+
+[[route]]
+route = "openrouter"
+role = "any"
+kind = "any"
+size = "any"
+model = "deepseek/deepseek-v4-pro-0813"
+effort = "medium"
+
+[[route]]
+route = "claude"
+role = "any"
+kind = "any"
+size = "any"
+model = "sonnet"
+effort = "medium"

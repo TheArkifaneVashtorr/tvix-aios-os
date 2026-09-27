@@ -1,0 +1,9 @@
+- The automatic relaunch itself (telemetry design §4.3, task T15 — unplanned): this plan gives the driver `--fallback` and the rule of what it may relaunch alone (SD3, SD9); the relaunch line stays a hand launch until T15.
+- Anthropic models on OpenRouter as rows (Question 2, hold); Kimi K3 and GLM 5.3 rows (no measurement); any change to the interactive seat the operator opens outside the unit (`~/.local/share/dsh-openrouter`, its `settings.yaml`).
+- `evidence report routing|compare` (telemetry design §4.1/§4.6, T10b) — `report ladder` is the one report this spec names.
+- The seat lane's own runbook `docs/runbooks/seat.md`, the `lanes.md` paragraph and the `seat-key-exception-undecided` claim (SB5, held); SB6's footguns (held).
+- Porting the orchestrator guard's typed-heading Edit/Write rule (rule 1) into the seat guard — the seat is denied every plan write instead (D9); the guard's known gap "a removal through a symlink that points into the plans directory" (its header) stays out of both guards.
+- A `touches` guard at the integrator (the spec's Risks lean on one that does not exist — D11): a driver task for a later plan; noted for the board.
+- `tasks.py write-board` from the drive seat: allowed by the spec (Design 7) and unchanged; the board's prose stays the orchestrator's.
+- The telemetry tasks T1–T18 themselves (their own plan; SD8 depends on T2 and T10a); a `plan` routing row; the media, gaming and nixos-skill repos; fronting the Claude Code session with a broker; Helm Home; Discord.
+- Parked for the concept file: the spool's own telemetry rows (a `spool-start` event with the job id and the validation verdict, once telemetry shape B exists); a `report ladder --by class` cut that prints the tie-broken second class per task.

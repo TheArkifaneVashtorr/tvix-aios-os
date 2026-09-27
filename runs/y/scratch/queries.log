@@ -1,0 +1,192 @@
+2026-09-27T00:49:15Z	ls /home/user/tvix-aios-os/docs/superpowers/plans/ | cat	exit 0
+2026-09-27T00:49:15Z	ls /home/user/tvix-aios-os/docs/superpowers/specs/ | cat	exit 0
+2026-09-27T00:49:15Z	ls /home/user/tvix-aios-os/evidence/ | cat	exit 0
+2026-09-27T00:49:15Z	ls /home/user/tvix-aios-os/tools/factory/seat/ | cat	exit 0
+2026-09-27T00:49:15Z	ls /home/user/tvix-aios-os/docs/ledger/ | cat	exit 0
+2026-09-27T00:49:15Z	ls /home/user/tvix-aios-os/docs/board/ | cat	exit 0
+2026-09-27T00:49:15Z	ls /home/user/tvix-aios-os/docs/decisions/ | cat	exit 0
+2026-09-27T00:49:15Z	python3 /home/user/tvix-aios-os/pkgs/evidence/tasks.py --root /home/user/tvix-aios-os check	exit 0
+2026-09-27T00:49:16Z	python3 /home/user/tvix-aios-os/pkgs/evidence/tasks.py --root /home/user/tvix-aios-os brief	exit 0
+2026-09-27T00:49:16Z	python3 /home/user/tvix-aios-os/pkgs/evidence/tasks.py --root /home/user/tvix-aios-os conflicts	exit 0
+2026-09-27T00:50:18Z	wc -w /home/user/tvix-aios-os/docs/superpowers/specs/2026-09-06-operator-seat-driver-design.md	exit 0
+2026-09-27T00:50:18Z	python3 -c 'import duckdb; print(duckdb.__version__)'	exit 0
+2026-09-27T00:50:19Z	command -v evidence; evidence bundle --markdown	exit 0
+2026-09-27T00:50:19Z	grep -rn 'DF8d\|DF13\|HM7c' /home/user/tvix-aios-os/docs /home/user/tvix-aios-os/tools /home/user/tvix-aios-os/.claude 2>&1 | head -30	exit 0
+2026-09-27T00:50:19Z	ls /home/user/tvix-aios-os/tests/unit /home/user/tvix-aios-os/tests/evidence /home/user/tvix-aios-os/tests/factory /home/user/tvix-aios-os/tests/seat /home/user/tvix-aios-os/docs/runbooks /home/user/tvix-aios-os/pkgs/seat /home/user/tvix-aios-os/pkgs/evidence 2>&1	exit 0
+2026-09-27T00:50:19Z	ls -d /home/user/flakes /home/dalhaka /root/flakes ~/flakes ~/factory 2>&1; echo HOME=$HOME	exit 0
+2026-09-27T00:50:19Z	git -C /home/user/tvix-aios-os log --since=2026-09-06 --format='%ci%x09%h%x09%s' -- tools/factory/seat docs/ledger/routing.toml tools/factory/route.py pkgs/seat nixosModules/seatLane.nix pkgs/evidence/tasks.py pkgs/evidence/evidence.py tests/unit/80-seat-driver.bats tests/unit/91-orchestrator-guard.bats tools/orchestrator-guard.sh | head -80	exit 0
+2026-09-27T00:50:19Z	git -C /home/user/tvix-aios-os log --since=2026-09-06 --oneline | wc -l	exit 0
+2026-09-27T00:50:19Z	git -C /home/user/tvix-aios-os log -1 --format='%ci%x09%h%x09%s'	exit 0
+2026-09-27T00:50:19Z	python3 /tmp/draft-scratch/open_touch.py	exit 1
+2026-09-27T00:51:31Z	python3 /tmp/draft-scratch/open_touch.py	exit 0
+2026-09-27T00:51:31Z	grep -rln 'hook-guard' /home/user/tvix-aios-os --include='*.nix' --include='*.py' --include='*.sh' --include='*.bats' --include='*.md' | grep -v '^/home/user/tvix-aios-os/docs/reviews' | head -30	exit 0
+2026-09-27T00:51:31Z	find /home/user/tvix-aios-os -name 'hook-guard*' -not -path '*/.git/*'	exit 0
+2026-09-27T00:51:31Z	ls /home/user/tvix-aios-os/.claude /home/user/tvix-aios-os/.claude/workflows	exit 0
+2026-09-27T00:51:31Z	cat /home/user/tvix-aios-os/docs/ledger/repos.toml	exit 0
+2026-09-27T00:51:31Z	cat /home/user/tvix-aios-os/docs/ledger/plan-status.toml	exit 0
+2026-09-27T00:51:31Z	cat /home/user/tvix-aios-os/docs/ledger/task-status.toml	exit 0
+2026-09-27T00:51:31Z	wc -l /home/user/tvix-aios-os/pkgs/evidence/tasks.py /home/user/tvix-aios-os/docs/OPERATIONS.md /home/user/tvix-aios-os/docs/board/log-2026-09.md /home/user/tvix-aios-os/flake.nix /home/user/tvix-aios-os/docs/ledger/claims.toml /home/user/tvix-aios-os/pkgs/evidence/report.py /home/user/tvix-aios-os/pkgs/evidence/SCHEMA.md /home/user/tvix-aios-os/tools/orchestrator-guard.sh /home/user/tvix-aios-os/tests/unit/80-seat-driver.bats /home/user/tvix-aios-os/tests/unit/91-orchestrator-guard.bats /home/user/tvix-aios-os/tests/seat/test_seat_submit.py /home/user/tvix-aios-os/pkgs/seat/seat-run.py /home/user/tvix-aios-os/docs/ledger/plan-defects.toml /home/user/tvix-aios-os/docs/superpowers/plans/2026-09-06-telemetry-store-1.md /home/user/tvix-aios-os/docs/superpowers/plans/2026-09-06-planning-agent.md /home/user/tvix-aios-os/docs/superpowers/specs/2026-09-05-telemetry-store-design.md /home/user/tvix-aios-os/docs/superpowers/specs/2026-09-06-telemetry-store-1-design.md	exit 0
+2026-09-27T00:54:23Z	grep -n 'seat-eval =\|seat-unit =\|seat-vm =\|factory-unit =\|evidence-unit =\|^ *unit =\|^ *lint =\|seat-assertion-negative =\|claims-validate =\|host-core =\|integration =' /home/user/tvix-aios-os/flake.nix	exit 0
+2026-09-27T00:54:23Z	grep -n 'seat-spool\|drive\|orchestrate\|rung\|ladder\|task-classes\|--prior' /home/user/tvix-aios-os/docs/OPERATIONS.md /home/user/tvix-aios-os/docs/board/log-2026-09.md /home/user/tvix-aios-os/docs/board/operator-model.md /home/user/tvix-aios-os/docs/board/policies.md /home/user/tvix-aios-os/docs/decisions/*.md /home/user/tvix-aios-os/docs/ledger/claims.toml /home/user/tvix-aios-os/docs/runbooks/lanes.md | head -60	exit 0
+2026-09-27T00:54:23Z	head -c 1500 /home/user/tvix-aios-os/tests/unit/91-orchestrator-guard-sweep.txt; echo; wc -l /home/user/tvix-aios-os/tests/unit/91-orchestrator-guard-sweep.txt	exit 0
+2026-09-27T00:54:23Z	grep -n '^[a-z_]*() {\|^# ' /home/user/tvix-aios-os/tools/orchestrator-guard.sh | head -120	exit 0
+2026-09-27T00:54:23Z	grep -n 'HEADING_RE\|^HEADING\|TASK_RE\|^def cmd_\|^def main\|add_parser(\|landed\b.*=\|def _state\|def state\|"landed"\|--draft\|def parse_plan\|def load_repos\|touches' /home/user/tvix-aios-os/pkgs/evidence/tasks.py | head -150	exit 0
+2026-09-27T00:54:23Z	grep -n '@test' /home/user/tvix-aios-os/tests/unit/80-seat-driver.bats | grep -i 'route\|rung\|prior\|class\|result\|near\|FACTORY_PLAN\|brief' | head -60	exit 0
+2026-09-27T00:54:23Z	grep -n 'setup()\|FACTORY_BIN\|fake\|PATH=' /home/user/tvix-aios-os/tests/unit/80-seat-driver.bats | head -40	exit 0
+2026-09-27T00:54:23Z	cat /home/user/tvix-aios-os/evidence/MANIFEST.csv | head -30; ls /home/user/tvix-aios-os/evidence/derived /home/user/tvix-aios-os/evidence/ledger	exit 0
+2026-09-27T00:54:24Z	python3 -c "
+import duckdb
+con = duckdb.connect()
+for s in ['checks','helm-status','plans']:
+    try:
+        n = con.execute(f\"select count(*) from read_json_auto('/home/user/tvix-aios-os/evidence/{s}.jsonl', format='newline_delimited')\").fetchone()[0]
+        kinds = con.execute(f\"select kind, count(*) from read_json_auto('/home/user/tvix-aios-os/evidence/{s}.jsonl', format='newline_delimited') group by kind\").fetchall()
+        print(s, n, kinds)
+    except Exception as e:
+        print(s, 'ERR', str(e)[:200])
+print(con.execute(\"select name, count(*) n, max(ts) last, sum(case when ok then 1 else 0 end) oks from read_json_auto('/home/user/tvix-aios-os/evidence/checks.jsonl', format='newline_delimited') group by name order by name\").fetchall())
+"	exit 1
+2026-09-27T00:54:24Z	ls /home/user/tvix-aios-os/docs/reviews | wc -l; ls /home/user/tvix-aios-os/docs/reviews | grep -c opus-review; ls -d /home/user/tvix-aios-os/docs/reviews/plan-judgements /home/user/tvix-aios-os/docs/reviews/plan-drafts /home/user/tvix-aios-os/docs/concepts 2>&1; ls /home/user/tvix-aios-os/docs/reviews | grep -i 'P11\|P8\|SB3\|RT2\|T1\b' | head -20	exit 0
+2026-09-27T00:56:03Z	sed -n '1,60p' /home/user/tvix-aios-os/pkgs/evidence/tasks.py	exit 0
+2026-09-27T00:56:03Z	grep -n 'def render_brief\|def brief\|kind.*size\|"size"\|Next wave\|def cmd_json\|def graph_json\|def scan_repo\|def load_draft\|def wave_lines\|def landed_subjects' /home/user/tvix-aios-os/pkgs/evidence/tasks.py | head -40	exit 0
+2026-09-27T00:56:04Z	grep -rn 'touches_extra' /home/user/tvix-aios-os --include='*.md' --include='*.py' --include='*.sh' --include='factory-*' -l | head	exit 0
+2026-09-27T00:56:04Z	nix develop -c python3 /home/user/tvix-aios-os/pkgs/evidence/claims.py validate /home/user/tvix-aios-os/docs/ledger/claims.toml --today 2026-09-06; echo rc=$?	exit 0
+2026-09-27T00:56:04Z	python3 /home/user/tvix-aios-os/pkgs/evidence/claims.py validate /home/user/tvix-aios-os/docs/ledger/claims.toml --today 2026-09-27 | head -5; echo rc=$?	exit 0
+2026-09-27T00:56:04Z	sed -n '1,45p' /home/user/tvix-aios-os/docs/ledger/claims.toml	exit 0
+2026-09-27T00:56:04Z	grep -n '^id = ' /home/user/tvix-aios-os/docs/ledger/claims.toml | tr '\n' ' '	exit 0
+2026-09-27T00:56:04Z	sed -n '1,40p' /home/user/tvix-aios-os/docs/ledger/plan-defects.toml	exit 0
+2026-09-27T00:56:04Z	grep -n -B2 -A8 'key = "P11"\|key = "P8"\|key = "SB3"\|key = "RT2"\|key = "RT5b"\|key = "SB2b"' /home/user/tvix-aios-os/docs/ledger/plan-defects.toml | head -120	exit 0
+2026-09-27T00:56:04Z	grep -n '^## \|^### ' /home/user/tvix-aios-os/docs/runbooks/lanes.md | head -60	exit 0
+2026-09-27T00:56:04Z	grep -n '^## \|^### ' /home/user/tvix-aios-os/docs/runbooks/session.md | head -40	exit 0
+2026-09-27T00:56:04Z	grep -n '^## \|^### ' /home/user/tvix-aios-os/docs/brief.md | head -40	exit 0
+2026-09-27T00:56:04Z	grep -n 'skills\|AGENTS.md\|openrouter-route.yml\|hooks.json\|routing\|--broker\|--bind-namespace\|--headless\|hook-guard\|settings.yaml' /home/user/tvix-aios-os/pkgs/dsh-openrouter/dsh-openrouter.sh | head -80	exit 0
+2026-09-27T00:56:04Z	sed -n '1,80p' /home/user/tvix-aios-os/tools/orchestrator-guard.sh	exit 0
+2026-09-27T00:56:04Z	head -c 2500 /home/user/tvix-aios-os/tests/unit/91-orchestrator-guard-sweep.txt; echo; wc -l /home/user/tvix-aios-os/tests/unit/91-orchestrator-guard-sweep.txt	exit 0
+2026-09-27T00:56:04Z	grep -n 'sweep' /home/user/tvix-aios-os/tests/unit/91-orchestrator-guard.bats | head -30	exit 0
+2026-09-27T00:56:04Z	sed -n '1,70p' /home/user/tvix-aios-os/tests/seat/test_seat_run.py	exit 0
+2026-09-27T00:56:04Z	sed -n '1,80p' /home/user/tvix-aios-os/tests/unit/82-factory-dispatch.bats	exit 0
+2026-09-27T00:56:04Z	sed -n '1,60p' /home/user/tvix-aios-os/tools/factory/seat/factory-wave	exit 0
+2026-09-27T00:56:04Z	sed -n '1,50p' /home/user/tvix-aios-os/tools/factory/seat/factory-review	exit 0
+2026-09-27T00:56:04Z	grep -n 'review' /home/user/tvix-aios-os/tools/factory/seat/factory-review | grep -i 'review.md\|\.review\|runs_dir' | head -20	exit 0
+2026-09-27T00:56:04Z	grep -n '^### \|^## ' /home/user/tvix-aios-os/docs/superpowers/plans/2026-09-06-planning-agent.md | head -60	exit 0
+2026-09-27T00:56:04Z	awk '/^### P13 /,0' /home/user/tvix-aios-os/docs/superpowers/plans/2026-09-06-planning-agent.md | head -80	exit 0
+2026-09-27T00:56:04Z	tools/factory/seat/factory-brief /home/user/tvix-aios-os/docs/superpowers/plans/2026-09-05-evidence-store.md E1 | head -30	exit 0
+2026-09-27T00:56:04Z	ls /home/user/tvix-aios-os/docs/concepts /home/user/tvix-aios-os/docs/reviews/plan-judgements /home/user/tvix-aios-os/tests/lint /home/user/tvix-aios-os/tests/factory/fixtures /home/user/tvix-aios-os/tests/evidence/fixtures | head -80	exit 0
+2026-09-27T00:56:05Z	python3 -c "
+import duckdb
+con = duckdb.connect()
+E='/home/user/tvix-aios-os/evidence'
+print(con.execute(f\"select name, count(*) as n, max(ts) as newest, sum(case when ok then 1 else 0 end) as oks from read_json_auto('{E}/checks.jsonl', format='newline_delimited') group by name order by name\").fetchall())
+for s in ['derived/tasks','derived/gates']:
+    n = con.execute(f\"select count(*) from read_json_auto('{E}/{s}.jsonl', format='newline_delimited')\").fetchone()[0]
+    cols = con.execute(f\"describe select * from read_json_auto('{E}/{s}.jsonl', format='newline_delimited')\").fetchall()
+    print(s, n, [c[0] for c in cols])
+t=f\"read_json_auto('{E}/derived/tasks.jsonl', format='newline_delimited')\"
+for col in ['status','error_class','model','effort','route','repo']:
+    try:
+        print(col, con.execute(f'select {col}, count(*) from {t} group by 1 order by 2 desc').fetchall()[:12])
+    except Exception as e: print(col,'ERR',str(e)[:120])
+g=f\"read_json_auto('{E}/derived/gates.jsonl', format='newline_delimited')\"
+for col in ['verdict','round_kind','plan_defect','reviewer']:
+    try:
+        print(col, con.execute(f'select {col}, count(*) from {g} group by 1 order by 2 desc').fetchall()[:12])
+    except Exception as e: print(col,'ERR',str(e)[:120])
+"	exit 0
+2026-09-27T01:04:27Z	grep -c '^[a-z_][a-z_0-9]*() {' /home/user/tvix-aios-os/tools/orchestrator-guard.sh; grep -o '^[a-z_][a-z_0-9]*() {' /home/user/tvix-aios-os/tools/orchestrator-guard.sh | tr '\n' ' '	exit 0
+2026-09-27T01:04:27Z	grep -n '^PROTECTED_PATHS\|^WRITE_VERBS\|^DELETE_VERBS\|^COPY_VERBS\|^[A-Z_]*=(' /home/user/tvix-aios-os/tools/orchestrator-guard.sh | head -30	exit 0
+2026-09-27T01:04:27Z	sed -n '1405,1437p' /home/user/tvix-aios-os/tests/unit/91-orchestrator-guard.bats	exit 0
+2026-09-27T01:04:27Z	sed -n '1651,1735p' /home/user/tvix-aios-os/tests/unit/91-orchestrator-guard.bats	exit 0
+2026-09-27T01:04:28Z	awk '/^### P13 /,/^### P4b /' /home/user/tvix-aios-os/docs/superpowers/plans/2026-09-06-planning-agent.md | head -120	exit 0
+2026-09-27T01:04:28Z	sed -n '443,460p' /home/user/tvix-aios-os/docs/runbooks/lanes.md	exit 0
+2026-09-27T01:04:28Z	sed -n '122,150p' /home/user/tvix-aios-os/docs/runbooks/session.md	exit 0
+2026-09-27T01:04:28Z	sed -n '262,318p' /home/user/tvix-aios-os/docs/runbooks/session.md	exit 0
+2026-09-27T01:04:28Z	head -30 /home/user/tvix-aios-os/docs/reviews/2026-09-05-m2b-effort-measurement.md	exit 0
+2026-09-27T01:04:28Z	grep -n 'model' /home/user/tvix-aios-os/docs/reviews/2026-09-05-m2b-effort-measurement.md | head -12	exit 0
+2026-09-27T01:04:28Z	sed -n '991,1081p' /home/user/tvix-aios-os/flake.nix	exit 0
+2026-09-27T01:04:28Z	grep -n 'seatTools\|seat-submit\|helmPython =\|dshOpenrouter =' /home/user/tvix-aios-os/flake.nix | head -20	exit 0
+2026-09-27T01:04:28Z	grep -n 'ruff' /home/user/tvix-aios-os/githooks/pre-commit | head	exit 0
+2026-09-27T01:04:28Z	sed -n '505,560p' /home/user/tvix-aios-os/pkgs/dsh-openrouter/dsh-openrouter.sh	exit 0
+2026-09-27T01:04:28Z	sed -n '615,700p' /home/user/tvix-aios-os/pkgs/dsh-openrouter/dsh-openrouter.sh	exit 0
+2026-09-27T01:04:28Z	cat /home/user/tvix-aios-os/pkgs/dsh-openrouter/default.nix | head -120	exit 0
+2026-09-27T01:04:28Z	grep -n 'hook-guard\|hook_guard\|HOOK_GUARD' /home/user/tvix-aios-os/tests/unit/70-dsh-openrouter.bats | head -20	exit 0
+2026-09-27T01:04:28Z	grep -n '^@test' /home/user/tvix-aios-os/tests/unit/70-dsh-openrouter.bats | grep -i 'guard\|deny\|refus' | head -30	exit 0
+2026-09-27T01:04:28Z	grep -n 'def _repo\|def _plan\|Next wave\|def test_brief\|def test_render_brief\|def _graph' /home/user/tvix-aios-os/tests/evidence/test_tasks.py | head -30	exit 0
+2026-09-27T01:04:28Z	sed -n '876,930p' /home/user/tvix-aios-os/pkgs/evidence/tasks.py	exit 0
+2026-09-27T01:04:28Z	grep -n 'def chain_root\|def _repo_from_workspace\|def open_tasks\|def waves\b\|def waves(' /home/user/tvix-aios-os/pkgs/evidence/tasks.py	exit 0
+2026-09-27T01:04:28Z	sed -n '1595,1700p' /home/user/tvix-aios-os/pkgs/evidence/tasks.py	exit 0
+2026-09-27T01:04:28Z	grep -n 'class\b\|"class"' /home/user/tvix-aios-os/pkgs/evidence/tasks.py | head -10	exit 0
+2026-09-27T01:04:28Z	ls /home/user/tvix-aios-os/tests/lint /home/user/tvix-aios-os/tools/factory/plan; grep -n 'seat\|bats' /home/user/tvix-aios-os/tests/unit/91-orchestrator-guard.bats | sed -n '1,12p'	exit 0
+2026-09-27T01:05:36Z	sed -n '130,215p' /home/user/tvix-aios-os/tools/orchestrator-guard.sh	exit 0
+2026-09-27T01:05:36Z	grep -n 'verbs\|VERBS\|amend\|rebase\|--hard\|push' /home/user/tvix-aios-os/tools/orchestrator-guard.sh | grep -v '^.*#' | head -30	exit 0
+2026-09-27T01:05:36Z	sed -n '43,110p' /home/user/tvix-aios-os/tests/unit/80-seat-driver.bats	exit 0
+2026-09-27T01:05:36Z	sed -n '466,530p' /home/user/tvix-aios-os/tests/unit/80-seat-driver.bats	exit 0
+2026-09-27T01:05:36Z	sed -n '96,165p' /home/user/tvix-aios-os/pkgs/evidence/tasks.py	exit 0
+2026-09-27T01:05:36Z	sed -n '1700,1776p' /home/user/tvix-aios-os/pkgs/evidence/tasks.py	exit 0
+2026-09-27T01:05:36Z	sed -n '420,500p' /home/user/tvix-aios-os/tests/evidence/test_tasks.py	exit 0
+2026-09-27T01:05:36Z	awk '/^### SB5 /,/^### SB2b /' /home/user/tvix-aios-os/docs/superpowers/plans/2026-09-05-seat-behind-broker.md | head -60	exit 0
+2026-09-27T01:05:36Z	awk '/^### SB6 /,0' /home/user/tvix-aios-os/docs/superpowers/plans/2026-09-05-seat-behind-broker.md | head -70	exit 0
+2026-09-27T01:05:36Z	awk '/^### P13 /,/^### P4b /' /home/user/tvix-aios-os/docs/superpowers/plans/2026-09-06-planning-agent.md | sed -n '18,60p'	exit 0
+2026-09-27T01:05:36Z	cat /home/user/tvix-aios-os/docs/board/operator-model.md | head -80	exit 0
+2026-09-27T01:05:36Z	ls /home/user/tvix-aios-os/docs/reviews/plan-judgements /home/user/tvix-aios-os/docs/concepts	exit 0
+2026-09-27T01:05:36Z	grep -n 'def test_' /home/user/tvix-aios-os/tests/seat/test_seat_run.py	exit 0
+2026-09-27T01:05:36Z	grep -n 'current-system' /home/user/tvix-aios-os/nixosModules/modelLane.nix | head -5	exit 0
+2026-09-27T01:05:36Z	grep -n 'route.py' /home/user/tvix-aios-os/tests/factory/render.test.mjs | head -5	exit 0
+2026-09-27T01:05:36Z	sed -n '1,60p' /home/user/tvix-aios-os/tools/factory/seat/README.md	exit 0
+2026-09-27T01:06:29Z	grep -n 'rm | \|shred\|rsync\|truncate\|is_write_verb\|write_verb\|delete\b' /home/user/tvix-aios-os/tools/orchestrator-guard.sh | head -30	exit 0
+2026-09-27T01:06:29Z	sed -n '13,60p' /home/user/tvix-aios-os/tests/unit/91-orchestrator-guard.bats	exit 0
+2026-09-27T01:06:29Z	sed -n '607,660p' /home/user/tvix-aios-os/tests/unit/70-dsh-openrouter.bats	exit 0
+2026-09-27T01:08:57Z	python3 /home/user/tvix-aios-os/tools/factory/route.py --file /tmp/draft-scratch/fx-rung.toml check; echo rc=$?	exit 0
+2026-09-27T01:08:57Z	python3 /home/user/tvix-aios-os/tools/factory/route.py --file /tmp/draft-scratch/fx-rung.toml lookup openrouter implement code S; echo rc=$?	exit 0
+2026-09-27T01:08:57Z	grep -n 'unknown key %q\|Usage: factory_route\|implement | review | verify | baseline | research | audit | orchestrate | plan | any\|cur_spec=0\|no default (any/any/any) row' /home/user/tvix-aios-os/tools/factory/seat/factory-lib.sh	exit 0
+2026-09-27T01:08:57Z	grep -n 'def resolve\|def load_rows\|def parse_table\|spec = (rrole\|missing one of role\|cur\[key\] = val\|MODEL_KEYS = (\|resolve(rows, "claude", role, kind, size)' /home/user/tvix-aios-os/tools/factory/route.py	exit 0
+2026-09-27T01:08:57Z	grep -c '^\[\[route\]\]' /home/user/tvix-aios-os/docs/ledger/routing.toml; grep -n 'Change rows here, nowhere else\|interactive' /home/user/tvix-aios-os/docs/ledger/routing.toml	exit 0
+2026-09-27T01:08:57Z	grep -n 'row.get("route") == "claude"\|model = row.get("model")\|def _load_openrouter_models\|def _bash_verdict\|def _edit_verdict\|^PROTECTED_ABSOLUTE\|def _routing_table_path\|arg == "--routing-table"\|except BaseException\|CLAUDE_PROJECT_DIR\|def main(argv)' /home/user/tvix-aios-os/pkgs/dsh-openrouter/hook-guard.py	exit 0
+2026-09-27T01:08:57Z	grep -n 'route_line=$(factory_route\|route_label="implement\|printf .route: %s\|"$FACTORY_BIN/factory-brief" "$plan" "$key"\|command -v seat-submit\|seat-submit headless\|printf .exit_code: %s\|printf .usage: %s\|kind_size=$(factory_task_kind_size\|result=$runs_dir/$key.result\|--after)\|--model)' /home/user/tvix-aios-os/tools/factory/seat/factory-task	exit 0
+2026-09-27T01:08:57Z	grep -n 'FACTORY_BRIEF_EXTRA\|## REPO NOTES\|printf .%s\\n\\n. "$task_section"' /home/user/tvix-aios-os/tools/factory/seat/factory-brief	exit 0
+2026-09-27T01:08:57Z	grep -n 'CHAIN_RE = \|def chain_root\|def _repo_from_workspace' /home/user/tvix-aios-os/pkgs/evidence/tasks.py	exit 0
+2026-09-27T01:08:57Z	grep -n 'error_class: %s\|plan: %s\|"task-result": {"stream"\|"route": ("re"\|def n_gate\|n_gate(rows\|round_of\|opus-review-(?P<run>' /home/user/tvix-aios-os/docs/superpowers/plans/2026-09-06-telemetry-store-1.md | head -20	exit 0
+2026-09-27T01:08:58Z	grep -n 'def plans_report\|add_parser("plans"\|refused: n=\|def main' /home/user/tvix-aios-os/pkgs/evidence/report.py; grep -n '^def read\|^def append\|^def latest_check\|rest\[0\] == "ingest"\|"report"' /home/user/tvix-aios-os/pkgs/evidence/evidence.py | head	exit 0
+2026-09-27T01:08:58Z	grep -n 'choices=\["headless", "web"\]\|--no-start\|--model", required=True\|--effort", required=True\|systemctl", "start"\|systemctl", "stop"\|if args.no_start\|"mode": args.mode\|result_path = \|return 124\|DEFAULT_JOBS_DIR = ' /home/user/tvix-aios-os/pkgs/seat/seat-submit.py	exit 0
+2026-09-27T01:08:58Z	grep -n 'job\["mode"\] == "headless"\|else:  # web\|os.environ\["DSH_HOME"\]\|SEAT_NAMESPACE_ADDRESS\|url.txt\|runbook docs/runbooks/seat.md\|JOBS_DIR = ' /home/user/tvix-aios-os/pkgs/seat/seat-run.py	exit 0
+2026-09-27T01:08:58Z	grep -n 'assert job == {\|"port": None\|def test_' /home/user/tvix-aios-os/tests/seat/test_seat_submit.py | head -20	exit 0
+2026-09-27T01:08:58Z	grep -n 'exec python3' /home/user/tvix-aios-os/pkgs/seat/default.nix	exit 0
+2026-09-27T01:08:58Z	grep -n 'saved selection\|Nothing automated changes' /home/user/tvix-aios-os/docs/decisions/2026-09-03-openrouter-lane-permitted-transcripts.md	exit 0
+2026-09-27T01:08:58Z	grep -n 'operatorUser = \|keyFile = ' /home/user/tvix-aios-os/hosts/core/seat.nix	exit 0
+2026-09-27T01:08:58Z	grep -n 'systemd.services."seat@" = {\|ExecStart = "${seatRun}/bin/seat-run %i"\|ReadWritePaths = \[\|"/var/lib/seat"\|-/home/${cfg.operatorUser}\|path = \[\|cfg.harnessPackage\|pkgs.iproute2\|d /var/lib/seat/jobs\|NoNewPrivileges\|InaccessiblePaths\|verb == "start"\|systemd.tmpfiles.rules\|NetworkNamespacePath\|ProtectSystem' /home/user/tvix-aios-os/nixosModules/seatLane.nix	exit 0
+2026-09-27T01:08:58Z	grep -n 'unit = c.systemd.services."seat@"\|/bin/seat-run %i\|seat-eval-ok\|cp -r ${self}/pkgs/seat\|cp -r ${self}/tests/seat\|seatSubmit = seatTools.seat-submit\|cp ${self}/tools/orchestrator-guard.sh\|cp -r ${self}/docs/ledger docs/ledger\|cp ${self}/tools/factory/route.py\|cp -r ${self}/tools/factory/seat\|dshOpenrouter$\|cp -r ${self}/pkgs/evidence pkgs/evidence\|cp -r ${self}/tests tests\|inherit (seatTools)' /home/user/tvix-aios-os/flake.nix	exit 0
+2026-09-27T01:08:58Z	grep -n 'su - dalhaka -c .seat-submit headless\|su - dalhaka -c .seat-submit web\|serviceConfig.ReadWritePaths = \[ "/tmp" \]\|grep -rq sk-or-vm-fixture /var/lib/seat/jobs\|url.txt\|OPENROUTER_BASE_URL' /home/user/tvix-aios-os/tests/integration/seat-vm.nix	exit 0
+2026-09-27T01:08:58Z	grep -n 'refuses only a board change\|not on the host PATH\|ROLLBACK gen 44\|generation 45 = a53d2e5\|HELD\|Answer the questions' /home/user/tvix-aios-os/docs/OPERATIONS.md | cut -c1-220	exit 0
+2026-09-27T01:08:58Z	awk '/^## Checks/{s=1;next} /^## /{s=0} s&&/^- /{sub(/^- /,"");print}' /home/user/tvix-aios-os/docs/MAP.md | tr '\n' ' '	exit 0
+2026-09-27T01:08:58Z	grep -n 'whole-tree gate\|integrator already refuses\|ladder-rung3-demand-unmeasured\|Pro medium (today.s row) | Pro high\|Flash off (today.s row) | Pro medium\|review/any/any\|orchestrate (openrouter)\|one variable per step\|rung > n\|seat-submit --no-start\|ExecStart. is exactly\|hook-guard.py.s deny-only rule set\|## Prior\|task-classes.toml\|nix-module.*docs-board\|evidence report ladder\|escalate: claude\|default 1' /home/user/tvix-aios-os/docs/superpowers/specs/2026-09-06-operator-seat-driver-design.md | cut -c1-200	exit 0
+2026-09-27T01:08:58Z	grep -n 'warn_missing_payload "$DSH_HOME\|hook_command=\|routing_table=${FACTORY_ROUTING_TABLE' /home/user/tvix-aios-os/pkgs/dsh-openrouter/dsh-openrouter.sh	exit 0
+2026-09-27T01:08:58Z	grep -n 'hookGuard = writePython3MinimalBin\|flakeIgnore\|builtins.readFile ./hook-guard.py\|DSH_HOOK_GUARD = ' /home/user/tvix-aios-os/pkgs/dsh-openrouter/default.nix	exit 0
+2026-09-27T01:08:58Z	grep -n 'PROTECTED_ABSOLUTE\|FORBIDDEN_REPO_PREFIXES\|forbidden=(' /home/user/tvix-aios-os/tests/lane/test_forbidden_lists_agree.py | head -5	exit 0
+2026-09-27T01:08:58Z	grep -n '^\[\[repo\]\]' -A2 /home/user/tvix-aios-os/docs/ledger/repos.toml | grep 'dsh-harness' ; grep -n 'FACTORY_TOOLBOX_REPO=\|FACTORY_ROOT:=' /home/user/tvix-aios-os/tools/factory/seat/factory-lib.sh	exit 0
+2026-09-27T01:14:51Z	grep -n 'FIXTURES = ' /home/user/tvix-aios-os/tests/evidence/test_tasks.py; ls /home/user/tvix-aios-os/tests/evidence/fixtures /home/user/tvix-aios-os/tests/evidence/fixtures/plans 2>&1 | head -30	exit 0
+2026-09-27T01:14:51Z	nix develop -c python3 --version	exit 0
+2026-09-27T01:14:51Z	sed -n '1,40p' /home/user/tvix-aios-os/tools/factory/dark-factory.js | grep -n 'args\|A\.\|Invoke\|Workflow' | head -20; grep -n 'const A = \|A\.plan\|A\.prefix\|A\.tasks\|A\.keys\|A\.baseline\|A\.repo\b' /home/user/tvix-aios-os/tools/factory/dark-factory.js | head -12	exit 0
+2026-09-27T01:14:51Z	grep -rn 'systemd.paths\|PathChanged\|PathModified' /home/user/tvix-aios-os/nixosModules /home/user/tvix-aios-os/hosts | head -5	exit 0
+2026-09-27T01:14:51Z	grep -n 'python3Minimal' /home/user/tvix-aios-os/flake.nix | head -8	exit 0
+2026-09-27T01:14:51Z	wc -w /home/user/tvix-aios-os/docs/superpowers/plans/2026-09-06-telemetry-store-1.md /home/user/tvix-aios-os/docs/superpowers/plans/2026-09-06-planning-agent.md /home/user/tvix-aios-os/docs/superpowers/plans/2026-09-05-seat-behind-broker.md	exit 0
+2026-09-27T01:14:51Z	grep -n 'cache_root=\|export XDG_CACHE_HOME=\|mkdir -p -- "$XDG_CACHE_HOME"' /home/user/tvix-aios-os/pkgs/dsh-openrouter/dsh-openrouter.sh	exit 0
+2026-09-27T01:14:51Z	grep -n 'set -o errexit\|set -euo\|writeShellApplication' /home/user/tvix-aios-os/pkgs/dsh-openrouter/default.nix | head -3	exit 0
+2026-09-27T01:28:11Z	grep -c 'strategy\|\.config/openrouter' /home/user/tvix-aios-os/docs/runbooks/session.md	exit 1
+2026-09-27T01:28:12Z	python3 /home/user/tvix-aios-os/pkgs/evidence/tasks.py --root /home/user/tvix-aios-os --runs-dir /nonexistent --store /nonexistent check --draft /tmp/draft-scratch/draft-0.md; echo exit=$?	exit 0
+2026-09-27T01:28:12Z	DRAFT=/tmp/draft-scratch/draft-0.md ROOT=/home/user/tvix-aios-os /tmp/draft-scratch/parts/waves-next.sh	exit 0
+2026-09-27T01:28:12Z	FACTORY_WAVES_CMD=/tmp/draft-scratch/parts/waves-next.sh DRAFT=/tmp/draft-scratch/draft-0.md ROOT=/home/user/tvix-aios-os FACTORY_ROOT=/tmp/draft-scratch/factory-root /home/user/tvix-aios-os/tools/factory/seat/factory-dispatch sd1 /home/user/tvix-aios-os /tmp/draft-scratch/draft-0.md --dry-run; echo exit=$?; ls /tmp/draft-scratch/factory-root 2>&1	exit 2
+2026-09-27T01:28:12Z	grep -c '' /tmp/draft-scratch/draft-0.md; wc -w /tmp/draft-scratch/draft-0.md; grep -n '^### ' /tmp/draft-scratch/draft-0.md	exit 0
+2026-09-27T01:30:16Z	python3 /home/user/tvix-aios-os/pkgs/evidence/tasks.py --root /home/user/tvix-aios-os --runs-dir /nonexistent --store /nonexistent check --draft /tmp/draft-scratch/draft-0.md 2>&1 | grep -v '^conflicts:'; echo exit=${PIPESTATUS[0]}	exit 0
+2026-09-27T01:30:16Z	awk '/^## Tasks/{s=1;next} s && /^## /{print NR": "$0}' /tmp/draft-scratch/draft-0.md	exit 0
+2026-09-27T01:30:16Z	tools/factory/seat/factory-brief /tmp/draft-scratch/draft-0.md SD1 | grep -c '^\*\*commit subject:\*\*\|^## Global Constraints\|^## Assumptions\|^## WORKSPACE RULES'	exit 0
+2026-09-27T01:30:16Z	tools/factory/seat/factory-brief /tmp/draft-scratch/draft-0.md SD2 | grep -c '^\*\*commit subject:\*\*\|^## Global Constraints\|^## Assumptions\|^## WORKSPACE RULES'	exit 0
+2026-09-27T01:30:16Z	tools/factory/seat/factory-brief /tmp/draft-scratch/draft-0.md SD3 | grep -c '^\*\*commit subject:\*\*\|^## Global Constraints\|^## Assumptions\|^## WORKSPACE RULES'	exit 0
+2026-09-27T01:30:16Z	tools/factory/seat/factory-brief /tmp/draft-scratch/draft-0.md SD4 | grep -c '^\*\*commit subject:\*\*\|^## Global Constraints\|^## Assumptions\|^## WORKSPACE RULES'	exit 0
+2026-09-27T01:30:16Z	tools/factory/seat/factory-brief /tmp/draft-scratch/draft-0.md SD5 | grep -c '^\*\*commit subject:\*\*\|^## Global Constraints\|^## Assumptions\|^## WORKSPACE RULES'	exit 0
+2026-09-27T01:30:16Z	tools/factory/seat/factory-brief /tmp/draft-scratch/draft-0.md SD6 | grep -c '^\*\*commit subject:\*\*\|^## Global Constraints\|^## Assumptions\|^## WORKSPACE RULES'	exit 0
+2026-09-27T01:30:16Z	tools/factory/seat/factory-brief /tmp/draft-scratch/draft-0.md SD7 | grep -c '^\*\*commit subject:\*\*\|^## Global Constraints\|^## Assumptions\|^## WORKSPACE RULES'	exit 0
+2026-09-27T01:30:16Z	tools/factory/seat/factory-brief /tmp/draft-scratch/draft-0.md SD8 | grep -c '^\*\*commit subject:\*\*\|^## Global Constraints\|^## Assumptions\|^## WORKSPACE RULES'	exit 0
+2026-09-27T01:30:16Z	tools/factory/seat/factory-brief /tmp/draft-scratch/draft-0.md SD9 | grep -c '^\*\*commit subject:\*\*\|^## Global Constraints\|^## Assumptions\|^## WORKSPACE RULES'	exit 0
+2026-09-27T01:30:17Z	tools/factory/seat/factory-brief /tmp/draft-scratch/draft-0.md SD10 | grep -c '^\*\*commit subject:\*\*\|^## Global Constraints\|^## Assumptions\|^## WORKSPACE RULES'	exit 0
+2026-09-27T01:30:17Z	tools/factory/seat/factory-brief /tmp/draft-scratch/draft-0.md SD3 | grep -n 'Prior attempt' | head -3	exit 0
+2026-09-27T01:32:08Z	python3 /home/user/tvix-aios-os/pkgs/evidence/tasks.py --root /home/user/tvix-aios-os --runs-dir /nonexistent --store /nonexistent check --draft /tmp/draft-scratch/draft-0.md 2>&1 | grep -c '^conflicts:'; echo exit=${PIPESTATUS[0]}	exit 0
+2026-09-27T01:32:24Z	python3 /home/user/tvix-aios-os/pkgs/evidence/tasks.py --root /home/user/tvix-aios-os --runs-dir /nonexistent --store /nonexistent check --draft /tmp/draft-scratch/draft-0.md 2>&1 | grep -c '^conflicts:'; echo exit=${PIPESTATUS[0]}	exit 0
