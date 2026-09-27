@@ -18,6 +18,8 @@ jobs:
           extra_nix_config: |
             experimental-features = nix-command flakes
       - name: nix flake check (eval only, no VM builds)
-        run: nix flake check --no-build -L
+        timeout-minutes: 20
+        run: nix flake check --no-build -L --show-trace
       - name: aios workspace build (goal 1's Rust clause)
+        timeout-minutes: 20
         run: nix build .#checks.x86_64-linux.aios-public-build -L --no-link
